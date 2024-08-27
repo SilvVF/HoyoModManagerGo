@@ -1,22 +1,46 @@
 import { Button } from "@/components/ui/button"
-import React, { useEffect } from "react"
-import { syncCharacters } from "./data/sync"
+import { useEffect } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+
+
+const routes = ["/genshin", "/starrail", "/browse"]
 
 function App() {
-  const [count, setCount] = React.useState(0)
+
+  const location = useLocation();
+  const navigate = useNavigate()
 
   useEffect(() => {
-    syncCharacters()
-  }, [])
+    if (location.pathname === '/') {
+      navigate('/genshin')
+    }
+  }, [location.pathname])
 
   return (
-    <div className="min-h-screen bg-white grid place-items-center mx-auto py-8">
-      <div className="text-blue-900 text-2xl font-bold flex flex-col items-center space-y-4">
-        <h1>Vite + React + TS + Tailwind + shadcn/ui</h1>
-        <Button onClick={() => setCount(count + 1)}>Count up ({count})</Button>
+    <>
+      <div className="flex flex-row">
+          <div className="flex flex-col min-h-screen bg-primary-foreground">
+            {
+              routes.map((route) => {
+                return (
+                  <Button 
+                  onClick={() => {
+                    navigate(route) 
+                  }
+                  }>
+                    {route}
+                  </Button>
+                )
+              })
+            }
+          </div>
+          <div className="flex-auto align-top justify-start bg-slate-500 max-h-screen overflow-y-scroll">
+            <Outlet />
+          </div>
       </div>
-    </div>
+    </>
   )
 }
 
 export default App
+

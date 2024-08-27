@@ -38,12 +38,13 @@ func main() {
 
 	genshinApi := &api.GenshinApi{}
 	starRailApi := &api.StarRailApi{}
+	gbApi := &api.GbApi{}
 
 	dbfile := filepath.Join(core.GetCacheDir(), "hmm.db")
 
 	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
 
-	os.Create(dbfile)
+	core.CreateFileIfNotExists(dbfile)
 
 	dbSql, err := sql.Open("sqlite3", dbfile)
 
@@ -91,7 +92,9 @@ func main() {
 			app,
 			genshinApi,
 			starRailApi,
+			gbApi,
 			sync,
+			dbHelper,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

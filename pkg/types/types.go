@@ -31,6 +31,12 @@ type Character struct {
 	Element   string `json:"element"`
 }
 
+type CharacterWithModsAndTags struct {
+	Character Character `json:"characters"`
+	Mods      []Mod     `json:"mods"`
+	Tags      []Tag     `json:"tags"`
+}
+
 type Mod struct {
 	Filename       string   `json:"filename"`
 	Game           Game     `json:"game"`

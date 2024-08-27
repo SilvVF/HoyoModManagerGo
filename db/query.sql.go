@@ -149,6 +149,105 @@ func (q *Queries) SelectCharactersByGame(ctx context.Context, game int64) ([]Cha
 	return items, nil
 }
 
+const selectCharactersWithModsAndTags = `-- name: SelectCharactersWithModsAndTags :many
+SELECT 
+    c.id, c.game, c.name, c.avatar_url, c.element,
+    m.id, m.mod_filename, m.game, m.char_name, m.char_id, m.selected, m.preview_images, m.gb_id, m.mod_link, m.gb_file_name, m.gb_download_link,
+    t.mod_id, t.tag_name
+FROM 
+    character c
+    LEFT JOIN  mod m 
+    ON m.char_id = c.id
+    LEFT JOIN tag t 
+    ON t.mod_id = m.id
+    WHERE c.game = ?1 
+    AND (
+        (
+            m.mod_filename LIKE '%' || ?2 || '%'
+            OR c.name LIKE '%' || ?3 || '%'
+            OR t.tag_name LIKE '%' || ?4 || '%'
+        ) OR (
+            ?2 is NULL AND ?3 is NULL AND ?4 is NULL 
+        )
+    )
+ORDER BY c.name, m.mod_filename, t.tag_name
+`
+
+type SelectCharactersWithModsAndTagsParams struct {
+	Game          int64
+	ModFileName   sql.NullString
+	CharacterName sql.NullString
+	TagName       sql.NullString
+}
+
+type SelectCharactersWithModsAndTagsRow struct {
+	ID             int64
+	Game           int64
+	Name           string
+	AvatarUrl      string
+	Element        string
+	ID_2           sql.NullInt64
+	ModFilename    sql.NullString
+	Game_2         sql.NullInt64
+	CharName       sql.NullString
+	CharID         sql.NullInt64
+	Selected       sql.NullBool
+	PreviewImages  sql.NullString
+	GbID           sql.NullInt64
+	ModLink        sql.NullString
+	GbFileName     sql.NullString
+	GbDownloadLink sql.NullString
+	ModID          sql.NullInt64
+	TagName        sql.NullString
+}
+
+func (q *Queries) SelectCharactersWithModsAndTags(ctx context.Context, arg SelectCharactersWithModsAndTagsParams) ([]SelectCharactersWithModsAndTagsRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectCharactersWithModsAndTags,
+		arg.Game,
+		arg.ModFileName,
+		arg.CharacterName,
+		arg.TagName,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectCharactersWithModsAndTagsRow
+	for rows.Next() {
+		var i SelectCharactersWithModsAndTagsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Game,
+			&i.Name,
+			&i.AvatarUrl,
+			&i.Element,
+			&i.ID_2,
+			&i.ModFilename,
+			&i.Game_2,
+			&i.CharName,
+			&i.CharID,
+			&i.Selected,
+			&i.PreviewImages,
+			&i.GbID,
+			&i.ModLink,
+			&i.GbFileName,
+			&i.GbDownloadLink,
+			&i.ModID,
+			&i.TagName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectClosestCharacter = `-- name: SelectClosestCharacter :one
 SELECT id, game, name, avatar_url, element FROM character WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' AND game = ?2 LIMIT 1
 `

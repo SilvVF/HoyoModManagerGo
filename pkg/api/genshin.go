@@ -32,7 +32,7 @@ func genshinCharUrl(path string) string {
 func avatarIconUrl(name string) string {
 
 	avatar := func(folder string, path string) string {
-		return fmt.Sprintf("https://raw.githubusercontent.com/frzyc/genshin-optimizer/master/libs/gi/assets/src/gen/chars/%1s/UI_AvatarIcon_%2s.png", folder, path)
+		return fmt.Sprintf("https://raw.githubusercontent.com/frzyc/genshin-optimizer/master/libs/gi/assets/src/gen/chars/%s/UI_AvatarIcon_%s.png", folder, path)
 	}
 
 	switch strings.ToLower(name) {
@@ -101,7 +101,7 @@ func (g *GenshinApi) Characters() []types.Character {
 		return make([]types.Character, 0)
 	}
 
-	chars := make([]types.Character, len(nameJson))
+	chars := make([]types.Character, 0, len(nameJson))
 
 	for _, c := range nameJson {
 
@@ -114,13 +114,13 @@ func (g *GenshinApi) Characters() []types.Character {
 		log.LogPrint(name)
 
 		if err != nil {
-			log.LogPrint(err.Error())
+			log.LogError(err.Error())
 			continue
 		}
 		defer resp.Body.Close()
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.LogPrint(err.Error())
+			log.LogError(err.Error())
 			continue
 		}
 
@@ -133,11 +133,11 @@ func (g *GenshinApi) Characters() []types.Character {
 		err = json.Unmarshal(body, &characterJson)
 
 		if err != nil {
-			log.LogPrint(err.Error())
+			log.LogError(err.Error())
 			continue
 		}
 
-		log.LogPrint(characterJson.Name + "name for" + name)
+		log.LogPrint(fmt.Sprintf("%1s name for %2s", characterJson.Name, name))
 
 		if characterJson.Name != "" {
 			chars = append(

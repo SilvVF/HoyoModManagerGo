@@ -39,3 +39,26 @@ INSERT INTO mod (
 
 -- name: DeleteUnusedMods :exec
 DELETE FROM mod WHERE mod_filename NOT IN (sqlc.slice('files')) AND game = :game;
+
+-- name: SelectCharactersWithModsAndTags :many
+SELECT 
+    c.*,
+    m.*,
+    t.*
+FROM 
+    character c
+    LEFT JOIN  mod m 
+    ON m.char_id = c.id
+    LEFT JOIN tag t 
+    ON t.mod_id = m.id
+    WHERE c.game = :game 
+    AND (
+        (
+            m.mod_filename LIKE '%' || :modFileName || '%'
+            OR c.name LIKE '%' || :characterName || '%'
+            OR t.tag_name LIKE '%' || :tagName || '%'
+        ) OR (
+            :modFileName is NULL AND :characterName is NULL AND :tagName is NULL 
+        )
+    )
+ORDER BY c.name, m.mod_filename, t.tag_name;

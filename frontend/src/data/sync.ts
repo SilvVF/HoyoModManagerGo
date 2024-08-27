@@ -1,8 +1,8 @@
 import * as SyncHelper from '../../wailsjs/go/core/SyncHelper'
+import { DataApi } from './dataapi'
 
-export async function syncCharacters() {
-    
-    await SyncHelper.Sync(0, 0)
+export async function syncCharacters(dataApi: DataApi) {
+    SyncHelper.Sync(await dataApi.game(), 0)
 }
 
 

@@ -26,3 +26,9 @@ func FileExists(path string) (bool, error) {
 	}
 	return false, err
 }
+
+func CreateFileIfNotExists(path string) {
+	if exists, _ := FileExists(path); !exists {
+		os.Create(path)
+	}
+}

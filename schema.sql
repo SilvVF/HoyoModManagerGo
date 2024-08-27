@@ -1,4 +1,4 @@
-CREATE TABLE mod(
+CREATE TABLE IF NOT EXISTS mod(
     id INTEGER PRIMARY KEY,
     mod_filename TEXT NOT NULL,
     game INTEGER NOT NULL,
@@ -13,13 +13,13 @@ CREATE TABLE mod(
     UNIQUE(mod_filename, char_id)
 );
 
-CREATE TABLE playlist(
+CREATE TABLE IF NOT EXISTS playlist(
     id INTEGER PRIMARY KEY NOT NULL,
     playlist_name TEXT NOT NULL DEFAULT '',
     game INTEGER NOT NULL 
 );
 
-CREATE TABLE playlist_mod_cross_ref(
+CREATE TABLE IF NOT EXISTS playlist_mod_cross_ref(
     playlist_id INTEGER NOT NULL,
     mod_id INTEGER NOT NULL,
     PRIMARY KEY (playlist_id, mod_id),
@@ -27,14 +27,14 @@ CREATE TABLE playlist_mod_cross_ref(
     FOREIGN KEY (playlist_id) REFERENCES playlist(id) ON DELETE CASCADE
 );
 
-CREATE TABLE tag(
+CREATE TABLE IF NOT EXISTS tag(
     mod_id INTEGER NOT NULL,
     tag_name TEXT NOT NULL DEFAULT '',
     PRIMARY KEY(mod_id, tag_name),
     FOREIGN KEY(mod_id) REFERENCES mod(id) ON DELETE CASCADE
 );
 
-CREATE TABLE character(
+CREATE TABLE IF NOT EXISTS character(
     id INTEGER NOT NULL,
     game INTEGER NOT NULL,
     name TEXT NOT NULL,

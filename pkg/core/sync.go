@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"hmm/pkg/api"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
@@ -8,7 +9,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/sourcegraph/conc/pool"
+	"github.com/alitto/pond"
 )
 
 const (
@@ -21,7 +22,7 @@ type SyncRequest int
 
 type SyncHelper struct {
 	db              *DbHelper
-	running         map[types.Game]*pool.Pool
+	running         map[types.Game]*pond.WorkerPool
 	initialComplete map[types.Game]bool
 	rootDir         string
 }
@@ -29,11 +30,11 @@ type SyncHelper struct {
 func NewSyncHelper(db *DbHelper) *SyncHelper {
 
 	m := map[types.Game]bool{types.Genshin: false, types.StarRail: false, types.ZZZ: false, types.WuWa: false}
-	pools := map[types.Game]*pool.Pool{
-		types.Genshin:  pool.New().WithMaxGoroutines(1),
-		types.StarRail: pool.New().WithMaxGoroutines(1),
-		types.ZZZ:      pool.New().WithMaxGoroutines(1),
-		types.WuWa:     pool.New().WithMaxGoroutines(1),
+	pools := map[types.Game]*pond.WorkerPool{
+		types.Genshin:  pond.New(1, 1),
+		types.StarRail: pond.New(1, 1),
+		types.ZZZ:      pond.New(1, 1),
+		types.WuWa:     pond.New(1, 1),
 	}
 
 	dir := filepath.Join(GetCacheDir(), "mods")
@@ -60,40 +61,42 @@ func getDataApi(g types.Game) api.DataApi {
 func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 
 	dataApi := getDataApi(game)
-	// completed := request == StartupRequest && s.initialComplete[game]
+	completed := request == StartupRequest && s.initialComplete[game]
 
-	// if completed {
-	// 	return
-	// }
+	if completed {
+		return
+	}
 
 	pool := s.running[game]
 
-	pool.Go(func() {
+	if pool.RunningWorkers() > 0 {
+		return
+	}
+
+	pool.Submit(func() {
 
 		seenMods := []string{}
+		characters := s.db.SelectCharactersByGame(game)
+		log.LogPrint(fmt.Sprintf("characters size: %d synctype: %d", len(characters), request))
 
-		characters := dataApi.Characters()
+		if len(characters) <= 0 || request == SyncRequestForceNetwork {
+			characters = dataApi.Characters()
+			for _, c := range characters {
 
-		for _, c := range characters {
+				if c.Id != 0 && c.Name != "" {
+					log.LogPrint("inserting " + c.Name)
 
-			if c.Id != 0 {
-				log.LogPrint("inserting" + c.Name)
+					err := s.db.UpsertCharacter(c)
 
-				err := s.db.UpsertCharacter(c)
-
-				if err != nil {
-					log.LogPrint(err.Error())
+					if err != nil {
+						log.LogPrint(err.Error())
+					}
 				}
 			}
 		}
 
-		characters = s.db.SelectCharactersByGame(game)
-
 		gameDir := filepath.Join(s.rootDir, game.Name())
-
-		if exist, err := FileExists(gameDir); !exist || err != nil {
-			os.MkdirAll(gameDir, os.ModePerm)
-		}
+		os.MkdirAll(gameDir, os.ModePerm)
 
 		file, err := os.Open(gameDir)
 		if err != nil {
@@ -104,10 +107,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 		for _, character := range characters {
 
 			charDir := path.Join(gameDir, character.Name)
-
-			if exist, err := FileExists(charDir); !exist || err != nil {
-				os.MkdirAll(charDir, os.ModePerm)
-			}
+			os.MkdirAll(charDir, os.ModePerm)
 
 			file, err := os.Open(charDir)
 			if err != nil {
@@ -135,5 +135,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 		}
 
 		s.db.DeleteUnusedMods(seenMods, game)
+		s.initialComplete[game] = true
 	})
+
 }

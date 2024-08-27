@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	iconFmtString = "https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/%1s"
+	iconFmtString = "https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/%s"
 )
 
 type StarRailApi struct{}
@@ -64,7 +64,7 @@ func (s *StarRailApi) Characters() []types.Character {
 		return make([]types.Character, 0)
 	}
 
-	characters := make([]types.Character, len(jsonCharacter))
+	characters := make([]types.Character, 0, len(jsonCharacter))
 
 	for _, c := range jsonCharacter {
 		if c.Name == "{NICKNAME}" {
