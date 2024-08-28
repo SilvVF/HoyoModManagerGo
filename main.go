@@ -39,6 +39,7 @@ func main() {
 	genshinApi := &api.GenshinApi{}
 	starRailApi := &api.StarRailApi{}
 	gbApi := &api.GbApi{}
+	downloader := &core.Downloader{}
 
 	dbfile := filepath.Join(core.GetCacheDir(), "hmm.db")
 
@@ -95,6 +96,7 @@ func main() {
 			gbApi,
 			sync,
 			dbHelper,
+			downloader,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

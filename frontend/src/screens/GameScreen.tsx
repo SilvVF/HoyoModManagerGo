@@ -15,7 +15,7 @@ function GameScreen(props: {dataApi: DataApi}) {
     }, [props.dataApi])
   
     return (
-        <div className="grid grid-cols-4 gap-0 border-2 border-sky-500">
+        <div className="grid grid-cols-4">
           {
             characters.map((c) => (
               <div className="col-span-1">

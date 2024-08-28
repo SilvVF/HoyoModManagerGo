@@ -5,3 +5,5 @@ import {api} from '../models';
 export function Categories(arg1:number):Promise<Array<api.CategoryListResponseItem>>;
 
 export function CategoryContent(arg1:number,arg2:number,arg3:number,arg4:string):Promise<api.CategoryResponse>;
+
+export function ModPage(arg1:number):Promise<api.ModPageResponse>;
