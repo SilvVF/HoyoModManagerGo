@@ -8,7 +8,6 @@ import { createHashRouter, RouterProvider, useNavigate, useRouteError } from 're
 import ModBrowseScreen from './screens/ModBrowseScreen.tsx';
 import { ModViewScreen } from './screens/ModViewScreen.tsx';
 import { Button } from './components/ui/button.tsx';
-
 const router = createHashRouter([
   {
     path: "/",
@@ -23,12 +22,29 @@ const router = createHashRouter([
         element: <GameScreen dataApi={StarRailApi}/>,
       },
       {
-        path: "browse",
-        element: <ModBrowseScreen />,
+        path: "zenless",
+        element: <GameScreen dataApi={StarRailApi}/>,
       },
       {
-        path: "/mod/:id",
-        element: <ModViewScreen />
+        path: "wuwa",
+        element: <GameScreen dataApi={StarRailApi}/>,
+      },
+      {
+        path: "playlist",
+        element: <></>,
+      },
+      {
+        path: "browse",
+        element: <ModBrowseScreen />
+      },
+      {
+        path: "mod",
+        children: [
+          {
+            path: ":id",
+            element:  <ModViewScreen />
+          }
+        ]
       }
     ],
     errorElement: <ErrorPage />,
@@ -45,7 +61,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 export default function ErrorPage() {
 
   const error: any = useRouteError();
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col items-center justify-center w-full">
@@ -54,7 +70,7 @@ export default function ErrorPage() {
       <p>
         <i>{error.statusText || error.message}</i>
       </p>
-      <Button onClick={() => navigate("genshin")}>Home</Button>
+      <Button onClick={() => navigate("/genshin")}>Home</Button>
     </div>
   );
 }

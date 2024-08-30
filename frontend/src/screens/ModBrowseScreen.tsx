@@ -55,7 +55,9 @@ function CategoryItemsList({ res }: { res: api.CategoryResponse | undefined }) {
 
     if (res === undefined) {
         return (
-            <div></div>
+            <div>
+                <b>error loading content</b>
+            </div>
         )
     }
 
@@ -68,7 +70,7 @@ function CategoryItemsList({ res }: { res: api.CategoryResponse | undefined }) {
                         <div className="col-span-1 aspect-video">
                              <img
                                     onClick={() => {
-                                        LogPrint("/mod/" + record._idRow)
+                                        LogPrint("mod/" + record._idRow)
                                         navigate("/mod/" + record._idRow)
                                     }}
                                     className="h-96 w-full object-cover object-top fade-in"  

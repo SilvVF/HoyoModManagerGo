@@ -13,31 +13,31 @@ import (
 
 type Downloader struct{}
 
-func (d *Downloader) Donwload(link string, filename string, output string) {
+func (d *Downloader) Donwload(link string, filename string, output string) bool {
 
 	log.LogPrint(link + output)
 	res, err := http.Get(link)
 	if err != nil {
 		log.LogPrint(err.Error())
-		return
+		return false
 	}
 	defer res.Body.Close()
 	bytes, err := io.ReadAll(res.Body)
 	if err != nil {
 		log.LogPrint(err.Error())
-		return
+		return false
 	}
 	file, err := os.CreateTemp("", "*"+filename)
 	if err != nil {
 		log.LogError(err.Error())
-		return
+		return false
 	}
 	defer os.Remove(file.Name())
 
 	_, err = file.Write(bytes)
 	if err != nil {
 		log.LogError(err.Error())
-		return
+		return false
 	}
 
 	x := &xtractr.XFile{
@@ -53,4 +53,5 @@ func (d *Downloader) Donwload(link string, filename string, output string) {
 	}
 
 	log.LogPrint(fmt.Sprintf("Bytes written: %d Files Extracted:\n - %s", size, strings.Join(files, "\n -")))
+	return true
 }

@@ -12,6 +12,14 @@ require (
 )
 
 require (
+	github.com/bwmarrin/snowflake v0.3.0 // indirect
+	github.com/gofrs/flock v0.8.1 // indirect
+	github.com/google/btree v1.1.2 // indirect
+	github.com/robfig/cron/v3 v3.0.0 // indirect
+	github.com/rosedblabs/wal v1.3.8 // indirect
+)
+
+require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/bodgit/plumbing v1.3.0 // indirect
@@ -39,6 +47,7 @@ require (
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/rosedblabs/rosedb/v2 v2.3.8
 	github.com/samber/lo v1.38.1 // indirect
 	github.com/tkrajina/go-reflector v0.5.6 // indirect
 	github.com/ulikunitz/xz v0.5.11 // indirect

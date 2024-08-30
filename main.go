@@ -48,7 +48,6 @@ func main() {
 	core.CreateFileIfNotExists(dbfile)
 
 	dbSql, err := sql.Open("sqlite3", dbfile)
-
 	if err != nil {
 		panic(err)
 	}
@@ -62,6 +61,21 @@ func main() {
 
 	dbHelper := core.NewDbHelper(queries)
 	sync := core.NewSyncHelper(dbHelper)
+
+	prefs := core.NewPrefs()
+	defer prefs.Close()
+
+	bind := []interface{}{
+		app,
+		genshinApi,
+		starRailApi,
+		gbApi,
+		sync,
+		dbHelper,
+		downloader,
+	}
+
+	bind = append(bind, core.AppPrefs(prefs)...)
 
 	// Create application with options
 	err = wails.Run(&options.App{
@@ -89,15 +103,7 @@ func main() {
 		OnBeforeClose:    app.beforeClose,
 		OnShutdown:       app.shutdown,
 		WindowStartState: options.Normal,
-		Bind: []interface{}{
-			app,
-			genshinApi,
-			starRailApi,
-			gbApi,
-			sync,
-			dbHelper,
-			downloader,
-		},
+		Bind:             bind,
 		// Windows platform specific options
 		Windows: &windows.Options{
 			WebviewIsTransparent: false,

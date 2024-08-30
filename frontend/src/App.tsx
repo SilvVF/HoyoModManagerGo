@@ -1,44 +1,28 @@
-import { Button } from "@/components/ui/button"
+
+import { Outlet, useNavigate } from "react-router-dom";
+import { Sidebar } from "./components/sidebar";
+import { ScrollArea } from "./components/ui/scroll-area";
 import { useEffect } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { testPref } from "./data/prefs";
 
-
-const routes = ["/genshin", "/starrail", "/browse"]
 
 function App() {
 
-  const location = useLocation();
   const navigate = useNavigate()
-
-  useEffect(() => {
-    if (location.pathname === '/') {
-      navigate('/genshin')
-    }
-  }, [location.pathname])
+  useEffect(() => navigate('/genshin') ,[]) 
+  useEffect(() => { testPref().catch() }, [])
 
   return (
-    <>
-      <div className="flex flex-row">
-          <div className="flex flex-col min-h-screen bg-primary-foreground">
-            {
-              routes.map((route) => {
-                return (
-                  <Button 
-                  onClick={() => {
-                    navigate(route) 
-                  }
-                  }>
-                    {route}
-                  </Button>
-                )
-              })
-            }
+      <div className="bg-background">
+        <div className="grid lg:grid-cols-5 max-h-screen overflow-clip">
+          <Sidebar playlists={[]} className="hidden lg:block fade-in-10"></Sidebar>
+          <div className="col-span-3 lg:col-span-4 lg:border-l">
+            <ScrollArea className="h-full max-h-screen">
+              <Outlet />
+            </ScrollArea>
           </div>
-          <div className="flex-auto align-top justify-start bg-slate-500 max-h-screen overflow-y-scroll">
-            <Outlet />
-          </div>
+        </div>
       </div>
-    </>
   )
 }
 

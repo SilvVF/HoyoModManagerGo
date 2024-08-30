@@ -16,6 +16,8 @@ export function ModViewScreen() {
         update(page)
     }, [id])
 
+    
+
     const download = async (link: string, filename: string) => {
         await Downloader.Donwload(link, filename, "C:\\Users\\david\\AppData\\Local\\HoyoModManagerGo\\cache")
     }
