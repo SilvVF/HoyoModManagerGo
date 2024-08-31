@@ -74,6 +74,18 @@ func (h *DbHelper) SelectModById(id int) (types.Mod, error) {
 	return modFromDb(m), nil
 }
 
+func (h *DbHelper) SelectEnabledModsByGame(game types.Game) ([]types.Mod, error) {
+	m, err := h.queries.SelectEnabledModsForGame(h.ctx, int64(game))
+	if err != nil {
+		return make([]types.Mod, 0), err
+	}
+	mods := make([]types.Mod, 0, len(m))
+	for _, mod := range m {
+		mods = append(mods, modFromDb(mod))
+	}
+	return mods, nil
+}
+
 func (h *DbHelper) UpsertCharacter(c types.Character) error {
 
 	if c.Name != "" && c.Id != 0 {
@@ -99,8 +111,15 @@ func (h *DbHelper) DeleteModById(id int) error {
 	return h.queries.DeleteModById(h.ctx, int64(id))
 }
 
-func (h *DbHelper) InsertMod(m types.Mod) {
-	h.queries.InsertMod(h.ctx, db.InsertModParams{
+func (h *DbHelper) EnableModById(enabled bool, id int) error {
+	return h.queries.UpdateModEnabledById(h.ctx, db.UpdateModEnabledByIdParams{
+		Selected: enabled,
+		ID:       int64(id),
+	})
+}
+
+func (h *DbHelper) InsertMod(m types.Mod) error {
+	return h.queries.InsertMod(h.ctx, db.InsertModParams{
 		ModFilename:    m.Filename,
 		Game:           int64(m.Game),
 		CharName:       m.Character,
@@ -183,7 +202,7 @@ func (h *DbHelper) SelectCharacterWithModsAndTags(game types.Game, modFileName s
 			}
 		}
 
-		if item.ModFilename.Valid {
+		if item.ID_2.Valid {
 			charMap[char].Mods = append(charMap[char].Mods, types.Mod{
 				Filename:       item.ModFilename.String,
 				Game:           types.Game(item.Game),
@@ -195,11 +214,11 @@ func (h *DbHelper) SelectCharacterWithModsAndTags(game types.Game, modFileName s
 				ModLink:        item.ModLink.String,
 				GbFileName:     item.GbFileName.String,
 				GbDownloadLink: item.GbDownloadLink.String,
-				Id:             int(item.ModID.Int64),
+				Id:             int(item.ID_2.Int64),
 			})
 		}
 
-		if item.TagName.Valid {
+		if item.TagName.Valid && item.ModID.Valid {
 			charMap[char].Tags = append(charMap[char].Tags, types.Tag{
 				ModId: int(item.ModID.Int64),
 				Name:  item.TagName.String,

@@ -71,3 +71,11 @@ SELECT * FROM mod WHERE mod.id = :id LIMIT 1;
 
 -- name: DeleteModById :exec
 DELETE FROM mod WHERE mod.id = :id;
+
+-- name: UpdateModEnabledById :exec
+UPDATE mod SET
+    selected = :selected
+WHERE mod.id = :id;
+
+-- name: SelectEnabledModsForGame :many
+SELECT * FROM mod WHERE selected AND game = :game;

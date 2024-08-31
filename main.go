@@ -64,17 +64,11 @@ func main() {
 
 	prefs := core.NewPrefs()
 
-	bind := []interface{}{
-		app,
-		genshinApi,
-		starRailApi,
-		gbApi,
-		sync,
-		dbHelper,
-		downloader,
-	}
+	appPrefs := core.NewAppPrefs(prefs)
 
-	bind = append(bind, core.AppPrefs(prefs)...)
+	appPrefs.GenshinDirPref.Set("C:\\Users\\david\\TestMod")
+
+	generator := core.NewGenerator(dbHelper, appPrefs.GenshinDirPref.Preference)
 
 	// Create application with options
 	err = wails.Run(&options.App{
@@ -107,7 +101,18 @@ func main() {
 			app.shutdown(ctx)
 		},
 		WindowStartState: options.Normal,
-		Bind:             bind,
+		Bind: []interface{}{
+			app,
+			genshinApi,
+			starRailApi,
+			gbApi,
+			sync,
+			dbHelper,
+			downloader,
+			appPrefs.DarkTheme,
+			appPrefs.StartScreen,
+			generator,
+		},
 		// Windows platform specific options
 		Windows: &windows.Options{
 			WebviewIsTransparent: false,

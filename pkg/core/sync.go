@@ -39,7 +39,7 @@ func NewSyncHelper(db *DbHelper) *SyncHelper {
 		db:              db,
 		running:         pools,
 		initialComplete: m,
-		rootDir:         GetModDir(),
+		rootDir:         GetRootModDir(),
 	}
 }
 

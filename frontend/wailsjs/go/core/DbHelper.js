@@ -10,6 +10,10 @@ export function DeleteUnusedMods(arg1, arg2) {
   return window['go']['core']['DbHelper']['DeleteUnusedMods'](arg1, arg2);
 }
 
+export function EnableModById(arg1, arg2) {
+  return window['go']['core']['DbHelper']['EnableModById'](arg1, arg2);
+}
+
 export function InsertMod(arg1) {
   return window['go']['core']['DbHelper']['InsertMod'](arg1);
 }

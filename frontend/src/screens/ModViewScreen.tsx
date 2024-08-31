@@ -1,4 +1,4 @@
-import { cn, useStateProducer } from "@/lib/utils";
+import { cn, getRelativeTimeString, useStateProducer } from "@/lib/utils";
 import * as GbApi from "../../wailsjs/go/api/GbApi";
 import { api, types } from "../../wailsjs/go/models";
 import { useParams } from "react-router-dom";
@@ -7,7 +7,8 @@ import { SelectModsByCharacterName, SelectClosestCharacter } from "../../wailsjs
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 export function ModViewScreen() {
   const { id } = useParams();
@@ -74,13 +75,43 @@ export function ModViewScreen() {
     }
   };
 
+  const images = useMemo(() => {
+    return content?._aPreviewMedia?._aImages?.map((it) => `${it._sBaseUrl}/${it._sFile}`)
+    ?.filter((it) => it !== undefined) ?? []
+  }, [content])
+
   return (
-    <div className="flex flex-col min-w-screen h-full">
+    <div className="flex flex-col min-w-screen h-full items-center">
       <img
         src={character?.avatarUrl}
-        className="object-contain aspect-square h-96"
+        className="object-contain aspect-square h-32"
       ></img>
       <b>{character?.name}</b>
+      <div dangerouslySetInnerHTML={{__html: content?._sText ?? ""}}></div>
+      <Carousel className="w-3/4">
+      <CarouselContent>
+        {images.map((url, index) => (
+          <CarouselItem key={index} className="pl-1 md:basis-1/3 lg:basis-1/4">
+            <div className="p-1">
+              <img className="object-cover h-48" src={url}/>
+            </div>
+          </CarouselItem>
+        ))}
+      </CarouselContent>
+      <CarouselPrevious />
+      <CarouselNext />
+    </Carousel>
+      {/* <Carousel className="w-3/4 m-12">
+      <CarouselContent>
+        {images.map((url) => (
+          <CarouselItem className="basis-1/4" key={url}>
+            <img src={url} className="object-cover aspect-square h-48 pl-4"></img>
+          </CarouselItem>
+        ))}
+        <CarouselPrevious />
+        <CarouselNext />
+      </CarouselContent>
+      </Carousel> */}
       <Table>
         <TableCaption>Mods available to download.</TableCaption>
         <TableHeader>
@@ -96,7 +127,7 @@ export function ModViewScreen() {
             return (
                 <TableRow>
                     <TableCell className="font-medium">{f._sFile}</TableCell>
-                    <TableCell>{f._tsDateAdded}</TableCell>
+                    <TableCell>{getRelativeTimeString(1000  * (f._tsDateAdded ?? 0))}</TableCell>
                     <TableCell>
                         {
                             [f._sClamAvResult, f._sAvastAvResult, f._sAnalysisResult].map((result) => {

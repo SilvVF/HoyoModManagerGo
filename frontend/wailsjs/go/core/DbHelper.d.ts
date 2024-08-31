@@ -6,6 +6,8 @@ export function DeleteModById(arg1:number):Promise<void>;
 
 export function DeleteUnusedMods(arg1:Array<string>,arg2:types.Game):Promise<void>;
 
+export function EnableModById(arg1:boolean,arg2:number):Promise<void>;
+
 export function InsertMod(arg1:types.Mod):Promise<void>;
 
 export function SelectCharacterWithModsAndTags(arg1:types.Game,arg2:string,arg3:string,arg4:string):Promise<Array<types.CharacterWithModsAndTags>>;

@@ -297,6 +297,45 @@ func (q *Queries) SelectClosestCharacterMatch(ctx context.Context, arg SelectClo
 	return i, err
 }
 
+const selectEnabledModsForGame = `-- name: SelectEnabledModsForGame :many
+SELECT id, mod_filename, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE selected AND game = ?1
+`
+
+func (q *Queries) SelectEnabledModsForGame(ctx context.Context, game int64) ([]Mod, error) {
+	rows, err := q.db.QueryContext(ctx, selectEnabledModsForGame, game)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Mod
+	for rows.Next() {
+		var i Mod
+		if err := rows.Scan(
+			&i.ID,
+			&i.ModFilename,
+			&i.Game,
+			&i.CharName,
+			&i.CharID,
+			&i.Selected,
+			&i.PreviewImages,
+			&i.GbID,
+			&i.ModLink,
+			&i.GbFileName,
+			&i.GbDownloadLink,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const selectModById = `-- name: SelectModById :one
 SELECT id, mod_filename, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.id = ?1 LIMIT 1
 `
@@ -362,6 +401,22 @@ func (q *Queries) SelectModsByCharacterName(ctx context.Context, arg SelectModsB
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateModEnabledById = `-- name: UpdateModEnabledById :exec
+UPDATE mod SET
+    selected = ?1
+WHERE mod.id = ?2
+`
+
+type UpdateModEnabledByIdParams struct {
+	Selected bool
+	ID       int64
+}
+
+func (q *Queries) UpdateModEnabledById(ctx context.Context, arg UpdateModEnabledByIdParams) error {
+	_, err := q.db.ExecContext(ctx, updateModEnabledById, arg.Selected, arg.ID)
+	return err
 }
 
 const upsertCharacter = `-- name: UpsertCharacter :exec

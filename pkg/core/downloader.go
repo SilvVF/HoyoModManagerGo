@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
@@ -61,29 +62,35 @@ func (d *Downloader) Donwload(link string, filename string, character string, ch
 		return err
 	}
 
+	dotIdx := strings.LastIndex(filename, ".")
+	if dotIdx == -1 {
+		return errors.New("invalid file provided")
+	}
+	fileWithoutExt := filename[:dotIdx]
+
 	x := &xtractr.XFile{
 		FilePath:  file.Name(),
-		OutputDir: GetCharacterDir(character, game), // do not forget this.
+		OutputDir: path.Join(GetCharacterDir(character, game), fileWithoutExt), // do not forget this.
 	}
 
 	// size is how many bytes were written.
 	// files may be nil, but will contain any files written (even with an error).
-	size, files, _, err := xtractr.ExtractFile(x)
+	size, files, archives, err := xtractr.ExtractFile(x)
 	if err != nil || files == nil {
 		log.LogError(fmt.Sprintf("%d, %s, %s", size, strings.Join(files, ","), err.Error()))
 		return err
 	}
 
-	var fName string
-	lastSlashIdx := strings.LastIndex(files[0], "\\")
-	if lastSlashIdx == -1 {
-		fName = files[0]
-	} else {
-		fName = files[0][lastSlashIdx+1:]
+	for _, f := range files {
+		log.LogPrint(f)
+	}
+	log.LogPrint("============")
+	for _, f := range archives {
+		log.LogPrint(f)
 	}
 
 	d.db.InsertMod(types.Mod{
-		Filename:       fName,
+		Filename:       fileWithoutExt,
 		Game:           game,
 		Character:      character,
 		CharacterId:    characterId,
