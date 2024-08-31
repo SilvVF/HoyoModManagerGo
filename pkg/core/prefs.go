@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"hmm/pkg/log"
 	"math"
+	"path/filepath"
 	"strconv"
 
 	"github.com/rosedblabs/rosedb/v2"
@@ -33,7 +34,7 @@ type PreferenceStore interface {
 
 func NewPrefs() PreferenceStore {
 	options := rosedb.DefaultOptions
-	options.DirPath = "/tmp/rosedb_basic"
+	options.DirPath = filepath.Join(GetCacheDir(), "/rosedb_basic")
 
 	// open a database
 	db, err := rosedb.Open(options)

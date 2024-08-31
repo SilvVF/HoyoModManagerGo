@@ -22,6 +22,10 @@ export function SelectClosestCharacter(arg1, arg2) {
   return window['go']['core']['DbHelper']['SelectClosestCharacter'](arg1, arg2);
 }
 
+export function SelectModsByCharacterName(arg1, arg2) {
+  return window['go']['core']['DbHelper']['SelectModsByCharacterName'](arg1, arg2);
+}
+
 export function UpsertCharacter(arg1) {
   return window['go']['core']['DbHelper']['UpsertCharacter'](arg1);
 }

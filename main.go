@@ -39,7 +39,6 @@ func main() {
 	genshinApi := &api.GenshinApi{}
 	starRailApi := &api.StarRailApi{}
 	gbApi := &api.GbApi{}
-	downloader := &core.Downloader{}
 
 	dbfile := filepath.Join(core.GetCacheDir(), "hmm.db")
 
@@ -60,10 +59,10 @@ func main() {
 	queries := db.New(dbSql)
 
 	dbHelper := core.NewDbHelper(queries)
+	downloader := core.NewDownloader(dbHelper)
 	sync := core.NewSyncHelper(dbHelper)
 
 	prefs := core.NewPrefs()
-	defer prefs.Close()
 
 	bind := []interface{}{
 		app,
@@ -95,13 +94,16 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		Menu:             nil,
-		Logger:           nil,
-		LogLevel:         logger.DEBUG,
-		OnStartup:        app.startup,
-		OnDomReady:       app.domReady,
-		OnBeforeClose:    app.beforeClose,
-		OnShutdown:       app.shutdown,
+		Menu:          nil,
+		Logger:        nil,
+		LogLevel:      logger.DEBUG,
+		OnStartup:     app.startup,
+		OnDomReady:    app.domReady,
+		OnBeforeClose: app.beforeClose,
+		OnShutdown: func(ctx context.Context) {
+			prefs.Close()
+			app.shutdown(ctx)
+		},
 		WindowStartState: options.Normal,
 		Bind:             bind,
 		// Windows platform specific options

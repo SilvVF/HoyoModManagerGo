@@ -3,7 +3,7 @@ package core
 func AppPrefs(store PreferenceStore) []interface{} {
 	return []interface{}{
 		&DarkThemePref{
-			Preference: store.GetBoolean("darktheme", false),
+			Preference: store.GetString("darktheme", "system"),
 		},
 		&StartScreenPref{
 			Preference: store.GetString("startscreen", "genshin"),
@@ -11,6 +11,6 @@ func AppPrefs(store PreferenceStore) []interface{} {
 	}
 }
 
-type DarkThemePref struct{ Preference[bool] }
+type DarkThemePref struct{ Preference[string] }
 
 type StartScreenPref struct{ Preference[string] }

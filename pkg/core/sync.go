@@ -6,8 +6,6 @@ import (
 	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"os"
-	"path"
-	"path/filepath"
 
 	"github.com/alitto/pond"
 )
@@ -37,13 +35,11 @@ func NewSyncHelper(db *DbHelper) *SyncHelper {
 		types.WuWa:     pond.New(1, 1),
 	}
 
-	dir := filepath.Join(GetCacheDir(), "mods")
-
 	return &SyncHelper{
 		db:              db,
 		running:         pools,
 		initialComplete: m,
-		rootDir:         dir,
+		rootDir:         GetModDir(),
 	}
 }
 
@@ -95,7 +91,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 			}
 		}
 
-		gameDir := filepath.Join(s.rootDir, game.Name())
+		gameDir := GetGameDir(game)
 		os.MkdirAll(gameDir, os.ModePerm)
 
 		file, err := os.Open(gameDir)
@@ -106,7 +102,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 
 		for _, character := range characters {
 
-			charDir := path.Join(gameDir, character.Name)
+			charDir := GetCharacterDir(character.Name, game)
 			os.MkdirAll(charDir, os.ModePerm)
 
 			file, err := os.Open(charDir)

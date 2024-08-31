@@ -37,8 +37,7 @@ func (q *Queries) DeleteUnusedMods(ctx context.Context, arg DeleteUnusedModsPara
 }
 
 const insertMod = `-- name: InsertMod :exec
-INSERT INTO mod (
-    id, 
+INSERT OR IGNORE INTO mod (
     mod_filename,
     game, 
     char_name, 
@@ -58,13 +57,11 @@ INSERT INTO mod (
     ?7,
     ?8,
     ?9,
-    ?10,
-    ?11
+    ?10
 )
 `
 
 type InsertModParams struct {
-	ID             int64
 	ModFilename    string
 	Game           int64
 	CharName       string
@@ -79,7 +76,6 @@ type InsertModParams struct {
 
 func (q *Queries) InsertMod(ctx context.Context, arg InsertModParams) error {
 	_, err := q.db.ExecContext(ctx, insertMod,
-		arg.ID,
 		arg.ModFilename,
 		arg.Game,
 		arg.CharName,
@@ -268,6 +264,72 @@ func (q *Queries) SelectClosestCharacter(ctx context.Context, arg SelectClosestC
 		&i.Element,
 	)
 	return i, err
+}
+
+const selectClosestCharacterMatch = `-- name: SelectClosestCharacterMatch :one
+SELECT id, game, name, avatar_url, element FROM character WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' AND game = ?2 LIMIT 1
+`
+
+type SelectClosestCharacterMatchParams struct {
+	Name string
+	Game int64
+}
+
+func (q *Queries) SelectClosestCharacterMatch(ctx context.Context, arg SelectClosestCharacterMatchParams) (Character, error) {
+	row := q.db.QueryRowContext(ctx, selectClosestCharacterMatch, arg.Name, arg.Game)
+	var i Character
+	err := row.Scan(
+		&i.ID,
+		&i.Game,
+		&i.Name,
+		&i.AvatarUrl,
+		&i.Element,
+	)
+	return i, err
+}
+
+const selectModsByCharacterName = `-- name: SelectModsByCharacterName :many
+SELECT id, mod_filename, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.char_name = ?1 AND mod.game = ?2
+`
+
+type SelectModsByCharacterNameParams struct {
+	Name string
+	Game int64
+}
+
+func (q *Queries) SelectModsByCharacterName(ctx context.Context, arg SelectModsByCharacterNameParams) ([]Mod, error) {
+	rows, err := q.db.QueryContext(ctx, selectModsByCharacterName, arg.Name, arg.Game)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Mod
+	for rows.Next() {
+		var i Mod
+		if err := rows.Scan(
+			&i.ID,
+			&i.ModFilename,
+			&i.Game,
+			&i.CharName,
+			&i.CharID,
+			&i.Selected,
+			&i.PreviewImages,
+			&i.GbID,
+			&i.ModLink,
+			&i.GbFileName,
+			&i.GbDownloadLink,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const upsertCharacter = `-- name: UpsertCharacter :exec

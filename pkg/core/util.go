@@ -1,6 +1,7 @@
 package core
 
 import (
+	"hmm/pkg/types"
 	"os"
 	"path/filepath"
 )
@@ -14,6 +15,18 @@ func GetCacheDir() string {
 	appData, _ := os.UserCacheDir()
 
 	return filepath.Join(appData, APP_NAME, "cache")
+}
+
+func GetCharacterDir(character string, game types.Game) string {
+	return filepath.Join(GetGameDir(game), character)
+}
+
+func GetGameDir(game types.Game) string {
+	return filepath.Join(GetModDir(), game.Name())
+}
+
+func GetModDir() string {
+	return filepath.Join(GetCacheDir(), "mods")
 }
 
 func FileExists(path string) (bool, error) {

@@ -41,3 +41,10 @@ export function cssString(string: string | undefined): any {
   });
   return Object.assign({}, ...keyValues);
 }
+
+export function dropLastWhile(string: string , predicate: (string: string) => boolean): string {
+  for (let i = (string.length - 1); i > 0; i--)
+      if (!predicate(string[i]))
+          return string.substring(0, i + 1)
+  return ""
+}

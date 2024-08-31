@@ -12,8 +12,7 @@ INSERT OR IGNORE INTO character(id, game, name, avatar_url, element)
 VALUES(?, ?, ?, ?, ?);
 
 -- name: InsertMod :exec
-INSERT INTO mod (
-    id, 
+INSERT OR IGNORE INTO mod (
     mod_filename,
     game, 
     char_name, 
@@ -24,7 +23,6 @@ INSERT INTO mod (
     gb_file_name, 
     gb_download_link
 ) VALUES(
-    :id,
     :modFilename,
     :game,
     :charName,
@@ -36,7 +34,6 @@ INSERT INTO mod (
     :gbFilename,
     :gbDownloadLink
 );
-
 -- name: DeleteUnusedMods :exec
 DELETE FROM mod WHERE mod_filename NOT IN (sqlc.slice('files')) AND game = :game;
 
@@ -62,3 +59,9 @@ FROM
         )
     )
 ORDER BY c.name, m.mod_filename, t.tag_name;
+
+-- name: SelectClosestCharacterMatch :one
+SELECT * FROM character WHERE LOWER(name) LIKE '%' || LOWER(:name) || '%' AND game = :game LIMIT 1;
+
+-- name: SelectModsByCharacterName :many
+SELECT * FROM mod WHERE mod.char_name = :name AND mod.game = :game;

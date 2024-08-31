@@ -31,9 +31,9 @@ export default function ModBrowseScreen() {
     }, [categoryResponse?._aMetadata])
 
     return (
-        <div className="flex flex-row justify-end items-start max-w-full min-h-screen min-w-full">
+        <div className="flex flex-row justify-end items-start max-w-full h-full min-w-full">
             <CategoryItemsList res={categoryResponse}></CategoryItemsList>
-            <div className="absolute bottom-6 start-1/2 -translate-x-1/2 bg-white bg-opacity-50 rounded-lg">
+            <div className="absolute bottom-24 start-1/2 -translate-x-1/2 bg-white bg-opacity-50 rounded-lg">
                 <Paginator page={page} lastPage={lastPage} goToPage={(page) => setPage(page)} />
             </div>
             <div className="flex flex-col">

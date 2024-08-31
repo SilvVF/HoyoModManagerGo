@@ -36,6 +36,36 @@ func characterFromDb(c db.Character) types.Character {
 	}
 }
 
+func modFromDb(m db.Mod) types.Mod {
+	return types.Mod{
+		Filename:       m.ModFilename,
+		Game:           types.Game(m.Game),
+		Character:      m.CharName,
+		CharacterId:    int(m.CharID),
+		Enabled:        m.Selected,
+		PreviewImages:  strings.Split(m.PreviewImages, ","),
+		GbId:           int(m.GbID.Int64),
+		ModLink:        m.ModLink.String,
+		GbFileName:     m.GbFileName.String,
+		GbDownloadLink: m.GbDownloadLink.String,
+		Id:             int(m.ID),
+	}
+}
+
+func (h *DbHelper) SelectClosestCharacter(name string, game types.Game) (types.Character, error) {
+	value, err := h.queries.SelectClosestCharacter(h.ctx, db.SelectClosestCharacterParams{Name: name, Game: int64(game)})
+	if err != nil {
+		return types.Character{}, err
+	}
+	return types.Character{
+		Id:        int(value.ID),
+		Game:      types.Game(value.Game),
+		Name:      value.Name,
+		AvatarUrl: value.AvatarUrl,
+		Element:   value.Element,
+	}, nil
+}
+
 func (h *DbHelper) UpsertCharacter(c types.Character) error {
 
 	if c.Name != "" && c.Id != 0 {
@@ -59,7 +89,6 @@ func (h *DbHelper) DeleteUnusedMods(fileNames []string, game types.Game) {
 
 func (h *DbHelper) InsertMod(m types.Mod) {
 	h.queries.InsertMod(h.ctx, db.InsertModParams{
-		ID:             int64(m.Id),
 		ModFilename:    m.Filename,
 		Game:           int64(m.Game),
 		CharName:       m.Character,
@@ -87,6 +116,21 @@ func (h *DbHelper) SelectCharactersByGame(game types.Game) []types.Character {
 	}
 
 	return result
+}
+
+func (h *DbHelper) SelectModsByCharacterName(name string, game types.Game) ([]types.Mod, error) {
+	mods, err := h.queries.SelectModsByCharacterName(h.ctx, db.SelectModsByCharacterNameParams{Name: name, Game: int64(game)})
+	if err != nil {
+		return make([]types.Mod, 0), err
+	}
+
+	result := make([]types.Mod, 0, len(mods))
+
+	for _, m := range mods {
+		result = append(result, modFromDb(m))
+	}
+
+	return result, nil
 }
 
 func (h *DbHelper) SelectCharacterWithModsAndTags(game types.Game, modFileName string, characterName string, tagName string) []types.CharacterWithModsAndTags {
@@ -175,19 +219,4 @@ func (h *DbHelper) SelectCharacterWithModsAndTags(game types.Game, modFileName s
 	}
 
 	return lst
-}
-
-func (h *DbHelper) SelectClosestCharacter(name string, game types.Game) *types.Character {
-	c, err := h.queries.SelectClosestCharacter(h.ctx, db.SelectClosestCharacterParams{
-		Name: name,
-		Game: int64(game),
-	})
-
-	if err != nil {
-		return nil
-	}
-
-	character := characterFromDb(c)
-
-	return &character
 }
