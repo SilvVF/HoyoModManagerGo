@@ -65,3 +65,9 @@ SELECT * FROM character WHERE LOWER(name) LIKE '%' || LOWER(:name) || '%' AND ga
 
 -- name: SelectModsByCharacterName :many
 SELECT * FROM mod WHERE mod.char_name = :name AND mod.game = :game;
+
+-- name: SelectModById :one
+SELECT * FROM mod WHERE mod.id = :id LIMIT 1;
+
+-- name: DeleteModById :exec
+DELETE FROM mod WHERE mod.id = :id;

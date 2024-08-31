@@ -94,12 +94,14 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		Menu:          nil,
-		Logger:        nil,
-		LogLevel:      logger.DEBUG,
-		OnStartup:     app.startup,
-		OnDomReady:    app.domReady,
-		OnBeforeClose: app.beforeClose,
+		Menu:       nil,
+		Logger:     nil,
+		LogLevel:   logger.DEBUG,
+		OnStartup:  app.startup,
+		OnDomReady: app.domReady,
+		OnBeforeClose: func(ctx context.Context) bool {
+			return app.beforeClose(ctx)
+		},
 		OnShutdown: func(ctx context.Context) {
 			prefs.Close()
 			app.shutdown(ctx)

@@ -66,6 +66,14 @@ func (h *DbHelper) SelectClosestCharacter(name string, game types.Game) (types.C
 	}, nil
 }
 
+func (h *DbHelper) SelectModById(id int) (types.Mod, error) {
+	m, err := h.queries.SelectModById(h.ctx, int64(id))
+	if err != nil {
+		return types.Mod{}, err
+	}
+	return modFromDb(m), nil
+}
+
 func (h *DbHelper) UpsertCharacter(c types.Character) error {
 
 	if c.Name != "" && c.Id != 0 {
@@ -87,6 +95,10 @@ func (h *DbHelper) DeleteUnusedMods(fileNames []string, game types.Game) {
 	})
 }
 
+func (h *DbHelper) DeleteModById(id int) error {
+	return h.queries.DeleteModById(h.ctx, int64(id))
+}
+
 func (h *DbHelper) InsertMod(m types.Mod) {
 	h.queries.InsertMod(h.ctx, db.InsertModParams{
 		ModFilename:    m.Filename,
@@ -95,10 +107,10 @@ func (h *DbHelper) InsertMod(m types.Mod) {
 		CharId:         int64(m.CharacterId),
 		Selected:       m.Enabled,
 		PreviewImages:  strings.Join(m.PreviewImages, ","),
-		GbId:           sql.NullInt64{Int64: int64(m.GbId)},
-		ModLink:        sql.NullString{String: m.ModLink},
-		GbFilename:     sql.NullString{String: m.GbFileName},
-		GbDownloadLink: sql.NullString{String: m.GbDownloadLink},
+		GbId:           sql.NullInt64{Valid: m.GbId != 0, Int64: int64(m.GbId)},
+		ModLink:        sql.NullString{Valid: m.ModLink != "", String: m.ModLink},
+		GbFilename:     sql.NullString{Valid: m.GbFileName != "", String: m.GbFileName},
+		GbDownloadLink: sql.NullString{Valid: m.GbDownloadLink != "", String: m.GbDownloadLink},
 	})
 }
 

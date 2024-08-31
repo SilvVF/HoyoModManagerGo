@@ -11,6 +11,15 @@ import (
 	"strings"
 )
 
+const deleteModById = `-- name: DeleteModById :exec
+DELETE FROM mod WHERE mod.id = ?1
+`
+
+func (q *Queries) DeleteModById(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteModById, id)
+	return err
+}
+
 const deleteUnusedMods = `-- name: DeleteUnusedMods :exec
 DELETE FROM mod WHERE mod_filename NOT IN (/*SLICE:files*/?) AND game = ?2
 `
@@ -284,6 +293,29 @@ func (q *Queries) SelectClosestCharacterMatch(ctx context.Context, arg SelectClo
 		&i.Name,
 		&i.AvatarUrl,
 		&i.Element,
+	)
+	return i, err
+}
+
+const selectModById = `-- name: SelectModById :one
+SELECT id, mod_filename, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.id = ?1 LIMIT 1
+`
+
+func (q *Queries) SelectModById(ctx context.Context, id int64) (Mod, error) {
+	row := q.db.QueryRowContext(ctx, selectModById, id)
+	var i Mod
+	err := row.Scan(
+		&i.ID,
+		&i.ModFilename,
+		&i.Game,
+		&i.CharName,
+		&i.CharID,
+		&i.Selected,
+		&i.PreviewImages,
+		&i.GbID,
+		&i.ModLink,
+		&i.GbFileName,
+		&i.GbDownloadLink,
 	)
 	return i, err
 }
