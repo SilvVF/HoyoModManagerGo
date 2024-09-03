@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
-import  {genshinDirPref, honkaiDirPref, usePrefrenceAsState, wuwaDirPref, zzzDirPref } from "@/data/prefs";
-import { GetExportDirectory } from "../../wailsjs/go/main/App"
+import  {genshinDirPref, honkaiDirPref, ignorePref, usePrefrenceAsState, wuwaDirPref, zzzDirPref } from "@/data/prefs";
+import { GetExportDirectory, GetExclusionPaths } from "../../wailsjs/go/main/App"
+import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { Card } from "@/components/ui/card";
 
 
 
@@ -10,6 +12,7 @@ export default function SettingsScreen() {
     const [genshinDir, setGenshinDir] = usePrefrenceAsState(genshinDirPref)
     const [wuwaDir, setWuwaDir] = usePrefrenceAsState(wuwaDirPref)
     const [zzzDir, setZZZdir] = usePrefrenceAsState(zzzDirPref)
+    const [ignore, setIgnore] = usePrefrenceAsState(ignorePref)
 
     const items =  [
         { 
@@ -35,8 +38,25 @@ export default function SettingsScreen() {
     ]
 
     const openDialogAndSet = async (setDir: (s: string) => void) => {
-        GetExportDirectory().then((dir) => setDir(dir))
+        GetExportDirectory().then((dir) => { if (dir) { setDir(dir) }})
     } 
+
+    const setExclusionPaths = async () => {
+        GetExclusionPaths().then((paths) => {
+            if (paths) { 
+                setIgnore((prev) => [...(prev ?? []), ...paths])
+            }
+        })
+    } 
+
+    const setExclusionDir = async () => {
+        GetExportDirectory().then((path) =>{ if (path) { setIgnore((prev) => [...(prev ?? []), path])}})
+    } 
+
+
+    const removeFromExclusions = (path: string) => {
+        setIgnore(prev => prev?.filter((it) => it !== path))
+    }
 
     return (
         <div className="mb-2 px-4">
@@ -55,6 +75,57 @@ export default function SettingsScreen() {
             )
           })
         }
+        <h2 className="text-lg font-semibold tracking-tight">
+            Generation Exclusions       
+        </h2>
+        <Button 
+                className="w-full justify-start"
+                variant="ghost" 
+                onPointerDown={setExclusionPaths}>
+                <svg 
+                 xmlns="http://www.w3.org/2000/svg"
+                 height="24px"
+                 stroke="currentColor"
+                 strokeWidth="2"
+                 strokeLinecap="round"
+                 strokeLinejoin="round"
+                 className="mr-2 h-4 w-4 fill-foreground"
+                 viewBox="0 -960 960 960" width="24px">
+                <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z"/></svg>
+                Add Exclusion Files
+            </Button>
+            <Button 
+                className="w-full justify-start"
+                variant="ghost" 
+                onPointerDown={setExclusionDir}>
+                <svg 
+                 xmlns="http://www.w3.org/2000/svg"
+                 height="24px"
+                 stroke="currentColor"
+                 strokeWidth="2"
+                 strokeLinecap="round"
+                 strokeLinejoin="round"
+                 className="mr-2 h-4 w-4 fill-foreground"
+                 viewBox="0 -960 960 960" width="24px">
+                <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z"/></svg>
+                Add Exclusion Directory
+            </Button>
+            <Card>
+                <div className="space-y-1 p-2 overflow-y-scroll max-h-[300px]">
+                {
+                            ignore?.map((path) => {
+                                return (
+                                <div key={path} className="flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground">
+                                    <div className="text-zinc-500  m-2">{path}</div>
+                                    <Button size="icon" className="mx-2" onPointerDown={() => removeFromExclusions(path)}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"/></svg>
+                                    </Button>
+                                    </div>
+                                )
+                            })
+                        }
+                </div>
+            </Card>
         </div>
     )
 }

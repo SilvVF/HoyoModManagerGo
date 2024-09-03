@@ -118,6 +118,7 @@ func main() {
 			appPrefs.GenshinDirPref,
 			appPrefs.WuwaDirPref,
 			appPrefs.ZZZDirPref,
+			appPrefs.IgnoreDirPref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

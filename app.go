@@ -45,6 +45,10 @@ func (a *App) shutdown(ctx context.Context) {
 
 }
 
+func (a *App) GetExclusionPaths() ([]string, error) {
+	return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{})
+}
+
 func (a *App) GetExportDirectory() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{})
 }

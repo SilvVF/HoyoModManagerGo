@@ -5,6 +5,7 @@ import * as HonkaiDirPref from "../../wailsjs/go/core/HonkaiDirPref"
 import * as GenshinDirPref from "../../wailsjs/go/core/GenshinDirPref"
 import * as ZZZDirPref from "../../wailsjs/go/core/ZZZDirPref"
 import * as WuwaDirPref from "../../wailsjs/go/core/WuwaDirPref"
+import * as IgnorePref from "../../wailsjs/go/core/IgnoreDirPref"
 
 type GoPref<T extends any> = {
     DefaultValue():Promise<T>;
@@ -22,6 +23,7 @@ const honkaiDirPref = HonkaiDirPref as GoPref<string>
 const zzzDirPref = ZZZDirPref as GoPref<string>
 const genshinDirPref = GenshinDirPref as GoPref<string>
 const wuwaDirPref = WuwaDirPref as GoPref<string>
+const ignorePref = IgnorePref as GoPref<string[]>
 
 
 export function usePrefrenceAsState<T extends any>(pref: GoPref<T>): [T | undefined, Dispatch<SetStateAction<T | undefined>>] {
@@ -39,4 +41,4 @@ export function usePrefrenceAsState<T extends any>(pref: GoPref<T>): [T | undefi
     return [state, setState]
 }
 
-export { darkThemePref , startScreenPref, honkaiDirPref, zzzDirPref, genshinDirPref, wuwaDirPref }
+export { darkThemePref , startScreenPref, honkaiDirPref, zzzDirPref, genshinDirPref, wuwaDirPref, ignorePref }
