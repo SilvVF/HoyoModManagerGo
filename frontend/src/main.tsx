@@ -8,6 +8,7 @@ import { createHashRouter, RouterProvider, useNavigate, useRouteError } from 're
 import ModBrowseScreen from './screens/ModBrowseScreen.tsx';
 import { ModViewScreen } from './screens/ModViewScreen.tsx';
 import { Button } from './components/ui/button.tsx';
+import { ModIndexPage } from './screens/ModIndexPage.tsx';
 const router = createHashRouter([
   {
     path: "/",
@@ -34,16 +35,17 @@ const router = createHashRouter([
         element: <></>,
       },
       {
-        path: "browse",
-        element: <ModBrowseScreen />
-      },
-      {
-        path: "mod",
+        path: "mods",
+        element: <ModIndexPage />,
         children: [
           {
             path: ":id",
             element:  <ModViewScreen />
-          }
+          },
+          {
+            path: "cats/:id",
+            element: <ModBrowseScreen />
+          },
         ]
       }
     ],

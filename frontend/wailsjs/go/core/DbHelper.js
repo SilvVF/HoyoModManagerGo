@@ -30,6 +30,10 @@ export function SelectClosestCharacter(arg1, arg2) {
   return window['go']['core']['DbHelper']['SelectClosestCharacter'](arg1, arg2);
 }
 
+export function SelectEnabledModsByGame(arg1) {
+  return window['go']['core']['DbHelper']['SelectEnabledModsByGame'](arg1);
+}
+
 export function SelectModById(arg1) {
   return window['go']['core']['DbHelper']['SelectModById'](arg1);
 }

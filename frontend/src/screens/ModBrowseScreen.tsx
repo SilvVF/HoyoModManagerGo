@@ -1,26 +1,28 @@
 import { cssString, useStateProducer } from "@/lib/utils"
 import * as GbApi from "../../wailsjs/go/api/GbApi"
-import { GenshinApi } from "@/data/dataapi"
 import { api } from "../../wailsjs/go/models"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { LogPrint } from "../../wailsjs/runtime/runtime"
+import { useEffect, useMemo, useState } from "react"
+import { useLocation, useNavigate, useParams } from "react-router-dom"
+import { Button } from "@/components/ui/button"
 
 export default function ModBrowseScreen() {
 
-    const dataApi = GenshinApi
+    const { id } = useParams();
+    const location = useLocation()
+    const navigate = useNavigate()
 
     const categories = useStateProducer<api.CategoryListResponseItem[]>([], async (update) => {
-        update(await GbApi.Categories(await dataApi.skinId()))
-    }, [dataApi])
+        update(await GbApi.Categories(Number(id)))
+    }, [id])
 
     const [page, setPage] = useState(1)
+    useEffect(() => setPage(1), [id])
 
 
     const categoryResponse = useStateProducer<api.CategoryResponse | undefined>(undefined, async (update) => {
-        update(await GbApi.CategoryContent(await dataApi.skinId(), 15, page, ""))
-    }, [page])
+        update(await GbApi.CategoryContent(Number(id), 30, page, ""))
+    }, [page, id])
 
     const lastPage = useStateProducer<number>(1, async (update) => {
         const records = categoryResponse?._aMetadata._nRecordCount 
@@ -33,14 +35,22 @@ export default function ModBrowseScreen() {
     return (
         <div className="flex flex-row justify-end items-start max-w-full h-full min-w-full">
             <CategoryItemsList res={categoryResponse}></CategoryItemsList>
-            <div className="absolute bottom-24 start-1/2 -translate-x-1/2 bg-white bg-opacity-50 rounded-lg">
-                <Paginator page={page} lastPage={lastPage} goToPage={(page) => setPage(page)} />
+            <div className="absolute bottom-4 -translate-y-1 start-1/2 -translate-x-1/2 bg-slate-700 bg-opacity-70 rounded-lg">
+                <Paginator page={page} lastPage={lastPage} goToPage={(page) => setPage(Math.min(Math.max(1, page), lastPage))} />
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col w-fit me-2">
                 {
+                    
                     categories.map((c) => {
                         return (
-                            <b>{c._sName}</b>
+                        <Button
+                            key={c._sName}
+                            onClick={() => navigate("/mods/cats/" + c._idRow)}
+                            variant={c._idRow !== undefined && location.pathname.includes(c._idRow.toString()) ? 'secondary' : 'ghost'} 
+                            className="min-w-max justify-start font-normal"
+                          >
+                            {c._sName}
+                          </Button>
                         )
                     })
                 }
@@ -67,19 +77,16 @@ function CategoryItemsList({ res }: { res: api.CategoryResponse | undefined }) {
                  res._aRecords?.map((record) => {
                     const image = record._aPreviewMedia._aImages[0]
                     return (
-                        <div className="col-span-1 aspect-video">
+                        <div className="col-span-1 aspect-video m-2">
                              <img
-                                    onClick={() => {
-                                        LogPrint("mod/" + record._idRow)
-                                        navigate("/mod/" + record._idRow)
-                                    }}
-                                    className="h-96 w-full object-cover object-top fade-in"  
+                                    onClick={() => navigate("/mods/" + record._idRow)}
+                                    className="h-96 w-full object-cover  rounded-lg object-top fade-in"  
                                     src={`${image._sBaseUrl}/${image._sFile}`}
                                     alt={record._sName}>
                             </img>
-                            <b style={cssString(record._aSubmitter?.sSubjectShaperCssCode)}>
+                            <p style={cssString(record._aSubmitter?.sSubjectShaperCssCode)}>
                                 {record._sName}
-                            </b>
+                            </p>
                         </div>
                     )
                 })

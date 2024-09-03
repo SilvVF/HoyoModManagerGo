@@ -16,6 +16,8 @@ export function SelectCharactersByGame(arg1:types.Game):Promise<Array<types.Char
 
 export function SelectClosestCharacter(arg1:string,arg2:types.Game):Promise<types.Character>;
 
+export function SelectEnabledModsByGame(arg1:types.Game):Promise<Array<types.Mod>>;
+
 export function SelectModById(arg1:number):Promise<types.Mod>;
 
 export function SelectModsByCharacterName(arg1:string,arg2:types.Game):Promise<Array<types.Mod>>;

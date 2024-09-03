@@ -9,6 +9,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Badge } from "@/components/ui/badge";
 
 export function ModViewScreen() {
   const { id } = useParams();
@@ -87,31 +88,19 @@ export function ModViewScreen() {
         className="object-contain aspect-square h-32"
       ></img>
       <b>{character?.name}</b>
-      <div dangerouslySetInnerHTML={{__html: content?._sText ?? ""}}></div>
-      <Carousel className="w-3/4">
+      <Carousel className="w-full m-8">
       <CarouselContent>
         {images.map((url, index) => (
-          <CarouselItem key={index} className="pl-1 md:basis-1/3 lg:basis-1/4">
+          <CarouselItem key={index} className="pl-1 basis-1/3">
             <div className="p-1">
-              <img className="object-cover h-48" src={url}/>
+              <img className="object-cover aspect-square h-[500px]" src={url}/>
             </div>
           </CarouselItem>
         ))}
       </CarouselContent>
-      <CarouselPrevious />
-      <CarouselNext />
+      <CarouselPrevious className="m-16"/>
+      <CarouselNext className="m-16"/>
     </Carousel>
-      {/* <Carousel className="w-3/4 m-12">
-      <CarouselContent>
-        {images.map((url) => (
-          <CarouselItem className="basis-1/4" key={url}>
-            <img src={url} className="object-cover aspect-square h-48 pl-4"></img>
-          </CarouselItem>
-        ))}
-        <CarouselPrevious />
-        <CarouselNext />
-      </CarouselContent>
-      </Carousel> */}
       <Table>
         <TableCaption>Mods available to download.</TableCaption>
         <TableHeader>
@@ -132,7 +121,9 @@ export function ModViewScreen() {
                         {
                             [f._sClamAvResult, f._sAvastAvResult, f._sAnalysisResult].map((result) => {
                                 if (result) {
-                                    return <Button size="sm" className={cn(result === "clean" || result === "File passed analysis" ? "bg-green-800" : "bg-red-800", "mx-2 h-6")} variant="secondary">{result}</Button>
+                                    return <Badge
+                                     className={cn(result === "clean" || result === "File passed analysis" ? "bg-green-800" : "bg-red-800", "mx-2 h-6")} variant="secondary">{result}
+                                     </Badge>
                                 } 
                             })
                         }
@@ -158,6 +149,7 @@ export function ModViewScreen() {
         }) ?? <></>}
         </TableBody>
       </Table>
+      <div dangerouslySetInnerHTML={{__html: content?._sText ?? ""}}></div>
     </div>
   );
 }

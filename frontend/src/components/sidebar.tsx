@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 import { useLocation, useNavigate } from "react-router-dom";
+import { GenshinApi } from "@/data/dataapi";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   playlists: string[];
@@ -20,9 +21,11 @@ export function Sidebar({ className, playlists }: SidebarProps) {
           </h2>
           <div className="space-y-1">
             <Button 
-            variant={location.pathname.includes('browse') ? 'secondary' : 'ghost'} 
+            variant={location.pathname.includes('mods') ? 'secondary' : 'ghost'} 
             className="w-full justify-start"
-            onClick={() => navigate('/browse')}>
+            onClick={() => (async () => {
+               navigate('/mods/cats/' + await GenshinApi.skinId())
+              })()}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
