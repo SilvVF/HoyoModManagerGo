@@ -111,9 +111,13 @@ func main() {
 			sync,
 			dbHelper,
 			downloader,
+			generator,
 			appPrefs.DarkTheme,
 			appPrefs.StartScreen,
-			generator,
+			appPrefs.HonkaiDirPref,
+			appPrefs.GenshinDirPref,
+			appPrefs.WuwaDirPref,
+			appPrefs.ZZZDirPref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

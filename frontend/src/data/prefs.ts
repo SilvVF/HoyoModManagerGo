@@ -1,6 +1,10 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import * as DarkThemePref from "../../wailsjs/go/core/DarkThemePref"
 import * as StartScreenPref from "../../wailsjs/go/core/StartScreenPref"
+import * as HonkaiDirPref from "../../wailsjs/go/core/HonkaiDirPref"
+import * as GenshinDirPref from "../../wailsjs/go/core/GenshinDirPref"
+import * as ZZZDirPref from "../../wailsjs/go/core/ZZZDirPref"
+import * as WuwaDirPref from "../../wailsjs/go/core/WuwaDirPref"
 
 type GoPref<T extends any> = {
     DefaultValue():Promise<T>;
@@ -13,6 +17,11 @@ type GoPref<T extends any> = {
 
 const darkThemePref = DarkThemePref as GoPref<string>
 const startScreenPref = StartScreenPref as GoPref<string>
+
+const honkaiDirPref = HonkaiDirPref as GoPref<string>
+const zzzDirPref = ZZZDirPref as GoPref<string>
+const genshinDirPref = GenshinDirPref as GoPref<string>
+const wuwaDirPref = WuwaDirPref as GoPref<string>
 
 
 export function usePrefrenceAsState<T extends any>(pref: GoPref<T>): [T | undefined, Dispatch<SetStateAction<T | undefined>>] {
@@ -30,4 +39,4 @@ export function usePrefrenceAsState<T extends any>(pref: GoPref<T>): [T | undefi
     return [state, setState]
 }
 
-export { darkThemePref , startScreenPref }
+export { darkThemePref , startScreenPref, honkaiDirPref, zzzDirPref, genshinDirPref, wuwaDirPref }

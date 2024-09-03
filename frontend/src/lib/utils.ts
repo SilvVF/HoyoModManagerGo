@@ -22,6 +22,21 @@ export function useStateProducer<T extends any>(
   return value
 }
 
+declare global {
+  interface String {
+      ifEmpty(block: () => string): string;
+  }
+}
+ 
+function ifEmpty(this: string, block: () => string): string {
+  if (this === "") {
+    return block()
+  }
+  return this
+}
+
+String.prototype.ifEmpty = ifEmpty
+
 export function CSSstring(string: string | undefined) {
 
   if (string === undefined) return 

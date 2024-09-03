@@ -44,3 +44,7 @@ func (a *App) shutdown(ctx context.Context) {
 	// Perform your teardown here
 
 }
+
+func (a *App) GetExportDirectory() (string, error) {
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{})
+}
