@@ -18,7 +18,7 @@ type Character struct {
 
 type Mod struct {
 	ID             int64
-	ModFilename    string
+	Fname          string
 	Game           int64
 	CharName       string
 	CharID         int64

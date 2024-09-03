@@ -13,7 +13,7 @@ VALUES(?, ?, ?, ?, ?);
 
 -- name: InsertMod :exec
 INSERT OR IGNORE INTO mod (
-    mod_filename,
+    fname,
     game, 
     char_name, 
     char_id, 
@@ -34,8 +34,9 @@ INSERT OR IGNORE INTO mod (
     :gbFilename,
     :gbDownloadLink
 );
+
 -- name: DeleteUnusedMods :exec
-DELETE FROM mod WHERE mod_filename NOT IN (sqlc.slice('files')) AND game = :game;
+DELETE FROM mod WHERE fname NOT IN (sqlc.slice('files')) AND game = :game;
 
 -- name: SelectCharactersWithModsAndTags :many
 SELECT 
@@ -51,14 +52,14 @@ FROM
     WHERE c.game = :game 
     AND (
         (
-            m.mod_filename LIKE '%' || :modFileName || '%'
+            m.fname LIKE '%' || :modFileName || '%'
             OR c.name LIKE '%' || :characterName || '%'
             OR t.tag_name LIKE '%' || :tagName || '%'
         ) OR (
             :modFileName is NULL AND :characterName is NULL AND :tagName is NULL 
         )
     )
-ORDER BY c.name, m.mod_filename, t.tag_name;
+ORDER BY c.name, m.fname, t.tag_name;
 
 -- name: SelectClosestCharacterMatch :one
 SELECT * FROM character WHERE LOWER(name) LIKE '%' || LOWER(:name) || '%' AND game = :game LIMIT 1;

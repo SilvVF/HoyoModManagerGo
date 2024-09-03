@@ -7,6 +7,7 @@ import (
 	"hmm/db"
 	"hmm/pkg/api"
 	"hmm/pkg/core"
+	"hmm/pkg/types"
 	"log"
 	"os"
 	"path/filepath"
@@ -68,7 +69,13 @@ func main() {
 
 	appPrefs.GenshinDirPref.Set("C:\\Users\\david\\TestMod")
 
-	generator := core.NewGenerator(dbHelper, appPrefs.GenshinDirPref.Preference)
+	generator := core.NewGenerator(
+		dbHelper,
+		map[types.Game]core.Preference[string]{
+			types.Genshin: appPrefs.GenshinDirPref.Preference,
+		},
+		appPrefs.IgnoreDirPref.Preference,
+	)
 
 	// Create application with options
 	err = wails.Run(&options.App{
@@ -88,18 +95,13 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		Menu:       nil,
-		Logger:     nil,
-		LogLevel:   logger.DEBUG,
-		OnStartup:  app.startup,
-		OnDomReady: app.domReady,
-		OnBeforeClose: func(ctx context.Context) bool {
-			return app.beforeClose(ctx)
-		},
-		OnShutdown: func(ctx context.Context) {
-			prefs.Close()
-			app.shutdown(ctx)
-		},
+		Menu:             nil,
+		Logger:           nil,
+		LogLevel:         logger.DEBUG,
+		OnStartup:        app.startup,
+		OnDomReady:       app.domReady,
+		OnBeforeClose:    app.beforeClose,
+		OnShutdown:       app.shutdown,
 		WindowStartState: options.Normal,
 		Bind: []interface{}{
 			app,

@@ -22,24 +22,23 @@ export function useStateProducer<T extends any>(
   return value
 }
 
-export function cssString(string: string | undefined): any {
+export function CSSstring(string: string | undefined) {
 
-  if (string === undefined) {
+  if (string === undefined) return 
+  try {
+    const styleObject: React.CSSProperties = {};
+    string.split(';').forEach((rule) => {
+      const [property, value] = rule.split(':').map(item => item.trim());
+      if (property && value) {
+        const camelCasedProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+        // @ts-ignore
+        styleObject[camelCasedProperty] = value;
+      }
+    });
+    return styleObject;
+  } catch {
     return {}
   }
-
-  const css_json = `{"${string
-    .replace(/; /g, '", "')
-    .replace(/: /g, '": "')
-    .replace(";", "")}"}`;
-
-  const obj = JSON.parse(css_json);
-
-  const keyValues = Object.keys(obj).map((key) => {
-    var camelCased = key.replace(/-[a-z]/g, (g) => g[1].toUpperCase());
-    return { [camelCased]: obj[key] };
-  });
-  return Object.assign({}, ...keyValues);
 }
 
 export function dropLastWhile(string: string , predicate: (string: string) => boolean): string {

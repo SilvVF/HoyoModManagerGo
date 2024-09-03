@@ -1,7 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 	"hmm/pkg/log"
 	"math"
 	"path/filepath"
@@ -29,6 +31,7 @@ type PreferenceStore interface {
 	GetInt(key string, defaultValue int) Preference[int]
 	GetFloat(key string, defaultValue float32) Preference[float32]
 	GetBoolean(key string, defaultValue bool) Preference[bool]
+	GetStringSlice(key string, defaultValue []string) Preference[[]string]
 	Close() error
 }
 
@@ -54,6 +57,7 @@ type StringPreference struct {
 }
 
 func (p *Prefs) Close() error {
+	log.LogDebug("Closing prefs db")
 	return p.db.Close()
 }
 
@@ -312,6 +316,69 @@ func (p *BooleanPreference) DefaultValue() bool {
 
 func (p *Prefs) GetBoolean(key string, defaultValue bool) Preference[bool] {
 	return &BooleanPreference{
+		key:          key,
+		defaultValue: defaultValue,
+		db:           p.db,
+	}
+}
+
+// ==========================
+
+type StringSlicePreference struct {
+	db           *rosedb.DB
+	key          string
+	defaultValue []string
+}
+
+func (p *StringSlicePreference) Key() string {
+	return p.key
+}
+
+func (p *StringSlicePreference) Get() []string {
+	v, err := p.db.Get([]byte(p.key))
+	if err != nil {
+		return p.defaultValue
+	}
+	strs := []string{}
+	buf := &bytes.Buffer{}
+	_, err = buf.Write(v)
+	if err != nil {
+		log.LogError(err.Error())
+		return p.defaultValue
+	}
+	gob.NewDecoder(buf).Decode(&strs)
+	return strs
+}
+
+func (p *StringSlicePreference) Set(value []string) {
+	buf := &bytes.Buffer{}
+	gob.NewEncoder(buf).Encode(value)
+	bs := buf.Bytes()
+
+	err := p.db.Put([]byte(p.key), bs)
+	if err != nil {
+		log.LogError(err.Error())
+	}
+}
+
+func (p *StringSlicePreference) IsSet() bool {
+	exist, err := p.db.Exist([]byte(p.key))
+	return exist && err == nil
+}
+
+func (p *StringSlicePreference) Delete() {
+	err := p.db.Delete([]byte(p.key))
+	if err != nil {
+		log.LogError(err.Error())
+	}
+}
+
+func (p *StringSlicePreference) DefaultValue() []string {
+	return p.defaultValue
+}
+
+func (p *Prefs) GetStringSlice(key string, defaultValue []string) Preference[[]string] {
+	return &StringSlicePreference{
 		key:          key,
 		defaultValue: defaultValue,
 		db:           p.db,

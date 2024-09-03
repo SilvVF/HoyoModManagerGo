@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS mod(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    mod_filename TEXT NOT NULL,
+    fname TEXT NOT NULL,
     game INTEGER NOT NULL,
     char_name TEXT NOT NULL,
     char_id INTEGER NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS mod(
     mod_link TEXT,
     gb_file_name TEXT,
     gb_download_link TEXT,
-    UNIQUE(mod_filename, char_id)
+    UNIQUE(fname, char_id, char_name)
 );
 
 CREATE TABLE IF NOT EXISTS playlist(

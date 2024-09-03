@@ -38,7 +38,7 @@ func characterFromDb(c db.Character) types.Character {
 
 func modFromDb(m db.Mod) types.Mod {
 	return types.Mod{
-		Filename:       m.ModFilename,
+		Filename:       m.Fname,
 		Game:           types.Game(m.Game),
 		Character:      m.CharName,
 		CharacterId:    int(m.CharID),
@@ -204,7 +204,7 @@ func (h *DbHelper) SelectCharacterWithModsAndTags(game types.Game, modFileName s
 
 		if item.ID_2.Valid {
 			charMap[char].Mods = append(charMap[char].Mods, types.Mod{
-				Filename:       item.ModFilename.String,
+				Filename:       item.Fname.String,
 				Game:           types.Game(item.Game),
 				Character:      item.CharName.String,
 				CharacterId:    int(item.CharID.Int64),

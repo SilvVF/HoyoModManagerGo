@@ -1,4 +1,4 @@
-import { cssString, useStateProducer } from "@/lib/utils"
+import { CSSstring, useStateProducer } from "@/lib/utils"
 import * as GbApi from "../../wailsjs/go/api/GbApi"
 import { api } from "../../wailsjs/go/models"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
@@ -76,6 +76,7 @@ function CategoryItemsList({ res }: { res: api.CategoryResponse | undefined }) {
             {
                  res._aRecords?.map((record) => {
                     const image = record._aPreviewMedia._aImages[0]
+
                     return (
                         <div className="col-span-1 aspect-video m-2">
                              <img
@@ -84,9 +85,9 @@ function CategoryItemsList({ res }: { res: api.CategoryResponse | undefined }) {
                                     src={`${image._sBaseUrl}/${image._sFile}`}
                                     alt={record._sName}>
                             </img>
-                            <p style={cssString(record._aSubmitter?.sSubjectShaperCssCode)}>
+                            <div className="font-normal text-lg" style={CSSstring(record._aSubmitter?._sSubjectShaperCssCode)}>
                                 {record._sName}
-                            </p>
+                            </div>
                         </div>
                     )
                 })

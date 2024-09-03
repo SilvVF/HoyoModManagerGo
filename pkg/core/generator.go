@@ -16,13 +16,18 @@ import (
 type Generator struct {
 	db         *DbHelper
 	outputDirs map[types.Game]Preference[string]
-	ignored    Preference[string]
+	ignored    Preference[[]string]
 }
 
-func NewGenerator(db *DbHelper, genshinDirPref Preference[string]) *Generator {
+func NewGenerator(
+	db *DbHelper,
+	outputDirs map[types.Game]Preference[string],
+	ignoredDirPref Preference[[]string],
+) *Generator {
 	return &Generator{
 		db:         db,
-		outputDirs: map[types.Game]Preference[string]{types.Genshin: genshinDirPref},
+		outputDirs: outputDirs,
+		ignored:    ignoredDirPref,
 	}
 }
 
@@ -32,7 +37,7 @@ func (g *Generator) Reload(game types.Game) error {
 		return errors.New("output dir not set")
 	}
 
-	ignore := strings.Split(g.ignored.Get(), ",")
+	ignored := g.ignored.Get()
 	outputDir := g.outputDirs[game].Get()
 
 	selected, err := g.db.SelectEnabledModsByGame(game)
@@ -55,7 +60,7 @@ func (g *Generator) Reload(game types.Game) error {
 	}
 	for _, file := range exported {
 		stat, err := os.Stat(file)
-		if err != nil || !stat.IsDir() || file == "BufferValues" || slices.Contains(ignore, file) {
+		if err != nil || !stat.IsDir() || file == "BufferValues" || slices.Contains(ignored, file) {
 			continue
 		}
 		parts := strings.SplitN(file, "_", 2)
@@ -84,9 +89,12 @@ func (g *Generator) Reload(game types.Game) error {
 
 	for _, file := range exported {
 		if strings.Contains(file, ".exe") {
-			cmd := exec.Command("cmd.exe /c", fmt.Sprintf("cd \"%s\" && start \"%s\"", outputDir, file))
-			cmd.Start()
-			cmd.Wait()
+			log.LogPrint(fmt.Sprintf("running %s", file))
+
+			cmd := exec.Command("cmd.exe", "/c", fmt.Sprintf("cd %s && start /B cmd.exe /c %s && exit", outputDir, file))
+			if err = cmd.Run(); err != nil {
+				log.LogError(err.Error())
+			}
 			break
 		}
 	}

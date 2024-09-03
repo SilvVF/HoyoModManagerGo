@@ -43,26 +43,29 @@ type CategoryRecord struct {
 		AImages []struct {
 			SType    string `json:"_sType,omitempty"`
 			SBaseURL string `json:"_sBaseUrl,omitempty"`
-			SFile    string `json:"_sFile,omitempty,omitempty"`
-			SFile220 string `json:"_sFile220,omitempty,omitempty"`
-			HFile220 int    `json:"_hFile220,omitempty,omitempty"`
-			WFile220 int    `json:"_wFile220,omitempty,omitempty"`
-			SFile530 string `json:"_sFile530,omitempty,omitempty"`
-			HFile530 int    `json:"_hFile530,omitempty,omitempty"`
-			WFile530 int    `json:"_wFile530,omitempty,omitempty"`
-			SFile100 string `json:"_sFile100,omitempty,omitempty"`
-			HFile100 int    `json:"_hFile100,omitempty,omitempty"`
-			WFile100 int    `json:"_wFile100,omitempty,omitempty"`
+			SFile    string `json:"_sFile,omitempty"`
+			SFile220 string `json:"_sFile220,omitempty"`
+			HFile220 int    `json:"_hFile220,omitempty"`
+			WFile220 int    `json:"_wFile220,omitempty"`
+			SFile530 string `json:"_sFile530,omitempty"`
+			HFile530 int    `json:"_hFile530,omitempty"`
+			WFile530 int    `json:"_wFile530,omitempty"`
+			SFile100 string `json:"_sFile100,omitempty"`
+			HFile100 int    `json:"_hFile100,omitempty"`
+			WFile100 int    `json:"_wFile100,omitempty"`
 		} `json:"_aImages,omitempty"`
 	} `json:"_aPreviewMedia,omitempty"`
 	ASubmitter struct {
-		IDRow       int    `json:"_idRow,omitempty"`
-		SName       string `json:"_sName,omitempty"`
-		BIsOnline   bool   `json:"_bIsOnline,omitempty"`
-		BHasRipe    bool   `json:"_bHasRipe,omitempty"`
-		SProfileURL string `json:"_sProfileUrl,omitempty"`
-		SAvatarURL  string `json:"_sAvatarUrl,omitempty"`
-	} `json:"_aSubmitter,omitempty,omitempty"`
+		IDRow                 int    `json:"_idRow,omitempty"`
+		SName                 string `json:"_sName,omitempty"`
+		BIsOnline             bool   `json:"_bIsOnline,omitempty"`
+		BHasRipe              bool   `json:"_bHasRipe,omitempty"`
+		SProfileURL           string `json:"_sProfileUrl,omitempty"`
+		SAvatarURL            string `json:"_sAvatarUrl,omitempty"`
+		SHdAvatarUrl          string `json:"_sHdAvatarUrl,omitempty"`
+		SUpicUrl              string `json:"_sUpicUrl,omitempty"`
+		SSubjectShaperCssCode string `json:"_sSubjectShaperCssCode,omitempty"`
+	} `json:"_aSubmitter,omitempty"`
 	AGame struct {
 		IDRow       int    `json:"_idRow,omitempty"`
 		SName       string `json:"_sName,omitempty"`
@@ -79,11 +82,11 @@ type CategoryRecord struct {
 	SInitialVisibility string `json:"_sInitialVisibility,omitempty"`
 	BHasContentRatings bool   `json:"_bHasContentRatings,omitempty"`
 	NLikeCount         int    `json:"_nLikeCount,omitempty"`
-	NPostCount         int    `json:"_nPostCount,omitempty,omitempty"`
+	NPostCount         int    `json:"_nPostCount,omitempty"`
 	BWasFeatured       bool   `json:"_bWasFeatured,omitempty"`
 	NViewCount         int    `json:"_nViewCount,omitempty"`
 	BIsOwnedByAccessor bool   `json:"_bIsOwnedByAccessor,omitempty"`
-	TsDateUpdated      int    `json:"_tsDateUpdated,omitempty,omitempty"`
+	TsDateUpdated      int    `json:"_tsDateUpdated,omitempty"`
 }
 
 type CategoryResponse struct {
@@ -293,18 +296,18 @@ type AImage struct {
 	SType    string  `json:"_sType,omitempty"`
 	SBaseURL string  `json:"_sBaseUrl,omitempty"`
 	SFile    string  `json:"_sFile,omitempty"`
-	SFile220 *string `json:"_sFile220,omitempty,omitempty"`
-	HFile220 *int64  `json:"_hFile220,omitempty,omitempty"`
-	WFile220 *int64  `json:"_wFile220,omitempty,omitempty"`
-	SFile530 *string `json:"_sFile530,omitempty,omitempty"`
-	HFile530 *int64  `json:"_hFile530,omitempty,omitempty"`
-	WFile530 *int64  `json:"_wFile530,omitempty,omitempty"`
+	SFile220 *string `json:"_sFile220,omitempty"`
+	HFile220 *int64  `json:"_hFile220,omitempty"`
+	WFile220 *int64  `json:"_wFile220,omitempty"`
+	SFile530 *string `json:"_sFile530,omitempty"`
+	HFile530 *int64  `json:"_hFile530,omitempty"`
+	WFile530 *int64  `json:"_wFile530,omitempty"`
 	SFile100 string  `json:"_sFile100,omitempty"`
 	HFile100 int64   `json:"_hFile100,omitempty"`
 	WFile100 int64   `json:"_wFile100,omitempty"`
-	SFile800 *string `json:"_sFile800,omitempty,omitempty"`
-	HFile800 *int64  `json:"_hFile800,omitempty,omitempty"`
-	WFile800 *int64  `json:"_wFile800,omitempty,omitempty"`
+	SFile800 *string `json:"_sFile800,omitempty"`
+	HFile800 *int64  `json:"_hFile800,omitempty"`
+	WFile800 *int64  `json:"_wFile800,omitempty"`
 }
 
 type ASubmitter struct {

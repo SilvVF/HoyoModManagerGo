@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
@@ -11,6 +10,7 @@ import (
 	"path"
 	"strings"
 
+	unarr "github.com/gen2brain/go-unarr"
 	"golift.io/xtractr"
 )
 
@@ -54,43 +54,41 @@ func (d *Downloader) Donwload(link string, filename string, character string, ch
 		log.LogError(err.Error())
 		return err
 	}
-	defer os.Remove(file.Name())
-
-	_, err = file.Write(bytes)
-	if err != nil {
+	if _, err = file.Write(bytes); err != nil {
 		log.LogError(err.Error())
 		return err
 	}
+	file.Close()
+	defer os.Remove(file.Name())
 
 	dotIdx := strings.LastIndex(filename, ".")
-	if dotIdx == -1 {
-		return errors.New("invalid file provided")
-	}
-	fileWithoutExt := filename[:dotIdx]
+	outputDir := path.Join(GetCharacterDir(character, game), filename[:dotIdx])
+	os.MkdirAll(outputDir, 0777)
 
-	x := &xtractr.XFile{
-		FilePath:  file.Name(),
-		OutputDir: path.Join(GetCharacterDir(character, game), fileWithoutExt), // do not forget this.
+	if strings.Contains(filename[dotIdx:], ".rar") {
+		x := &xtractr.XFile{
+			FilePath:  file.Name(),
+			OutputDir: outputDir, // do not forget this.
+			FileMode:  0777,
+			DirMode:   0777,
+		}
+		if _, _, _, err := xtractr.ExtractFile(x); err != nil {
+			log.LogError(err.Error())
+			return err
+		}
+	} else {
+		a, err := unarr.NewArchive(file.Name())
+		if err != nil {
+			return err
+		}
+		defer a.Close()
+		if _, err = a.Extract(outputDir); err != nil {
+			return err
+		}
 	}
 
-	// size is how many bytes were written.
-	// files may be nil, but will contain any files written (even with an error).
-	size, files, archives, err := xtractr.ExtractFile(x)
-	if err != nil || files == nil {
-		log.LogError(fmt.Sprintf("%d, %s, %s", size, strings.Join(files, ","), err.Error()))
-		return err
-	}
-
-	for _, f := range files {
-		log.LogPrint(f)
-	}
-	log.LogPrint("============")
-	for _, f := range archives {
-		log.LogPrint(f)
-	}
-
-	d.db.InsertMod(types.Mod{
-		Filename:       fileWithoutExt,
+	err = d.db.InsertMod(types.Mod{
+		Filename:       filename[:dotIdx],
 		Game:           game,
 		Character:      character,
 		CharacterId:    characterId,
@@ -101,7 +99,6 @@ func (d *Downloader) Donwload(link string, filename string, character string, ch
 		GbFileName:     filename,
 		GbDownloadLink: link,
 	})
-	log.LogPrint(fmt.Sprintf("Bytes written: %d Files Extracted:\n - %s", size, strings.Join(files, "\n -")))
 
-	return nil
+	return err
 }

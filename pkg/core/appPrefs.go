@@ -7,6 +7,7 @@ type AppPrefs struct {
 	HonkaiDirPref  *HonkaiDirPref
 	ZZZDirPref     *ZZZDirPref
 	WuwaDirPref    *WuwaDirPref
+	IgnoreDirPref  *IgnoreDirPref
 }
 
 func NewAppPrefs(store PreferenceStore) *AppPrefs {
@@ -29,6 +30,9 @@ func NewAppPrefs(store PreferenceStore) *AppPrefs {
 		&WuwaDirPref{
 			Preference: store.GetString("wuwadir", ""),
 		},
+		&IgnoreDirPref{
+			Preference: store.GetStringSlice("ignoredirs", []string{}),
+		},
 	}
 }
 
@@ -40,3 +44,5 @@ type HonkaiDirPref struct{ Preference[string] }
 type GenshinDirPref struct{ Preference[string] }
 type ZZZDirPref struct{ Preference[string] }
 type WuwaDirPref struct{ Preference[string] }
+
+type IgnoreDirPref struct{ Preference[[]string] }

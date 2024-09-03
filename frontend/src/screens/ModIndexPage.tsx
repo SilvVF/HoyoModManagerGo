@@ -3,7 +3,6 @@ import { GenshinApi, StarRailApi } from "@/data/dataapi";
 import { useStateProducer } from "@/lib/utils";
 import * as GbApi from "../../wailsjs/go/api/GbApi"
 import { api } from "../../wailsjs/go/models"
-import { useMemo } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const gameFromIdx = (n: number) => {
@@ -71,7 +70,7 @@ export function ModIndexPage() {
                         }, 
                         {
                             path:`cats/${cat._idRow!!}`,
-                            name: cat._sName!!
+                            name: cat._sName ?? ""
                         }
                     ])
                 } 

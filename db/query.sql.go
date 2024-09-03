@@ -21,7 +21,7 @@ func (q *Queries) DeleteModById(ctx context.Context, id int64) error {
 }
 
 const deleteUnusedMods = `-- name: DeleteUnusedMods :exec
-DELETE FROM mod WHERE mod_filename NOT IN (/*SLICE:files*/?) AND game = ?2
+DELETE FROM mod WHERE fname NOT IN (/*SLICE:files*/?) AND game = ?2
 `
 
 type DeleteUnusedModsParams struct {
@@ -47,7 +47,7 @@ func (q *Queries) DeleteUnusedMods(ctx context.Context, arg DeleteUnusedModsPara
 
 const insertMod = `-- name: InsertMod :exec
 INSERT OR IGNORE INTO mod (
-    mod_filename,
+    fname,
     game, 
     char_name, 
     char_id, 
@@ -157,7 +157,7 @@ func (q *Queries) SelectCharactersByGame(ctx context.Context, game int64) ([]Cha
 const selectCharactersWithModsAndTags = `-- name: SelectCharactersWithModsAndTags :many
 SELECT 
     c.id, c.game, c.name, c.avatar_url, c.element,
-    m.id, m.mod_filename, m.game, m.char_name, m.char_id, m.selected, m.preview_images, m.gb_id, m.mod_link, m.gb_file_name, m.gb_download_link,
+    m.id, m.fname, m.game, m.char_name, m.char_id, m.selected, m.preview_images, m.gb_id, m.mod_link, m.gb_file_name, m.gb_download_link,
     t.mod_id, t.tag_name
 FROM 
     character c
@@ -168,14 +168,14 @@ FROM
     WHERE c.game = ?1 
     AND (
         (
-            m.mod_filename LIKE '%' || ?2 || '%'
+            m.fname LIKE '%' || ?2 || '%'
             OR c.name LIKE '%' || ?3 || '%'
             OR t.tag_name LIKE '%' || ?4 || '%'
         ) OR (
             ?2 is NULL AND ?3 is NULL AND ?4 is NULL 
         )
     )
-ORDER BY c.name, m.mod_filename, t.tag_name
+ORDER BY c.name, m.fname, t.tag_name
 `
 
 type SelectCharactersWithModsAndTagsParams struct {
@@ -192,7 +192,7 @@ type SelectCharactersWithModsAndTagsRow struct {
 	AvatarUrl      string
 	Element        string
 	ID_2           sql.NullInt64
-	ModFilename    sql.NullString
+	Fname          sql.NullString
 	Game_2         sql.NullInt64
 	CharName       sql.NullString
 	CharID         sql.NullInt64
@@ -227,7 +227,7 @@ func (q *Queries) SelectCharactersWithModsAndTags(ctx context.Context, arg Selec
 			&i.AvatarUrl,
 			&i.Element,
 			&i.ID_2,
-			&i.ModFilename,
+			&i.Fname,
 			&i.Game_2,
 			&i.CharName,
 			&i.CharID,
@@ -298,7 +298,7 @@ func (q *Queries) SelectClosestCharacterMatch(ctx context.Context, arg SelectClo
 }
 
 const selectEnabledModsForGame = `-- name: SelectEnabledModsForGame :many
-SELECT id, mod_filename, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE selected AND game = ?1
+SELECT id, fname, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE selected AND game = ?1
 `
 
 func (q *Queries) SelectEnabledModsForGame(ctx context.Context, game int64) ([]Mod, error) {
@@ -312,7 +312,7 @@ func (q *Queries) SelectEnabledModsForGame(ctx context.Context, game int64) ([]M
 		var i Mod
 		if err := rows.Scan(
 			&i.ID,
-			&i.ModFilename,
+			&i.Fname,
 			&i.Game,
 			&i.CharName,
 			&i.CharID,
@@ -337,7 +337,7 @@ func (q *Queries) SelectEnabledModsForGame(ctx context.Context, game int64) ([]M
 }
 
 const selectModById = `-- name: SelectModById :one
-SELECT id, mod_filename, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.id = ?1 LIMIT 1
+SELECT id, fname, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.id = ?1 LIMIT 1
 `
 
 func (q *Queries) SelectModById(ctx context.Context, id int64) (Mod, error) {
@@ -345,7 +345,7 @@ func (q *Queries) SelectModById(ctx context.Context, id int64) (Mod, error) {
 	var i Mod
 	err := row.Scan(
 		&i.ID,
-		&i.ModFilename,
+		&i.Fname,
 		&i.Game,
 		&i.CharName,
 		&i.CharID,
@@ -360,7 +360,7 @@ func (q *Queries) SelectModById(ctx context.Context, id int64) (Mod, error) {
 }
 
 const selectModsByCharacterName = `-- name: SelectModsByCharacterName :many
-SELECT id, mod_filename, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.char_name = ?1 AND mod.game = ?2
+SELECT id, fname, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.char_name = ?1 AND mod.game = ?2
 `
 
 type SelectModsByCharacterNameParams struct {
@@ -379,7 +379,7 @@ func (q *Queries) SelectModsByCharacterName(ctx context.Context, arg SelectModsB
 		var i Mod
 		if err := rows.Scan(
 			&i.ID,
-			&i.ModFilename,
+			&i.Fname,
 			&i.Game,
 			&i.CharName,
 			&i.CharID,

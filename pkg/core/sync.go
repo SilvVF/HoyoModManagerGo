@@ -6,6 +6,7 @@ import (
 	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"os"
+	"strings"
 
 	"github.com/alitto/pond"
 )
@@ -130,6 +131,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 			}
 		}
 
+		log.LogPrint("Deleting mods not in: " + strings.Join(seenMods, "\n - "))
 		s.db.DeleteUnusedMods(seenMods, game)
 		s.initialComplete[game] = true
 	})
