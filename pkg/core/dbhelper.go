@@ -1,13 +1,16 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"hmm/db"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -178,10 +181,7 @@ func (h *DbHelper) SelectCharacterWithModsAndTags(game types.Game, modFileName s
 		return make([]types.CharacterWithModsAndTags, 0)
 	}
 
-	var charMap = map[types.Character]*struct {
-		Mods []types.Mod
-		Tags []types.Tag
-	}{}
+	var charMap = map[types.Character][]types.ModWithTags{}
 
 	for _, item := range res {
 		char := types.Character{
@@ -193,36 +193,35 @@ func (h *DbHelper) SelectCharacterWithModsAndTags(game types.Game, modFileName s
 		}
 
 		if _, ok := charMap[char]; !ok {
-			charMap[char] = &struct {
-				Mods []types.Mod
-				Tags []types.Tag
-			}{
-				make([]types.Mod, 0),
-				make([]types.Tag, 0),
-			}
+			charMap[char] = []types.ModWithTags{}
 		}
 
 		if item.ID_2.Valid {
-			charMap[char].Mods = append(charMap[char].Mods, types.Mod{
-				Filename:       item.Fname.String,
-				Game:           types.Game(item.Game),
-				Character:      item.CharName.String,
-				CharacterId:    int(item.CharID.Int64),
-				Enabled:        item.Selected.Bool,
-				PreviewImages:  strings.Split(item.PreviewImages.String, ","),
-				GbId:           int(item.GbID.Int64),
-				ModLink:        item.ModLink.String,
-				GbFileName:     item.GbFileName.String,
-				GbDownloadLink: item.GbDownloadLink.String,
-				Id:             int(item.ID_2.Int64),
+			charMap[char] = append(charMap[char], types.ModWithTags{
+				Mod: types.Mod{
+					Filename:       item.Fname.String,
+					Game:           types.Game(item.Game),
+					Character:      item.CharName.String,
+					CharacterId:    int(item.CharID.Int64),
+					Enabled:        item.Selected.Bool,
+					PreviewImages:  strings.Split(item.PreviewImages.String, ","),
+					GbId:           int(item.GbID.Int64),
+					ModLink:        item.ModLink.String,
+					GbFileName:     item.GbFileName.String,
+					GbDownloadLink: item.GbDownloadLink.String,
+					Id:             int(item.ID_2.Int64),
+				},
+				Tags: make([]types.Tag, 0),
 			})
 		}
 
 		if item.TagName.Valid && item.ModID.Valid {
-			charMap[char].Tags = append(charMap[char].Tags, types.Tag{
-				ModId: int(item.ModID.Int64),
-				Name:  item.TagName.String,
-			})
+			for _, modWithTags := range charMap[char] {
+				modWithTags.Tags = append(modWithTags.Tags, types.Tag{
+					Name:  item.TagName.String,
+					ModId: int(item.ModID.Int64),
+				})
+			}
 		}
 	}
 
@@ -240,14 +239,127 @@ func (h *DbHelper) SelectCharacterWithModsAndTags(game types.Game, modFileName s
 
 	for _, key := range keys {
 		v := charMap[key]
-		var cv types.CharacterWithModsAndTags
+		cwmt := types.CharacterWithModsAndTags{
+			Character:   key,
+			ModWithTags: v,
+		}
 
-		cv.Character = key
-		cv.Mods = v.Mods
-		cv.Tags = v.Tags
-
-		lst = append(lst, cv)
+		lst = append(lst, cwmt)
 	}
 
 	return lst
+}
+
+func (h *DbHelper) SelectPlaylistWithModsAndTags(game types.Game) ([]types.PlaylistWithModsAndTags, error) {
+	res, err := h.queries.SelectPlaylistWithModsAndTags(h.ctx, int64(game))
+	if err != nil {
+		log.LogError(err.Error())
+		return make([]types.PlaylistWithModsAndTags, 0), err
+	}
+
+	var playlistMap = map[types.Playlist][]types.ModWithTags{}
+
+	for _, item := range res {
+		playlist := types.Playlist{
+			Id:   int(item.ID),
+			Game: types.Game(item.Game),
+			Name: item.PlaylistName,
+		}
+
+		if _, ok := playlistMap[playlist]; !ok {
+			playlistMap[playlist] = []types.ModWithTags{}
+		}
+
+		playlistMap[playlist] = append(playlistMap[playlist], types.ModWithTags{
+			Mod: types.Mod{
+				Filename:       item.Fname,
+				Game:           types.Game(item.Game),
+				Character:      item.CharName,
+				CharacterId:    int(item.CharID),
+				Enabled:        item.Selected,
+				PreviewImages:  strings.Split(item.PreviewImages, ","),
+				GbId:           int(item.GbID.Int64),
+				ModLink:        item.ModLink.String,
+				GbFileName:     item.GbFileName.String,
+				GbDownloadLink: item.GbDownloadLink.String,
+				Id:             int(item.ID_2),
+			},
+			Tags: make([]types.Tag, 0),
+		})
+
+		if item.TagName.Valid && item.ModID.Valid {
+			for _, modWithTags := range playlistMap[playlist] {
+				modWithTags.Tags = append(modWithTags.Tags, types.Tag{
+					Name:  item.TagName.String,
+					ModId: int(item.ModID.Int64),
+				})
+			}
+		}
+	}
+
+	keys := make([]types.Playlist, 0, len(playlistMap))
+
+	for k := range playlistMap {
+		keys = append(keys, k)
+	}
+
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i].Name < keys[j].Name
+	})
+
+	lst := make([]types.PlaylistWithModsAndTags, 0, len(playlistMap))
+
+	for _, key := range keys {
+		v := playlistMap[key]
+		cwmt := types.PlaylistWithModsAndTags{
+			Playlist:     key,
+			ModsWithTags: v,
+		}
+
+		lst = append(lst, cwmt)
+	}
+
+	return lst, nil
+}
+
+func arrayToString(A []int64, delim string) string {
+
+	var buffer bytes.Buffer
+	for i := 0; i < len(A); i++ {
+		buffer.WriteString(strconv.Itoa(int(A[i])))
+		if i != len(A)-1 {
+			buffer.WriteString(delim)
+		}
+	}
+
+	return buffer.String()
+}
+
+func (h *DbHelper) UpdateModsEnabledFromSlice(ids []int64, game int64) error {
+	log.LogDebug(arrayToString(ids, ","))
+	log.LogDebug(fmt.Sprintf("%d", game))
+	return h.queries.UpdateModsEnabledFromSlice(h.ctx, db.UpdateModsEnabledFromSliceParams{
+		Enabled: ids,
+		Game:    game,
+	})
+}
+
+func (h *DbHelper) CreatePlaylist(game types.Game, name string) error {
+	pid, err := h.queries.InsertPlaylist(h.ctx, db.InsertPlaylistParams{PlaylistName: name, Game: int64(game)})
+	if err != nil {
+		return err
+	}
+	enabled, err := h.SelectEnabledModsByGame(game)
+	if err != nil {
+		return err
+	}
+
+	for _, mod := range enabled {
+		h.queries.InsertPlayListModCrossRef(h.ctx, db.InsertPlayListModCrossRefParams{
+			PlaylistId: pid,
+			ModId:      int64(mod.Id),
+		})
+	}
+
+	return nil
 }

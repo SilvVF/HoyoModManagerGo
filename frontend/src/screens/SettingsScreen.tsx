@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import  {genshinDirPref, honkaiDirPref, ignorePref, usePrefrenceAsState, wuwaDirPref, zzzDirPref } from "@/data/prefs";
 import { GetExportDirectory, GetExclusionPaths } from "../../wailsjs/go/main/App"
-import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { Card } from "@/components/ui/card";
 
 
@@ -111,7 +110,7 @@ export default function SettingsScreen() {
                 Add Exclusion Directory
             </Button>
             <Card>
-                <div className="space-y-1 p-2 overflow-y-scroll max-h-[300px]">
+                <div className="space-y-1 p-2 overflow-y-auto max-h-[300px]">
                 {
                             ignore?.map((path) => {
                                 return (

@@ -10,6 +10,7 @@ import { ModViewScreen } from './screens/ModViewScreen.tsx';
 import { Button } from './components/ui/button.tsx';
 import { ModIndexPage } from './screens/ModIndexPage.tsx';
 import SettingsScreen from './screens/SettingsScreen.tsx';
+import { PlaylistScreen } from './screens/PlaylistScreen.tsx';
 const router = createHashRouter([
   {
     path: "/",
@@ -33,7 +34,7 @@ const router = createHashRouter([
       },
       {
         path: "playlist",
-        element: <></>,
+        element: <PlaylistScreen />,
       },
       {
         path: "settings",

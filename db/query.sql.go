@@ -99,6 +99,49 @@ func (q *Queries) InsertMod(ctx context.Context, arg InsertModParams) error {
 	return err
 }
 
+const insertPlayListModCrossRef = `-- name: InsertPlayListModCrossRef :exec
+INSERT INTO playlist_mod_cross_ref (
+    playlist_id,
+    mod_id
+) VALUES (
+    ?1,
+    ?2
+)
+`
+
+type InsertPlayListModCrossRefParams struct {
+	PlaylistId int64
+	ModId      int64
+}
+
+func (q *Queries) InsertPlayListModCrossRef(ctx context.Context, arg InsertPlayListModCrossRefParams) error {
+	_, err := q.db.ExecContext(ctx, insertPlayListModCrossRef, arg.PlaylistId, arg.ModId)
+	return err
+}
+
+const insertPlaylist = `-- name: InsertPlaylist :one
+INSERT INTO playlist(
+    playlist_name,
+    game
+) VALUES (
+    ?1,
+    ?2
+)
+RETURNING id
+`
+
+type InsertPlaylistParams struct {
+	PlaylistName string
+	Game         int64
+}
+
+func (q *Queries) InsertPlaylist(ctx context.Context, arg InsertPlaylistParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertPlaylist, arg.PlaylistName, arg.Game)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const selectCharacterById = `-- name: SelectCharacterById :one
 SELECT id, game, name, avatar_url, element FROM character WHERE id = ?1 AND game = ?2 LIMIT 1
 `
@@ -403,6 +446,82 @@ func (q *Queries) SelectModsByCharacterName(ctx context.Context, arg SelectModsB
 	return items, nil
 }
 
+const selectPlaylistWithModsAndTags = `-- name: SelectPlaylistWithModsAndTags :many
+SELECT 
+    p.id, p.playlist_name, p.game,
+    m.id, m.fname, m.game, m.char_name, m.char_id, m.selected, m.preview_images, m.gb_id, m.mod_link, m.gb_file_name, m.gb_download_link,
+    t.mod_id, t.tag_name
+FROM 
+    playlist p
+JOIN 
+    playlist_mod_cross_ref pmcr ON p.id = pmcr.playlist_id
+JOIN 
+    mod m ON pmcr.mod_id = m.id
+LEFT JOIN 
+    tag t ON m.id = t.mod_id
+WHERE p.game = ?1
+ORDER BY m.char_name, m.fname
+`
+
+type SelectPlaylistWithModsAndTagsRow struct {
+	ID             int64
+	PlaylistName   string
+	Game           int64
+	ID_2           int64
+	Fname          string
+	Game_2         int64
+	CharName       string
+	CharID         int64
+	Selected       bool
+	PreviewImages  string
+	GbID           sql.NullInt64
+	ModLink        sql.NullString
+	GbFileName     sql.NullString
+	GbDownloadLink sql.NullString
+	ModID          sql.NullInt64
+	TagName        sql.NullString
+}
+
+func (q *Queries) SelectPlaylistWithModsAndTags(ctx context.Context, game int64) ([]SelectPlaylistWithModsAndTagsRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectPlaylistWithModsAndTags, game)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectPlaylistWithModsAndTagsRow
+	for rows.Next() {
+		var i SelectPlaylistWithModsAndTagsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PlaylistName,
+			&i.Game,
+			&i.ID_2,
+			&i.Fname,
+			&i.Game_2,
+			&i.CharName,
+			&i.CharID,
+			&i.Selected,
+			&i.PreviewImages,
+			&i.GbID,
+			&i.ModLink,
+			&i.GbFileName,
+			&i.GbDownloadLink,
+			&i.ModID,
+			&i.TagName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateModEnabledById = `-- name: UpdateModEnabledById :exec
 UPDATE mod SET
     selected = ?1
@@ -416,6 +535,52 @@ type UpdateModEnabledByIdParams struct {
 
 func (q *Queries) UpdateModEnabledById(ctx context.Context, arg UpdateModEnabledByIdParams) error {
 	_, err := q.db.ExecContext(ctx, updateModEnabledById, arg.Selected, arg.ID)
+	return err
+}
+
+const updateModsEnabledFromSlice = `-- name: UpdateModsEnabledFromSlice :exec
+UPDATE mod SET 
+    selected = CASE WHEN mod.id IN (/*SLICE:enabled*/?)
+        THEN TRUE
+        ELSE FALSE
+    END
+WHERE mod.game = ?
+`
+
+type UpdateModsEnabledFromSliceParams struct {
+	Enabled []int64
+	Game    int64
+}
+
+func (q *Queries) UpdateModsEnabledFromSlice(ctx context.Context, arg UpdateModsEnabledFromSliceParams) error {
+	query := updateModsEnabledFromSlice
+	var queryParams []interface{}
+	if len(arg.Enabled) > 0 {
+		for _, v := range arg.Enabled {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:enabled*/?", strings.Repeat(",?", len(arg.Enabled))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:enabled*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.Game)
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
+const updatePlayist = `-- name: UpdatePlayist :exec
+UPDATE playlist SET
+    playlist_name = ?1
+WHERE playlist.id = ?2
+`
+
+type UpdatePlayistParams struct {
+	PlaylistName string
+	ID           int64
+}
+
+func (q *Queries) UpdatePlayist(ctx context.Context, arg UpdatePlayistParams) error {
+	_, err := q.db.ExecContext(ctx, updatePlayist, arg.PlaylistName, arg.ID)
 	return err
 }
 

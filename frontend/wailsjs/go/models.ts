@@ -544,19 +544,17 @@ export namespace types {
 	        this.id = source["id"];
 	    }
 	}
-	export class CharacterWithModsAndTags {
-	    characters: Character;
-	    mods: Mod[];
+	export class ModWithTags {
+	    mod: Mod;
 	    tags: Tag[];
 	
 	    static createFrom(source: any = {}) {
-	        return new CharacterWithModsAndTags(source);
+	        return new ModWithTags(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.characters = this.convertValues(source["characters"], Character);
-	        this.mods = this.convertValues(source["mods"], Mod);
+	        this.mod = this.convertValues(source["mod"], Mod);
 	        this.tags = this.convertValues(source["tags"], Tag);
 	    }
 	
@@ -578,7 +576,88 @@ export namespace types {
 		    return a;
 		}
 	}
+	export class CharacterWithModsAndTags {
+	    characters: Character;
+	    modWithTags: ModWithTags[];
 	
+	    static createFrom(source: any = {}) {
+	        return new CharacterWithModsAndTags(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.characters = this.convertValues(source["characters"], Character);
+	        this.modWithTags = this.convertValues(source["modWithTags"], ModWithTags);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	export class Playlist {
+	    id: number;
+	    name: string;
+	    game: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Playlist(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.game = source["game"];
+	    }
+	}
+	export class PlaylistWithModsAndTags {
+	    playlist: Playlist;
+	    modsWithTags: ModWithTags[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PlaylistWithModsAndTags(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.playlist = this.convertValues(source["playlist"], Playlist);
+	        this.modsWithTags = this.convertValues(source["modsWithTags"], ModWithTags);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 

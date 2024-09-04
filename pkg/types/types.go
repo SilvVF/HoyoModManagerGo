@@ -32,9 +32,13 @@ type Character struct {
 }
 
 type CharacterWithModsAndTags struct {
-	Character Character `json:"characters"`
-	Mods      []Mod     `json:"mods"`
-	Tags      []Tag     `json:"tags"`
+	Character   Character     `json:"characters"`
+	ModWithTags []ModWithTags `json:"modWithTags"`
+}
+
+type ModWithTags struct {
+	Mod  Mod   `json:"mod"`
+	Tags []Tag `json:"tags"`
 }
 
 type Mod struct {
@@ -65,4 +69,9 @@ type Playlist struct {
 type PlaylistModCrossRef struct {
 	PlaylistId int `json:"playlistId"`
 	ModId      int `json:"modId"`
+}
+
+type PlaylistWithModsAndTags struct {
+	Playlist     Playlist      `json:"playlist"`
+	ModsWithTags []ModWithTags `json:"modsWithTags"`
 }

@@ -52,11 +52,14 @@ function CharacterBox({ cmt, enableMod  }: { cmt: types.CharacterWithModsAndTags
         </div>
         <ScrollArea className="flex flex-col max-h-[300px] w-full">
         {
-          cmt.mods.map((mod) => {
+          cmt.modWithTags.map((mwt) => {
             return (
-              <div className="flex flex-row justify-between m-2" key={mod.id}>
-                <b className="text-sm pe-2">{mod.filename}</b>
-                <Switch checked={mod.enabled} onCheckedChange={() => enableMod(mod.id, !mod.enabled)} />
+              <div className="flex flex-row justify-start m-1" key={mwt.mod.id}>
+                   <Switch
+                    className="" 
+                    checked={mwt.mod.enabled} 
+                    onCheckedChange={() => enableMod(mwt.mod.id, !mwt.mod.enabled)} />
+                <b className="text-sm mr-auto ps-2 overflow-ellipsis">{mwt.mod.filename}</b>
               </div>
             )
           })

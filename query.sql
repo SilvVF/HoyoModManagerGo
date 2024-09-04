@@ -80,3 +80,51 @@ WHERE mod.id = :id;
 
 -- name: SelectEnabledModsForGame :many
 SELECT * FROM mod WHERE selected AND game = :game;
+
+-- name: SelectPlaylistWithModsAndTags :many
+SELECT 
+    p.*,
+    m.*,
+    t.*
+FROM 
+    playlist p
+JOIN 
+    playlist_mod_cross_ref pmcr ON p.id = pmcr.playlist_id
+JOIN 
+    mod m ON pmcr.mod_id = m.id
+LEFT JOIN 
+    tag t ON m.id = t.mod_id
+WHERE p.game = :game
+ORDER BY m.char_name, m.fname;
+
+-- name: InsertPlaylist :one
+INSERT INTO playlist(
+    playlist_name,
+    game
+) VALUES (
+    :playlistName,
+    :game
+)
+RETURNING id;
+
+-- name: UpdatePlayist :exec
+UPDATE playlist SET
+    playlist_name = :playlistName
+WHERE playlist.id = :id;
+
+-- name: InsertPlayListModCrossRef :exec
+INSERT INTO playlist_mod_cross_ref (
+    playlist_id,
+    mod_id
+) VALUES (
+    :playlistId,
+    :modId
+);
+
+-- name: UpdateModsEnabledFromSlice :exec
+UPDATE mod SET 
+    selected = CASE WHEN mod.id IN (sqlc.slice('enabled'))
+        THEN TRUE
+        ELSE FALSE
+    END
+WHERE mod.game = ?;

@@ -51,7 +51,7 @@ export function Sidebar({ className, playlists }: SidebarProps) {
             <Button 
             variant={location.pathname === '/playlists' ? 'secondary' : 'ghost'} 
             className="w-full justify-start"
-            onClick={() => navigate('/playlists')}>
+            onClick={() => navigate('/playlist')}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
