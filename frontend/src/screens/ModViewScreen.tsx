@@ -7,12 +7,15 @@ import { SelectModsByCharacterName, SelectClosestCharacter } from "../../wailsjs
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Badge } from "@/components/ui/badge";
+import { DataApiContext } from "./ModIndexPage";
 
 export function ModViewScreen() {
   const { id } = useParams();
+
+  const dataApi = useContext(DataApiContext)
 
   const content = useStateProducer<api.ModPageResponse | undefined>(
     undefined,
@@ -29,11 +32,11 @@ export function ModViewScreen() {
     undefined,
     async (update) => {
       const cName = content?._aCategory?._sName;
-      if (cName !== undefined) {
-        SelectClosestCharacter(cName, 0).then((character) => update(character));
+      if (cName !== undefined && dataApi !== undefined) {
+        SelectClosestCharacter(cName, await dataApi?.game()).then((character) => update(character));
       }
     },
-    [content]
+    [content, dataApi]
   );
 
   const [refreshTrigger, setRefreshTrigger] = useState(0)

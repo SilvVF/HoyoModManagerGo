@@ -6,12 +6,30 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+
+const gameNameFromId = (n: number) => {
+  switch (n) {
+      case 1:
+          return "Genshin Impact"
+      case 2:
+          return "Honkai Star Rail"
+      case 3:
+          return "Zenless Zone Zero"
+      case 4: 
+          return "Wuthering Waves"
+      default: 
+          return ""
+  }
+}
+
+const ids = [1, 2, 3, 4]
 
 export function PlaylistScreen() {
 
     const [modRefreshTrigger, setModRefreshTrigger] = useState(0)
     const [playlistRefreshTrigger, setPlaylistRefreshTrigger] = useState(0)
-    const [game, _] = useState(0)
+    const [game, setGame] = useState(1)
 
     const playlists = useStateProducer<types.PlaylistWithModsAndTags[]>([], async (update) => {
         SelectPlaylistWithModsAndTags(game).then((value) => update(value))
@@ -34,6 +52,18 @@ export function PlaylistScreen() {
     }
 
     return (
+      <div className="flex flex-col">
+        <div className="flex flex-row sticky top-0">
+          {
+              ids.map((id) => {
+                return (
+                    <Badge variant={ id === game ? "default" : "outline"} className="m-2" onClick={() => setGame(id)}>
+                        {gameNameFromId(id)}
+                    </Badge>
+                )  
+                })
+          }
+        </div>
         <div className="static">
             <div className="grid grid-cols-2 divide-y">
                 {
@@ -62,6 +92,7 @@ export function PlaylistScreen() {
                 <div className="w-2" />
                 <CreatePlaylistDialog onCreate={(name) => createPlaylist(name)}></CreatePlaylistDialog>
             </div>
+        </div>
         </div>
     )
 }

@@ -53,8 +53,10 @@ func (w *WutheringWavesApi) Characters() []types.Character {
 		imgElement := element.Find("div", "class", "gatsby-image-wrapper").FindAll("img")
 		log.LogDebug(imgElement[len(imgElement)-1].HTML())
 		log.LogDebug(imgElement[len(imgElement)-1].Attrs()["data-src"])
-		elementDiv := element.Find("span", "class", "floating-element").Find("div", "class", "element")
-		typeElement := elementDiv.Find("img")
+
+		typeElement := element.FindAll("img")
+
+		log.LogDebug(typeElement[len(typeElement)-1].HTML())
 
 		h := fnv.New32a()
 		h.Write([]byte(name))
@@ -64,7 +66,7 @@ func (w *WutheringWavesApi) Characters() []types.Character {
 			Game:      w.Game,
 			Name:      name,
 			AvatarUrl: PRYDWEN_URL + imgElement[len(imgElement)-1].Attrs()["data-src"],
-			Element:   typeElement.Attrs()["alt"],
+			Element:   typeElement[len(typeElement)-1].Attrs()["alt"],
 		}
 		characters = append(characters, character)
 	}
