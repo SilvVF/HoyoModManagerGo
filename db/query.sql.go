@@ -165,7 +165,7 @@ func (q *Queries) SelectCharacterById(ctx context.Context, arg SelectCharacterBy
 }
 
 const selectCharactersByGame = `-- name: SelectCharactersByGame :many
-SELECT id, game, name, avatar_url, element FROM character WHERE character.game = ?1
+SELECT id, game, name, avatar_url, element FROM character WHERE game = ?1
 `
 
 func (q *Queries) SelectCharactersByGame(ctx context.Context, game int64) ([]Character, error) {
@@ -581,29 +581,5 @@ type UpdatePlayistParams struct {
 
 func (q *Queries) UpdatePlayist(ctx context.Context, arg UpdatePlayistParams) error {
 	_, err := q.db.ExecContext(ctx, updatePlayist, arg.PlaylistName, arg.ID)
-	return err
-}
-
-const upsertCharacter = `-- name: UpsertCharacter :exec
-INSERT OR IGNORE INTO character(id, game, name, avatar_url, element) 
-VALUES(?, ?, ?, ?, ?)
-`
-
-type UpsertCharacterParams struct {
-	ID        int64
-	Game      int64
-	Name      string
-	AvatarUrl string
-	Element   string
-}
-
-func (q *Queries) UpsertCharacter(ctx context.Context, arg UpsertCharacterParams) error {
-	_, err := q.db.ExecContext(ctx, upsertCharacter,
-		arg.ID,
-		arg.Game,
-		arg.Name,
-		arg.AvatarUrl,
-		arg.Element,
-	)
 	return err
 }

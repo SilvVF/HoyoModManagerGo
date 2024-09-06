@@ -5,11 +5,7 @@ SELECT * FROM character WHERE id = :id AND game = :game LIMIT 1;
 SELECT * FROM character WHERE LOWER(name) LIKE '%' || LOWER(:name) || '%' AND game = :game LIMIT 1;
 
 -- name: SelectCharactersByGame :many
-SELECT * FROM character WHERE character.game = :game;
-
--- name: UpsertCharacter :exec
-INSERT OR IGNORE INTO character(id, game, name, avatar_url, element) 
-VALUES(?, ?, ?, ?, ?);
+SELECT * FROM character WHERE game = :game;
 
 -- name: InsertMod :exec
 INSERT OR IGNORE INTO mod (

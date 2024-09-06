@@ -7,12 +7,16 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const gameFromIdx = (n: number) => {
     switch (n) {
-        case 0:
-            return "Genshin Impact"
         case 1:
-            return "Honkai"
+            return "Genshin Impact"
+        case 2:
+            return "Honkai Star Rail"
+        case 3:
+            return "Zenless Zone Zero"
+        case 4: 
+            return "Wuthering Waves"
         default: 
-            return "Genshin"
+            return ""
     }
 }
 

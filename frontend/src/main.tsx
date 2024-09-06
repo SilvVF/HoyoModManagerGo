@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import GameScreen from './screens/GameScreen.tsx';
-import { GenshinApi, StarRailApi } from './data/dataapi.ts';
+import { GenshinApi, StarRailApi, WutheringWavesApi, ZenlessApi } from './data/dataapi.ts';
 import { createHashRouter, RouterProvider, useNavigate, useRouteError } from 'react-router-dom';
 import ModBrowseScreen from './screens/ModBrowseScreen.tsx';
 import { ModViewScreen } from './screens/ModViewScreen.tsx';
@@ -26,11 +26,11 @@ const router = createHashRouter([
       },
       {
         path: "zenless",
-        element: <GameScreen dataApi={StarRailApi}/>,
+        element: <GameScreen dataApi={ZenlessApi}/>,
       },
       {
         path: "wuwa",
-        element: <GameScreen dataApi={StarRailApi}/>,
+        element: <GameScreen dataApi={WutheringWavesApi}/>,
       },
       {
         path: "playlist",

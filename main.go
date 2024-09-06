@@ -37,8 +37,11 @@ func main() {
 
 	ctx := context.Background()
 
-	genshinApi := &api.GenshinApi{}
-	starRailApi := &api.StarRailApi{}
+	genshinApi := api.ApiList[types.Genshin]
+	starRailApi := api.ApiList[types.StarRail]
+	zenlessApi := api.ApiList[types.ZZZ]
+	wuwaApi := api.ApiList[types.WuWa]
+
 	gbApi := &api.GbApi{}
 
 	dbfile := filepath.Join(core.GetCacheDir(), "hmm.db")
@@ -59,7 +62,7 @@ func main() {
 
 	queries := db.New(dbSql)
 
-	dbHelper := core.NewDbHelper(queries)
+	dbHelper := core.NewDbHelper(queries, dbSql)
 	downloader := core.NewDownloader(dbHelper)
 	sync := core.NewSyncHelper(dbHelper)
 
@@ -67,12 +70,13 @@ func main() {
 
 	appPrefs := core.NewAppPrefs(prefs)
 
-	appPrefs.GenshinDirPref.Set("C:\\Users\\david\\TestMod")
-
 	generator := core.NewGenerator(
 		dbHelper,
 		map[types.Game]core.Preference[string]{
-			types.Genshin: appPrefs.GenshinDirPref.Preference,
+			types.Genshin:  appPrefs.GenshinDirPref.Preference,
+			types.ZZZ:      appPrefs.ZZZDirPref.Preference,
+			types.StarRail: appPrefs.HonkaiDirPref.Preference,
+			types.WuWa:     appPrefs.WuwaDirPref.Preference,
 		},
 		appPrefs.IgnoreDirPref.Preference,
 	)
@@ -107,6 +111,8 @@ func main() {
 			app,
 			genshinApi,
 			starRailApi,
+			zenlessApi,
+			wuwaApi,
 			gbApi,
 			sync,
 			dbHelper,

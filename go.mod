@@ -6,6 +6,7 @@ toolchain go1.22.4
 
 require (
 	github.com/alitto/pond v1.9.1
+	github.com/anaskhan96/soup v1.2.5
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/wailsapp/wails/v2 v2.9.1
 	golift.io/xtractr v0.2.2

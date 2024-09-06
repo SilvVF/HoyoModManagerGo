@@ -10,15 +10,28 @@ import (
 	"strings"
 )
 
+const (
+	GENSHIN_SKIN_ID = 18140
+)
+
 type GenshinApi struct {
+	Game    types.Game `json:"game"`
+	SkinIdV int        `json:"skinIdV"`
+}
+
+func NewGenshinApi() *GenshinApi {
+	return &GenshinApi{
+		types.Genshin,
+		GENSHIN_SKIN_ID,
+	}
 }
 
 func (g *GenshinApi) SkinId() int {
-	return 18140
+	return g.SkinIdV
 }
 
 func (g *GenshinApi) GetGame() types.Game {
-	return types.Genshin
+	return g.Game
 }
 
 func (g *GenshinApi) Elements() []string {
@@ -111,8 +124,6 @@ func (g *GenshinApi) Characters() []types.Character {
 		url := genshinCharUrl(name)
 		resp, err := http.Get(url)
 
-		log.LogPrint(name)
-
 		if err != nil {
 			log.LogError(err.Error())
 			continue
@@ -136,8 +147,6 @@ func (g *GenshinApi) Characters() []types.Character {
 			log.LogError(err.Error())
 			continue
 		}
-
-		log.LogPrint(fmt.Sprintf("%1s name for %2s", characterJson.Name, name))
 
 		if characterJson.Name != "" {
 			chars = append(

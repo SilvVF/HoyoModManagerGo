@@ -44,24 +44,16 @@ func NewSyncHelper(db *DbHelper) *SyncHelper {
 	}
 }
 
-func getDataApi(g types.Game) api.DataApi {
-	switch g {
-	case types.Genshin:
-		return &api.GenshinApi{}
-	case types.StarRail:
-		return &api.StarRailApi{}
-	default:
-		return &api.GenshinApi{}
-	}
-}
-
 func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 
-	dataApi := getDataApi(game)
+	dataApi, ok := api.ApiList[game]
+	if !ok {
+		return
+	}
 	completed := request == StartupRequest && s.initialComplete[game]
 
 	if completed {
-		return
+		log.LogPrint("completed")
 	}
 
 	pool := s.running[game]
@@ -74,9 +66,9 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 
 		seenMods := []string{}
 		characters := s.db.SelectCharactersByGame(game)
-		log.LogPrint(fmt.Sprintf("characters size: %d synctype: %d", len(characters), request))
+		log.LogPrint(fmt.Sprintf("characters size: %d synctype: %d game: %d", len(characters), request, game))
 
-		if len(characters) <= 0 || request == SyncRequestForceNetwork {
+		if len(characters) <= 0 || request == SyncRequestForceNetwork || true {
 			characters = dataApi.Characters()
 			for _, c := range characters {
 
@@ -93,7 +85,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 		}
 
 		gameDir := GetGameDir(game)
-		os.MkdirAll(gameDir, os.ModePerm)
+		os.MkdirAll(gameDir, 0777)
 
 		file, err := os.Open(gameDir)
 		if err != nil {
@@ -104,7 +96,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 		for _, character := range characters {
 
 			charDir := GetCharacterDir(character.Name, game)
-			os.MkdirAll(charDir, os.ModePerm)
+			os.MkdirAll(charDir, 0777)
 
 			file, err := os.Open(charDir)
 			if err != nil {

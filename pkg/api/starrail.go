@@ -9,17 +9,28 @@ import (
 )
 
 const (
-	iconFmtString = "https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/%s"
+	iconFmtString    = "https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/%s"
+	STARRAIL_SKIN_ID = 22832
 )
 
-type StarRailApi struct{}
+type StarRailApi struct {
+	Game    types.Game `json:"game"`
+	SkinIdV int        `json:"skinIdV"`
+}
+
+func NewStarRailApi() *StarRailApi {
+	return &StarRailApi{
+		types.StarRail,
+		STARRAIL_SKIN_ID,
+	}
+}
 
 func (s *StarRailApi) SkinId() int {
-	return 22832
+	return s.SkinIdV
 }
 
 func (s *StarRailApi) GetGame() types.Game {
-	return types.StarRail
+	return s.Game
 }
 
 func (s *StarRailApi) Elements() []string {

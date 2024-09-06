@@ -1,13 +1,27 @@
 package types
 
 const (
-	Genshin  = 0
-	StarRail = 1
-	ZZZ      = 2
-	WuWa     = 3
+	Genshin  = 1
+	StarRail = 2
+	ZZZ      = 3
+	WuWa     = 4
 )
 
 type Game int
+
+func (g Game) Int64() int64 {
+	switch g {
+	case Genshin:
+		return 1
+	case StarRail:
+		return 2
+	case ZZZ:
+		return 3
+	case WuWa:
+		return 4
+	}
+	return -1
+}
 
 func (g Game) Name() string {
 	switch g {

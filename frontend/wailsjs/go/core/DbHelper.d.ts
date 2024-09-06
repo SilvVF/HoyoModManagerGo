@@ -26,6 +26,6 @@ export function SelectModsByCharacterName(arg1:string,arg2:types.Game):Promise<A
 
 export function SelectPlaylistWithModsAndTags(arg1:types.Game):Promise<Array<types.PlaylistWithModsAndTags>>;
 
-export function UpdateModsEnabledFromSlice(arg1:Array<number>,arg2:number):Promise<void>;
+export function UpdateModsEnabledFromSlice(arg1:Array<number>,arg2:types.Game):Promise<void>;
 
 export function UpsertCharacter(arg1:types.Character):Promise<void>;

@@ -15,7 +15,7 @@ function App() {
   useEffect(() => navigate('/genshin'), []) 
 
   const reload = async () => {
-    Reload(0).then(() => {}).catch((e) => LogPrint(e))
+    Reload(1).then(() => {}).catch((e) => LogPrint(e))
   }
 
   return (

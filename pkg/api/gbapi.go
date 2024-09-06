@@ -13,7 +13,7 @@ const (
 	MostDownloaded Sort = "MostDownloaded"
 	MostViewed     Sort = "MostViewed"
 
-	BASE_URL = "https://gamebanana.com/apiv11"
+	GB_URL = "https://gamebanana.com/apiv11"
 )
 
 type Sort string
@@ -99,7 +99,7 @@ type CategoryResponse struct {
 }
 
 func (g *GbApi) Categories(id int) []CategoryListResponseItem {
-	url := fmt.Sprintf("%s/Mod/Categories?_idCategoryRow=%d&_sSort=a_to_z&_bShowEmpty=true", BASE_URL, id)
+	url := fmt.Sprintf("%s/Mod/Categories?_idCategoryRow=%d&_sSort=a_to_z&_bShowEmpty=true", GB_URL, id)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -127,7 +127,7 @@ func (g *GbApi) Categories(id int) []CategoryListResponseItem {
 }
 
 func (g *GbApi) ModPage(id int) ModPageResponse {
-	url := fmt.Sprintf("%s/Mod/%d/ProfilePage", BASE_URL, id)
+	url := fmt.Sprintf("%s/Mod/%d/ProfilePage", GB_URL, id)
 	resp, err := http.Get(url)
 	if err != nil {
 		log.LogPrint(err.Error())
@@ -172,7 +172,7 @@ func (g *GbApi) CategoryContent(
 		page = 1
 	}
 
-	url := fmt.Sprintf("%s/Mod/Index?_nPerpage=%d&_aFilters[Generic_Category]=%d%s&_nPage=%d", BASE_URL, perPage, id, sortQuery, page)
+	url := fmt.Sprintf("%s/Mod/Index?_nPerpage=%d&_aFilters[Generic_Category]=%d%s&_nPage=%d", GB_URL, perPage, id, sortQuery, page)
 	log.LogPrint(url)
 	resp, err := http.Get(url)
 	if err != nil {

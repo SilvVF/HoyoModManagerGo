@@ -8,3 +8,10 @@ type DataApi interface {
 	Elements() []string
 	Characters() []types.Character
 }
+
+var ApiList map[types.Game]DataApi = map[types.Game]DataApi{
+	types.Genshin:  NewGenshinApi(),
+	types.StarRail: NewStarRailApi(),
+	types.ZZZ:      NewZenlessZoneZeroApi(),
+	types.WuWa:     NewWutherWavesApi(),
+}

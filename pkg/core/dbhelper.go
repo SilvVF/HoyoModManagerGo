@@ -17,15 +17,17 @@ import (
 type DbHelper struct {
 	queries *db.Queries
 	ctx     context.Context
+	db      db.DBTX
 }
 
-func NewDbHelper(queries *db.Queries) *DbHelper {
+func NewDbHelper(queries *db.Queries, db db.DBTX) *DbHelper {
 
 	ctx := context.Background()
 
 	return &DbHelper{
 		ctx:     ctx,
 		queries: queries,
+		db:      db,
 	}
 }
 
@@ -89,16 +91,28 @@ func (h *DbHelper) SelectEnabledModsByGame(game types.Game) ([]types.Mod, error)
 	return mods, nil
 }
 
+const upsertCharacter = `-- name: UpsertCharacter :exec
+INSERT INTO character(id, game, name, avatar_url, element) 
+VALUES(?, ?, ?, ?, ?) ON CONFLICT (id, game) DO UPDATE SET 
+    avatar_url = ?,
+    name = ?,
+    element = ?
+`
+
 func (h *DbHelper) UpsertCharacter(c types.Character) error {
 
 	if c.Name != "" && c.Id != 0 {
-		return h.queries.UpsertCharacter(h.ctx, db.UpsertCharacterParams{
-			ID:        int64(c.Id),
-			Game:      int64(c.Game),
-			Name:      c.Name,
-			AvatarUrl: c.AvatarUrl,
-			Element:   c.Element,
-		})
+		_, err := h.db.ExecContext(h.ctx, upsertCharacter,
+			c.Id,
+			c.Game,
+			c.Name,
+			c.AvatarUrl,
+			c.Element,
+			c.AvatarUrl,
+			c.Name,
+			c.Element,
+		)
+		return err
 	}
 	return errors.New("name was empty")
 }
@@ -137,7 +151,7 @@ func (h *DbHelper) InsertMod(m types.Mod) error {
 }
 
 func (h *DbHelper) SelectCharactersByGame(game types.Game) []types.Character {
-	characters, err := h.queries.SelectCharactersByGame(h.ctx, int64(game))
+	characters, err := h.queries.SelectCharactersByGame(h.ctx, game.Int64())
 
 	if err != nil {
 		return make([]types.Character, 0)
@@ -153,7 +167,7 @@ func (h *DbHelper) SelectCharactersByGame(game types.Game) []types.Character {
 }
 
 func (h *DbHelper) SelectModsByCharacterName(name string, game types.Game) ([]types.Mod, error) {
-	mods, err := h.queries.SelectModsByCharacterName(h.ctx, db.SelectModsByCharacterNameParams{Name: name, Game: int64(game)})
+	mods, err := h.queries.SelectModsByCharacterName(h.ctx, db.SelectModsByCharacterNameParams{Name: name, Game: game.Int64()})
 	if err != nil {
 		return make([]types.Mod, 0), err
 	}
@@ -170,7 +184,7 @@ func (h *DbHelper) SelectModsByCharacterName(name string, game types.Game) ([]ty
 func (h *DbHelper) SelectCharacterWithModsAndTags(game types.Game, modFileName string, characterName string, tagName string) []types.CharacterWithModsAndTags {
 
 	res, err := h.queries.SelectCharactersWithModsAndTags(h.ctx, db.SelectCharactersWithModsAndTagsParams{
-		Game:          int64(game),
+		Game:          game.Int64(),
 		ModFileName:   sql.NullString{Valid: modFileName != "", String: modFileName},
 		CharacterName: sql.NullString{Valid: characterName != "", String: characterName},
 		TagName:       sql.NullString{Valid: tagName != "", String: tagName},
@@ -251,7 +265,7 @@ func (h *DbHelper) SelectCharacterWithModsAndTags(game types.Game, modFileName s
 }
 
 func (h *DbHelper) SelectPlaylistWithModsAndTags(game types.Game) ([]types.PlaylistWithModsAndTags, error) {
-	res, err := h.queries.SelectPlaylistWithModsAndTags(h.ctx, int64(game))
+	res, err := h.queries.SelectPlaylistWithModsAndTags(h.ctx, game.Int64())
 	if err != nil {
 		log.LogError(err.Error())
 		return make([]types.PlaylistWithModsAndTags, 0), err
@@ -335,12 +349,12 @@ func arrayToString(A []int64, delim string) string {
 	return buffer.String()
 }
 
-func (h *DbHelper) UpdateModsEnabledFromSlice(ids []int64, game int64) error {
+func (h *DbHelper) UpdateModsEnabledFromSlice(ids []int64, game types.Game) error {
 	log.LogDebug(arrayToString(ids, ","))
 	log.LogDebug(fmt.Sprintf("%d", game))
 	return h.queries.UpdateModsEnabledFromSlice(h.ctx, db.UpdateModsEnabledFromSliceParams{
 		Enabled: ids,
-		Game:    game,
+		Game:    game.Int64(),
 	})
 }
 
