@@ -32,7 +32,7 @@ INSERT OR IGNORE INTO mod (
 );
 
 -- name: DeleteUnusedMods :exec
-DELETE FROM mod WHERE fname NOT IN (sqlc.slice('files')) AND game = :game;
+DELETE FROM mod WHERE fname NOT IN sqlc.slice('files') AND game = :game;
 
 -- name: SelectCharactersWithModsAndTags :many
 SELECT 

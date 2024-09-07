@@ -58,25 +58,45 @@ func (g *Generator) Reload(game types.Game) error {
 		log.LogError(err.Error())
 		return err
 	}
+
+	log.LogDebug(strings.Join(exported, "\n - "))
+
 	for _, file := range exported {
-		stat, err := os.Stat(file)
-		if err != nil || !stat.IsDir() || file == "BufferValues" || slices.Contains(ignored, file) {
+		stat, err := os.Stat(path.Join(outputDir, file))
+		if err != nil {
+			log.LogDebug("couldnt stat file" + file)
+			log.LogError(err.Error())
 			continue
 		}
+		if !stat.IsDir() || file == "BufferValues" || slices.Contains(ignored, file) {
+			log.LogDebug("skipping file" + file)
+			continue
+		}
+
 		parts := strings.SplitN(file, "_", 2)
+		log.LogDebug(strings.Join(parts, ","))
+
 		if len(parts) == 2 {
 			enabled := slices.ContainsFunc(selected, func(e types.Mod) bool {
 				prevId, err := strconv.Atoi(parts[0])
 				if err != nil {
 					return false
 				}
-				return e.Id == prevId && e.Filename == file
+				return e.Id == prevId && e.Filename == parts[1]
 			})
 			if !enabled {
-				os.RemoveAll(file)
+				log.LogDebug("Removing" + file)
+				err := os.RemoveAll(path.Join(outputDir, file))
+				if err != nil {
+					log.LogError(err.Error())
+				}
 			}
 		} else {
-			os.RemoveAll(file)
+			log.LogDebug("Removing" + file)
+			err := os.RemoveAll(path.Join(outputDir, file))
+			if err != nil {
+				log.LogError(err.Error())
+			}
 		}
 	}
 
@@ -91,7 +111,7 @@ func (g *Generator) Reload(game types.Game) error {
 		if strings.Contains(file, ".exe") {
 			log.LogPrint(fmt.Sprintf("running %s", file))
 
-			cmd := exec.Command("cmd.exe", "/c", fmt.Sprintf("cd %s && start /B cmd.exe /c %s && exit", outputDir, file))
+			cmd := exec.Command("cmd.exe", "/c", fmt.Sprintf("cd %s && start %s", outputDir, file))
 			if err = cmd.Run(); err != nil {
 				log.LogError(err.Error())
 			}

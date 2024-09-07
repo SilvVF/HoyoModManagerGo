@@ -91,8 +91,7 @@ func (h *DbHelper) SelectEnabledModsByGame(game types.Game) ([]types.Mod, error)
 	return mods, nil
 }
 
-const upsertCharacter = `-- name: UpsertCharacter :exec
-INSERT INTO character(id, game, name, avatar_url, element) 
+const upsertCharacter = `INSERT INTO character(id, game, name, avatar_url, element) 
 VALUES(?, ?, ?, ?, ?) ON CONFLICT (id, game) DO UPDATE SET 
     avatar_url = ?,
     name = ?,
@@ -117,11 +116,31 @@ func (h *DbHelper) UpsertCharacter(c types.Character) error {
 	return errors.New("name was empty")
 }
 
-func (h *DbHelper) DeleteUnusedMods(fileNames []string, game types.Game) {
-	h.queries.DeleteUnusedMods(h.ctx, db.DeleteUnusedModsParams{
-		Files: fileNames,
-		Game:  int64(game),
-	})
+func deleteUnusedModsQuery(fnames []string, game types.Game) string {
+
+	for i, name := range fnames {
+		fnames[i] = fmt.Sprintf("\"%s\"", name)
+	}
+
+	var fileArg string
+	if len(fnames) == 0 {
+		fileArg = "NULL"
+	} else {
+		fileArg = "(" + strings.Join(fnames, ",") + ")"
+	}
+
+	return fmt.Sprintf(
+		"DELETE FROM mod WHERE fname NOT IN %s AND game = %d",
+		fileArg,
+		game,
+	)
+}
+
+func (h *DbHelper) DeleteUnusedMods(fileNames []string, game types.Game) error {
+	query := deleteUnusedModsQuery(fileNames, game)
+	log.LogDebug(query)
+	_, err := h.db.ExecContext(h.ctx, query)
+	return err
 }
 
 func (h *DbHelper) DeleteModById(id int) error {

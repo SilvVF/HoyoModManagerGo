@@ -21,7 +21,7 @@ func (q *Queries) DeleteModById(ctx context.Context, id int64) error {
 }
 
 const deleteUnusedMods = `-- name: DeleteUnusedMods :exec
-DELETE FROM mod WHERE fname NOT IN (/*SLICE:files*/?) AND game = ?2
+DELETE FROM mod WHERE fname NOT IN /*SLICE:files*/? AND game = ?2
 `
 
 type DeleteUnusedModsParams struct {

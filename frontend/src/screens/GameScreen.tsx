@@ -7,6 +7,7 @@ import { EnableModById } from "../../wailsjs/go/core/DbHelper"
 import { Switch } from "@/components/ui/switch"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Button } from "@/components/ui/button"
 
 
 function GameScreen(props: {dataApi: DataApi}) {
@@ -14,8 +15,9 @@ function GameScreen(props: {dataApi: DataApi}) {
     const [refreshTrigger, setRefreshTrigger] = useState(0)
 
     useEffect(() => {
-      syncCharacters(props.dataApi)
+      syncCharacters(props.dataApi, 0)
     }, [props.dataApi])
+
 
 
     const enableMod = async (id: number, enabled: boolean) => {
@@ -27,6 +29,18 @@ function GameScreen(props: {dataApi: DataApi}) {
     }, [props.dataApi, refreshTrigger])
   
     return (
+      <div className="h-full w-full">
+        <div className="absolute bottom-0 end-12 flex flex-row z-10">
+        <Button
+        className="mx-2" 
+        onClick={() => syncCharacters(props.dataApi, 1).then(() => setRefreshTrigger(prev => prev + 1))}>
+          Refresh Local
+        </Button>
+        <Button 
+        onClick={() => syncCharacters(props.dataApi, 2).then(() => setRefreshTrigger(prev => prev + 1))}>
+          Refresh
+        </Button>
+        </div>
         <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
           {
             characters.map((c) => (
@@ -35,6 +49,7 @@ function GameScreen(props: {dataApi: DataApi}) {
               </div>
             ))
           }      
+        </div>
         </div>
     )
 }

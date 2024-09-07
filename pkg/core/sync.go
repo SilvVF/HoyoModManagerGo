@@ -53,7 +53,8 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 	completed := request == StartupRequest && s.initialComplete[game]
 
 	if completed {
-		log.LogPrint("completed")
+		log.LogPrint(fmt.Sprintf("completed Startup Sync for game id %s", dataApi.GetGame().Name()))
+		return
 	}
 
 	pool := s.running[game]
@@ -68,7 +69,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 		characters := s.db.SelectCharactersByGame(game)
 		log.LogPrint(fmt.Sprintf("characters size: %d synctype: %d game: %d", len(characters), request, game))
 
-		if len(characters) <= 0 || request == SyncRequestForceNetwork || true {
+		if len(characters) <= 0 || request == SyncRequestForceNetwork {
 			characters = dataApi.Characters()
 			for _, c := range characters {
 
@@ -122,7 +123,6 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 				})
 			}
 		}
-
 		log.LogPrint("Deleting mods not in: " + strings.Join(seenMods, "\n - "))
 		s.db.DeleteUnusedMods(seenMods, game)
 		s.initialComplete[game] = true
