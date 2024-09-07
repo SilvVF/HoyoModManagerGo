@@ -52,7 +52,7 @@ func CreateFileIfNotExists(path string) {
 	}
 }
 
-func CopyRecursivley(src string, dst string) error {
+func CopyRecursivley(src string, dst string, overwrite bool) error {
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		return fmt.Errorf("cannot stat source dir: %w", err)
@@ -75,13 +75,19 @@ func CopyRecursivley(src string, dst string) error {
 			return os.MkdirAll(dstPath, info.Mode())
 		}
 
-		return CopyFile(path, dstPath)
+		return CopyFile(path, dstPath, overwrite)
 	})
 
 	return err
 }
 
-func CopyFile(src, dst string) error {
+func CopyFile(src, dst string, overwrite bool) error {
+
+	if _, err := os.Stat(dst); err == nil && !overwrite {
+		// File exists and overwrite is false, so skip copying
+		return nil
+	}
+
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return fmt.Errorf("cannot open source file: %w", err)
