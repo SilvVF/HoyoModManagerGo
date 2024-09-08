@@ -26,6 +26,13 @@ declare global {
   interface String {
       ifEmpty(block: () => string): string;
   }
+  interface Array<T> {
+    isEmpty(): boolean;
+  }
+  interface Set<T> {
+    isEmpty(): boolean;
+    map<R>(block: (item: T) => R): Array<R>
+  }
 }
  
 function ifEmpty(this: string, block: () => string): string {
@@ -35,6 +42,37 @@ function ifEmpty(this: string, block: () => string): string {
   return this
 }
 
+function isEmptySet<T>(this: Set<T>): boolean {
+  return !(this.size > 0)
+}
+
+function isEmptyArray<T>(this: Array<T>): boolean {
+  return !(this.length > 0)
+}
+
+function iterableMap<T, R>(
+  iter: IterableIterator<T>, 
+  block: (item: T) => R): Array<R> {
+  const ret = new Array<R>() 
+  for (let item of iter) {
+    ret.push(block(item))
+  }
+  return ret
+}
+
+function setMap<T, R>(
+  this: Set<T>,
+   block: (item: T) => R
+): Array<R> {
+  return iterableMap(
+    this.values(), 
+    (item) => block(item) 
+  )
+}
+
+Set.prototype.map = setMap
+Set.prototype.isEmpty = isEmptySet
+Array.prototype.isEmpty = isEmptyArray
 String.prototype.ifEmpty = ifEmpty
 
 export function CSSstring(string: string | undefined) {

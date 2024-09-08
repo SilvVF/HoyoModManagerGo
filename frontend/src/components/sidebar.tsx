@@ -1,11 +1,12 @@
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
-import { ScrollArea } from "./ui/scroll-area";
+import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GenshinApi } from "@/data/dataapi";
+import { types } from "../../wailsjs/go/models";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
-  playlists: string[];
+  playlists: types.PlaylistWithModsAndTags[];
 }
 
 export function Sidebar({ className, playlists }: SidebarProps) {
@@ -13,8 +14,8 @@ export function Sidebar({ className, playlists }: SidebarProps) {
   const navigate = useNavigate();
 
   return (
-    <div className={cn("pb-12", className)}>
-      <div className="space-y-4 py-4">
+    <div className={cn("", className)}>
+      <div className="space-y-4 pt-4 h-full flex flex-col">
         <div className="px-3 py-2">
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
             Discover
@@ -49,7 +50,7 @@ export function Sidebar({ className, playlists }: SidebarProps) {
           </h2>
           <div className="space-y-1">
             <Button 
-            variant={location.pathname === '/playlists' ? 'secondary' : 'ghost'} 
+            variant={location.pathname === '/playlist' ? 'secondary' : 'ghost'} 
             className="w-full justify-start"
             onClick={() => navigate('/playlist')}>
               <svg
@@ -150,11 +151,11 @@ export function Sidebar({ className, playlists }: SidebarProps) {
             </Button>
           </div>
         </div>
-        <div className="py-2">
+        <div className="py-2 flex-1 overflow-hidden">
           <h2 className="relative px-7 text-lg font-semibold tracking-tight">
             Playlists
           </h2>
-          <ScrollArea className="h-[300px] px-1">
+          <ScrollArea className="px-1 h-full">
             <div className="space-y-1 p-2">
               {playlists?.map((playlist, i) => (
                 <Button
@@ -178,10 +179,11 @@ export function Sidebar({ className, playlists }: SidebarProps) {
                     <path d="M16 6H3" />
                     <path d="M12 18H3" />
                   </svg>
-                  {playlist}
+                  {playlist.playlist.name}
                 </Button>
               ))}
             </div>
+            <ScrollBar orientation="vertical" />
           </ScrollArea>
         </div>
       </div>
