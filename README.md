@@ -18,17 +18,12 @@ Libs / Tech stack
 - [pond](https://github.com/alitto/pond)
 
 Game data / images sources
-Mods
- - [Game Bannana](https://gamebanana.com/)
-Genshin Impcat
- - [genshin-db](https://github.com/theBowja/genshin-db/)
- - [genshin optimizer](https://github.com/frzyc/genshin-optimizer)
-Honkai Star Rail
- - [mar7th](https://github.com/Mar-7th)
-Zenless Zone Zero
- - [prydwen]("https://www.prydwen.gg")
-Wuthering waves
- - [prydwen]("https://www.prydwen.gg")
+- [Game Bannana](https://gamebanana.com/)
+- [genshin-db](https://github.com/theBowja/genshin-db/)
+- [genshin optimizer](https://github.com/frzyc/genshin-optimizer)
+- [mar7th](https://github.com/Mar-7th)
+- [prydwen](https://www.prydwen.gg)
+- [prydwen](https://www.prydwen.gg)
   
 Showcase
 ![image](https://github.com/user-attachments/assets/a23177b4-554d-486e-9df8-96e3789a5386)
