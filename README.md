@@ -1,12 +1,43 @@
 Skin mod manager for Hoyo games and Wuthering Waves.
 
-* supports direct downloads from game banana.
-* create and load playlists.
-* runs skin fix exe when regenerating if it exists in the mod folder.
+* Browse Game Banana mod listsings from the app.
+* Direct downloads of .rar .zip and .7zip files.
+* Create and load playlists.
+* Runs skin fix .exe automatically when regenerating the mod folder if exists.
+* Dark and light themes using Catapuccin Mocha and Latte.
 
+Libs / Tech stack
 
-![image](https://github.com/user-attachments/assets/40ab689b-85d4-4b6c-ae76-26184a1254bf)
-![image](https://github.com/user-attachments/assets/23683d03-5a22-4f01-a646-2dadfc63ae10)
-![image](https://github.com/user-attachments/assets/a5b2f2f1-a958-48e6-b21b-875020bda18b)
-![image](https://github.com/user-attachments/assets/f4a3a266-1478-4c68-b5d2-aa00b04fa551)
-![image](https://github.com/user-attachments/assets/e96291bd-305f-4461-82df-347154e1196e)
+- [WAILS](https://wails.io/)
+- [Go](https://go.dev/)
+- [RoseDB](https://github.com/rosedblabs/rosedb)
+- [sqlc](https://sqlc.dev/)
+- [sqlite](https://www.sqlite.org/index.html)
+- [shadcn/ui](https://ui.shadcn.com/)
+- [tailwind](https://tailwindcss.com/)
+- [unarr](https://github.com/gen2brain/go-unarr)
+- [xtractr](https://github.com/golift/xtractr)
+- [pond](https://github.com/alitto/pond)
+
+Game data / images sources
+
+1. Mods
+   - [Game Bannana](https://gamebanana.com/)
+2. Genshin Impcat
+   - [genshin-db](https://github.com/theBowja/genshin-db/)
+   - [genshin optimizer](https://github.com/frzyc/genshin-optimizer)
+3. Honkai Star Rail
+   - [mar7th](https://github.com/Mar-7th)
+4. Zenless Zone Zero
+   - [prydwen]("https://www.prydwen.gg")
+5. Wuthering waves
+   - [prydwen]("https://www.prydwen.gg")
+  
+Showcase
+
+![image](https://github.com/user-attachments/assets/a23177b4-554d-486e-9df8-96e3789a5386)
+![image](https://github.com/user-attachments/assets/a87d5cb7-0b17-4753-a555-2390f101a757)
+![image](https://github.com/user-attachments/assets/9081db59-2416-4714-b442-f5730f3b4a33)
+![image](https://github.com/user-attachments/assets/7e948227-d30d-4dc7-8847-ad8eb796b62a)
+![image](https://github.com/user-attachments/assets/bcb847e8-2912-4fba-a51e-b6af538521ce)
+
