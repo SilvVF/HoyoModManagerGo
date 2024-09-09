@@ -1,11 +1,11 @@
-Skin mod manager for Hoyo games and Wuthering Waves.
+# Skin mod manager for Hoyo games and Wuthering Waves.
 * Browse Game Banana mod listsings from the app.
 * Direct downloads of .rar .zip and .7zip files.
 * Create and load playlists.
 * Runs skin fix .exe automatically when regenerating the mod folder if exists.
 * Dark and light themes using Catapuccin Mocha and Latte.
 
-Libs / Tech stack
+## Libs / Tech stack
 - [WAILS](https://wails.io/)
 - [Go](https://go.dev/)
 - [RoseDB](https://github.com/rosedblabs/rosedb)
@@ -17,7 +17,7 @@ Libs / Tech stack
 - [xtractr](https://github.com/golift/xtractr)
 - [pond](https://github.com/alitto/pond)
 
-Game data / images sources
+## Game data / images sources
 - [Game Bannana](https://gamebanana.com/)
 - [genshin-db](https://github.com/theBowja/genshin-db/)
 - [genshin optimizer](https://github.com/frzyc/genshin-optimizer)
