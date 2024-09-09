@@ -28,12 +28,22 @@ declare global {
   }
   interface Array<T> {
     isEmpty(): boolean;
+    firstNotNullOf<R>(transfrom: ({value, i}: {value: T, i: number}) => R | undefined): R
+    firstNotNullOfOrNull<R>(transfrom: ({value, i}: {value: T, i: number}) => R | undefined): R | undefined
   }
   interface Set<T> {
     isEmpty(): boolean;
     map<R>(block: (item: T) => R): Array<R>
   }
 }
+
+Set.prototype.map = setMap
+Set.prototype.isEmpty = isEmptySet
+Array.prototype.isEmpty = isEmptyArray
+Array.prototype.firstNotNullOf = firstNotNullOf
+Array.prototype.firstNotNullOfOrNull = firstNotNullOfOrNull
+String.prototype.ifEmpty = ifEmpty
+
  
 function ifEmpty(this: string, block: () => string): string {
   if (this === "") {
@@ -70,10 +80,25 @@ function setMap<T, R>(
   )
 }
 
-Set.prototype.map = setMap
-Set.prototype.isEmpty = isEmptySet
-Array.prototype.isEmpty = isEmptyArray
-String.prototype.ifEmpty = ifEmpty
+function firstNotNullOf<T, R>(this: Array<T>, transform: ({value, i}: {value: T, i: number}) => R | undefined): R {
+  for (const [i, value] of this.entries()) {
+    const result = transform({value, i})
+    if (result != undefined) {
+        return result
+    }
+  }
+  throw Error("No element of the array was transformed to a non-null value.")
+}
+
+function firstNotNullOfOrNull<T, R>(this: Array<T>, transform: ({value, i}: {value: T, i: number}) => R | undefined): R | undefined {
+  for (const [i, value] of this.entries()) {
+    const result = transform({value, i})
+    if (result != undefined) {
+        return result
+    }
+  }
+  return undefined
+}
 
 export function CSSstring(string: string | undefined) {
 

@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { TopBarHeightPx } from "@/App";
 
 const gameNameFromId = (n: number) => {
   switch (n) {
@@ -83,7 +82,7 @@ export function PlaylistScreen() {
 
   return (
     <div className="flex flex-col">
-      <div className={`flex flex-row sticky top-[${TopBarHeightPx}px]`}>
+      <div className={`flex flex-row sticky top-0`}>
         {ids.map((id) => {
           return (
             <Badge

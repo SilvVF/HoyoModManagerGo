@@ -4,159 +4,162 @@ import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GenshinApi } from "@/data/dataapi";
 import { types } from "../../wailsjs/go/models";
+import {
+  BananaIcon,
+  GlobeIcon,
+  LibraryIcon,
+  Moon,
+  SettingsIcon,
+  SparkleIcon,
+  Sun,
+  TrainIcon,
+  WavesIcon,
+} from "lucide-react";
+import { ReactNode } from "react";
+import { useTheme } from "./theme-provider";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { Card } from "./ui/card";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   playlists: types.PlaylistWithModsAndTags[];
+}
+
+function SidebarItem(props: {
+  name: string;
+  selected: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <Button
+        variant={props.selected ? "secondary" : "ghost"}
+        className="w-full justify-start"
+        onClick={props.onClick}
+      >
+        <div className="stroke-2 fill-none me-4">{props.children}</div>
+        {props.name}
+      </Button>
+    </div>
+  );
+}
+
+const games = [
+  { game: "Genshin Impact", path: "genshin", icon: <SparkleIcon/> },
+  { game: "Honkai Star Rail", path: "starrail", icon: <TrainIcon/> },
+  { game: "Zenless Zone Zero", path: "zenless", icon: <GlobeIcon/> },
+  { game: "Wuthering Waves", path: "wuwa", icon: <WavesIcon/> },
+];
+
+function ModeToggle() {
+  const { setTheme } = useTheme();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="w-full h-full justify-start">
+        <SidebarItem name={"Toggle theme"} selected={false} onClick={() => {}}>
+          {
+            <div className="justify-center h-full w-full">
+              <Sun className="absolute top-0 start-0 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
+            </div>
+          }
+        </SidebarItem>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setTheme("light")}>
+          Light
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("dark")}>
+          Dark
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("system")}>
+          System
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 export function Sidebar({ className, playlists }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const navigateToGenshinCat = () => {
+    (async () => {
+      const skinId = await GenshinApi.skinId();
+      navigate("/mods/cats/" + skinId);
+    })();
+  };
+
   return (
-    <div className={cn("", className)}>
-      <div className="space-y-4 pt-4 h-full flex flex-col">
+    <div className={cn("pb-12", className)}>
+      <div className="space-y-4 py-4">
         <div className="px-3 py-2">
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-            Discover
+            App
           </h2>
-          <div className="space-y-1">
-            <Button 
-            variant={location.pathname.includes('mods') ? 'secondary' : 'ghost'} 
-            className="w-full justify-start"
-            onClick={() => (async () => {
-               navigate('/mods/cats/' + await GenshinApi.skinId())
-              })()}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2 h-4 w-4"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <polygon points="10 8 16 12 10 16 10 8" />
-              </svg>
-              Game Bannana
-            </Button>
-          </div>
+          <ModeToggle />
+          <SidebarItem
+            onClick={() => navigate("settings")}
+            name="Settings"
+            selected={location.pathname.includes("settings")}
+          >
+            {<SettingsIcon />}
+          </SidebarItem>
         </div>
-        <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-            Library
-          </h2>
-          <div className="space-y-1">
-            <Button 
-            variant={location.pathname === '/playlist' ? 'secondary' : 'ghost'} 
-            className="w-full justify-start"
-            onClick={() => navigate('/playlist')}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2 h-4 w-4"
-              >
-                <path d="M21 15V6" />
-                <path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                <path d="M12 12H3" />
-                <path d="M16 6H3" />
-                <path d="M12 18H3" />
-              </svg>
-              Playlists
-            </Button>
-            <Button 
-            variant={location.pathname === '/genshin' ? 'secondary' : 'ghost'} 
-            className="w-full justify-start"
-            onClick={() => navigate('/genshin')}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2 h-4 w-4"
-              >
-                <circle cx="8" cy="18" r="4" />
-                <path d="M12 18V2l7 4" />
-              </svg>
-              Genshin Impact
-            </Button>
-            <Button
-             variant={location.pathname === '/starrail' ? 'secondary' : 'ghost'} 
-             className="w-full justify-start"
-             onClick={() => navigate('/starrail')}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2 h-4 w-4"
-              >
-                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-              Honkai Star Rail
-            </Button>
-            <Button 
-            variant={location.pathname === '/zenless' ? 'secondary' : 'ghost'} 
-            className="w-full justify-start"
-            onClick={() => navigate('/zenless')}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2 h-4 w-4"
-              >
-                <path d="m12 8-9.04 9.06a2.82 2.82 0 1 0 3.98 3.98L16 12" />
-                <circle cx="17" cy="7" r="5" />
-              </svg>
-              Zenless Zone Zero
-            </Button>
-            <Button
-             variant={location.pathname === '/wuwa' ? 'secondary' : 'ghost'} 
-             className="w-full justify-start"
-             onClick={() => navigate('/wuwa')}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-2 h-4 w-4"
-              >
-                <path d="m16 6 4 14" />
-                <path d="M12 6v14" />
-                <path d="M8 8v12" />
-                <path d="M4 4v16" />
-              </svg>
-              Wuthering Waves
-            </Button>
-          </div>
-        </div>
-        <div className="py-2 flex-1 overflow-hidden">
-          <h2 className="relative px-7 text-lg font-semibold tracking-tight">
-            Playlists
-          </h2>
-          <ScrollArea className="px-1 h-full">
-            <div className="space-y-1 p-2">
+      </div>
+
+      <div className="px-3 py-2">
+        <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+          Discover
+        </h2>
+        <SidebarItem
+          onClick={navigateToGenshinCat}
+          name="Game Bannana"
+          selected={location.pathname.includes("mods")}
+        >
+          {<BananaIcon />}
+        </SidebarItem>
+      </div>
+
+      <div className="px-3 py-2">
+        <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+          Library
+        </h2>
+        <SidebarItem
+          onClick={() => navigate("/playlist")}
+          name="Playlists"
+          selected={location.pathname === "/playlist"}
+        >
+          {<LibraryIcon />}
+        </SidebarItem>
+        {games.map(({ game, path, icon }) => {
+          return (
+            <SidebarItem
+              name={game}
+              onClick={() => navigate(path)}
+              selected={location.pathname.includes(path)}
+            >
+              {icon}
+            </SidebarItem>
+          );
+        })}
+      </div>
+
+      <div className="px-3 py-2">
+        <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+          Playlists
+        </h2>
+        <Card className="max-h-[300px] h-full">
+          <ScrollArea className="px-1 h-56">
+            <div className="space-y-1 p-2 flex flex-col">
               {playlists?.map((playlist, i) => (
                 <Button
                   key={`${playlist}-${i}`}
@@ -185,7 +188,7 @@ export function Sidebar({ className, playlists }: SidebarProps) {
             </div>
             <ScrollBar orientation="vertical" />
           </ScrollArea>
-        </div>
+        </Card>
       </div>
     </div>
   );

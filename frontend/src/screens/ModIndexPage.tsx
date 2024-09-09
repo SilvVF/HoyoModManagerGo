@@ -12,16 +12,20 @@ import {
   WutheringWavesApi,
   ZenlessApi,
 } from "@/data/dataapi";
-import { useStateProducer } from "@/lib/utils";
+import { cn, useStateProducer } from "@/lib/utils";
 import * as GbApi from "../../wailsjs/go/api/GbApi";
 import { api } from "../../wailsjs/go/models";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { createContext, useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
-import { TopBarHeightPx } from "@/App";
-import { CopySlashIcon, Divide, Slash } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDownIcon } from "lucide-react";
 
-const gameFromIdx = (n: number) => {
+const gameDispalyNameFromIdx = (n: number) => {
   switch (n) {
     case 0:
       return "Genshin Impact";
@@ -40,78 +44,74 @@ export const DataApiContext = createContext<DataApi | undefined>(GenshinApi);
 
 type Crumb = { name: string; path: string };
 
+const currentPathInfo = (path: string) => {
+  const split = path.split("/");
+  return {
+    parts: split,
+    isCategroy: split[split.length - 2] === "cats",
+    id: Number(split[split.length - 1]),
+  };
+};
+
 export function ModIndexPage() {
   const location = useLocation();
   const navigate = useNavigate();
-
-  const skinIds = useStateProducer<number[]>(
-    [],
-    async (update) => {
-      update([
-        await GenshinApi.skinId(),
-        await StarRailApi.skinId(),
-        await ZenlessApi.skinId(),
-        await WutheringWavesApi.skinId(),
+  //prettier-ignore
+  const skinIds = useStateProducer<number[]>([], async (update) => {
+      const ids = await Promise.all([
+        GenshinApi.skinId(),
+        StarRailApi.skinId(),
+        ZenlessApi.skinId(),
+        WutheringWavesApi.skinId(),
       ]);
-    },
-    []
-  );
-
-  const subCats = useStateProducer<api.CategoryListResponseItem[][]>(
-    [],
-    async (update) => {
+      update(ids);
+  },[] );
+  //prettier-ignore
+  const subCats = useStateProducer<api.CategoryListResponseItem[][]>([], async (update) => {
       update(
         await Promise.all(
           skinIds.map(async (item): Promise<api.CategoryListResponseItem[]> => {
             return await GbApi.Categories(item);
           })
-        )
-      );
-    },
-    [skinIds]
-  );
+      ));
+  }, [skinIds]);
 
-  const crumbs = useStateProducer<Crumb[]>(
-    [],
-    async (update) => {
-      const parts = location.pathname.split("/");
-      const isCat = parts[parts.length - 2] === "cats";
-      const id = Number(parts[parts.length - 1]);
+  const createCategoryCrumbs = (id: number): Crumb[] => {
+    const skinIdIdx = skinIds.indexOf(id);
+    const isTopLevelCat = skinIdIdx !== -1;
+    if (isTopLevelCat) {
+      return [{ name: gameDispalyNameFromIdx(skinIdIdx), path: `cats/${id}` }];
+    } else {
+      const item = subCats.firstNotNullOfOrNull(({ value, i }) => {
+        return value.firstNotNullOfOrNull(({ value }) =>
+          value._idRow === id ? { i, value } : undefined
+        );
+      });
+      if (item?.value !== undefined) {
+        return [
+          {
+            path: `cats/${item.i}`,
+            name: gameDispalyNameFromIdx(item.i),
+          },
+          {
+            path: `cats/${item.value._idRow!!}`,
+            name: item.value._sName!!,
+          },
+        ];
+      }
+    }
+    return [];
+  };
+  //prettier-ignore
+  const topLevelCrumbs = useMemo<Crumb[]>(() => skinIds.map((id, i) => {
+    return { name: gameDispalyNameFromIdx(i), path: `cats/${id}` }
+  }), [skinIds])
 
-      if (isCat) {
-        const skinIdIdx = skinIds.indexOf(id);
-        if (skinIdIdx !== -1) {
-          update([
-            {
-              name: gameFromIdx(skinIdIdx),
-              path: `cats/${id}`,
-            },
-          ]);
-        } else {
-          let cat: api.CategoryListResponseItem | undefined;
-          let idx: number | undefined;
-
-          subCats.forEach((cats, i) => {
-            cats.forEach((c) => {
-              if (c._idRow === id) {
-                idx = i;
-                cat = c;
-              }
-            });
-          });
-          if (cat !== undefined && idx !== undefined) {
-            update([
-              {
-                path: `cats/${skinIds[idx]}`,
-                name: gameFromIdx(idx),
-              },
-              {
-                path: `cats/${cat._idRow!!}`,
-                name: cat._sName ?? "",
-              },
-            ]);
-          }
-        }
+  // prettier-ignore
+  const crumbs = useStateProducer<Crumb[]>([], async (update) => {
+      const { isCategroy, id } = currentPathInfo(location.pathname);
+      if (isCategroy) {
+        update(createCategoryCrumbs(id));
       } else {
         const modPage = await GbApi.ModPage(id);
         update([
@@ -132,88 +132,120 @@ export function ModIndexPage() {
     },
     [location.pathname, subCats]
   );
-
+  // prettier-ignore
   const dataApi = useMemo(() => {
-    if (crumbs.length > 0) {
-      const slashIdx = crumbs[0].path.lastIndexOf("/");
-      const skinId = Number(
-        crumbs[0].path.slice(slashIdx + 1, crumbs[0].path.length)
-      );
-      switch (skinIds.indexOf(skinId)) {
-        case 0:
-          return GenshinApi;
-        case 1:
-          return StarRailApi;
-        case 2:
-          return ZenlessApi;
-        case 3:
-          return WutheringWavesApi;
-      }
+    if (crumbs[0] === undefined) return undefined
+    const path = crumbs[0].path
+    const skinIdIdx = skinIds.indexOf(
+      Number(path.slice(path.lastIndexOf("/") + 1, path.length))
+    )
+    switch (skinIdIdx) {
+      case 0: return GenshinApi;
+      case 1: return StarRailApi;
+      case 2: return ZenlessApi;
+      case 3: return WutheringWavesApi;
     }
-    return undefined;
+    return undefined
   }, [crumbs, skinIds]);
 
   return (
     <DataApiContext.Provider value={dataApi}>
       <div className="flex flex-col">
-        <div
-          className={`flex flex-col w-full min-h-20 sticky top-[${TopBarHeightPx}px] z-20`}
-        >
-          <div className="flex flex-row">
-            {skinIds.map((id, i) => {
-              return (
-                <Badge
-                  variant={
-                    crumbs.length > 0 && gameFromIdx(i) === crumbs[0].name
-                      ? "default"
-                      : "outline"
-                  }
-                  className="p-2 m-2 backdrop-blur-md font-semibold text-sm border-primary"
-                  onClick={() => navigate(`cats/${id}`)}
-                >
-                  {gameFromIdx(i)}
-                </Badge>
-              );
-            })}
-          </div>
-          <Breadcrumb className="border border-primary border-t-1 backdrop-blur-md rounded-full w-fit m-2">
-            <BreadcrumbList>
-              {crumbs.map((item, i) => {
-                return (
-                  <>
-                    <BreadcrumbItem className="font-semibold text-primary text-sm text-decoration-line: underline p-2">
-                      <BreadcrumbLink onClick={() => navigate(item.path)}>
-                        {item.name}
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    {i !== crumbs.length - 1 ? (
-                      <BreadcrumbSeparator>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          className="stroke-primary"
-                        >
-                          <path d="M22 2 2 22" />
-                        </svg>
-                      </BreadcrumbSeparator>
-                    ) : (
-                      <></>
-                    )}
-                  </>
-                );
-              })}
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
+        <BreadCrumbList
+          className="sticky top-2 m-2" 
+          onCrumbSelected={(path) => navigate(path)}
+          crumbs={crumbs}
+          topLevelCrumbs={topLevelCrumbs}
+        />
         <Outlet />
       </div>
     </DataApiContext.Provider>
   );
 }
+
+interface BreadCurmbListProps extends React.HTMLAttributes<HTMLDivElement> {
+  topLevelCrumbs: Crumb[];
+  crumbs: Crumb[];
+  onCrumbSelected: (path: string) => void;
+}
+
+function BreadCrumbList({
+  className,
+  topLevelCrumbs,
+  crumbs,
+  onCrumbSelected,
+}: BreadCurmbListProps) {
+  return (
+    <Breadcrumb className={cn(className, "w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-30")}>
+      <BreadcrumbList>
+        {crumbs.map((item, i) => {
+          if (i === 0) {
+            return (
+              <div className="flex flex-row items-center">
+              <BreadcrumbItem className="font-semibold text-foreground hover:underline text-base p-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center gap-1">
+                    {item.name}
+                    <ChevronDownIcon />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {topLevelCrumbs.map((crumb) => {
+                      return (
+                        <DropdownMenuItem
+                          onClick={() => onCrumbSelected(crumb.path)}
+                        >
+                          {crumb.name}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </BreadcrumbItem>
+              {
+                (crumbs.length > 1) ? ( 
+                  <BreadcrumbSeparator>
+                    <Slash />
+                  </BreadcrumbSeparator>
+                ) : <></>
+              }
+              </div>
+            );
+          }
+          return (
+            <div className="flex flex-row items-center">
+              <BreadcrumbItem className="font-semibold text-foreground hover:underline text-base p-2">
+                <BreadcrumbLink onClick={() => onCrumbSelected(item.path)}>
+                  {item.name}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              {i !== crumbs.length - 1 ? (
+                <BreadcrumbSeparator>
+                  <Slash />
+                </BreadcrumbSeparator>
+              ) : (
+                <></>
+              )}
+            </div>
+          );
+        })}
+      </BreadcrumbList>
+    </Breadcrumb>
+  );
+}
+
+const Slash = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    className="stroke-primary"
+  >
+    <path d="M22 2 2 22" />
+  </svg>
+);

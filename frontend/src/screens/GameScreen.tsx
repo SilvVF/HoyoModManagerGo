@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CheckCheckIcon, PencilIcon, Trash, ViewIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { TopBarHeightPx } from "@/App";
 
 function GameScreen(props: { dataApi: DataApi }) {
   const navigate = useNavigate();
@@ -97,7 +96,7 @@ function GameScreen(props: { dataApi: DataApi }) {
         </Button>
       </div>
       <CharacterFilters
-        className={`absolute h-[64px] top-[${TopBarHeightPx}px] w-full z-10`}
+        className={`absolute h-[64px] top-0 w-full z-10`}
         elements={elements}
         selectedElements={selectedElements}
         available={available}
