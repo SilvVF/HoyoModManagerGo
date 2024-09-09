@@ -1,5 +1,5 @@
 import { type ClassValue, clsx } from "clsx"
-import { useEffect, useState } from "react"
+import {  useEffect, useState } from "react"
 import { twMerge } from "tailwind-merge"
 import { LogError } from "../../wailsjs/runtime/runtime"
  
@@ -7,17 +7,56 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export type ProducedState<T, E> = {
+  loading: boolean
+  error: E | undefined
+  value: T
+}
+
+export function useStateProducerT<T extends any, E = Error>(
+  defaultValue: T,
+  producer: (update: (value: T) => void) => Promise<void>,
+  keys: ReadonlyArray<unknown> = [],
+  debounce: number = 0,
+): ProducedState<T, E> {
+  
+  const [value, setValue] = useState(defaultValue)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<any|undefined>(undefined)
+
+  useEffect(() => { 
+    const debounced = setTimeout(() => {
+      setLoading(true)
+      producer(setValue)
+      .then(() => setError(undefined))
+      .catch(e => setError(e))
+      .finally(() => setLoading(false))
+    }, debounce)
+
+    return () => {
+      setLoading(false)
+      clearTimeout(debounced)
+    }
+  }, keys)
+
+  return {
+    loading: loading,
+    error: error,
+    value: value
+  }
+}
+
 export function useStateProducer<T extends any>(
   defaultValue: T,
   producer: (update: (value: T) => void) => Promise<void>,
-  keys: any[]
+  keys: ReadonlyArray<unknown>,
 ): T {
   
   const [value, setValue] = useState(defaultValue)
   
   useEffect(() => { 
      producer(setValue).catch(e => LogError(e))
-  }, [...keys])
+  }, keys)
 
   return value
 }
@@ -28,12 +67,12 @@ declare global {
   }
   interface Array<T> {
     isEmpty(): boolean;
-    firstNotNullOf<R>(transfrom: ({value, i}: {value: T, i: number}) => R | undefined): R
-    firstNotNullOfOrNull<R>(transfrom: ({value, i}: {value: T, i: number}) => R | undefined): R | undefined
+    firstNotNullOf<R>(transfrom: (value: T, index: number, array: T[]) => R | undefined): R
+    firstNotNullOfOrNull<R>(transfrom: (value: T, index: number, array: T[]) => R | undefined): R | undefined
   }
   interface Set<T> {
     isEmpty(): boolean;
-    map<R>(block: (item: T) => R): Array<R>
+    map<R>(block: (value: T, index: number, set: Set<T>) => R): Array<R>
   }
 }
 
@@ -62,27 +101,29 @@ function isEmptyArray<T>(this: Array<T>): boolean {
 
 function iterableMap<T, R>(
   iter: IterableIterator<T>, 
-  block: (item: T) => R): Array<R> {
+  block: (item: T, index: number) => R): Array<R> {
   const ret = new Array<R>() 
+  let i = 0
   for (let item of iter) {
-    ret.push(block(item))
+    ret.push(block(item, i))
+    i += 1
   }
   return ret
 }
 
 function setMap<T, R>(
   this: Set<T>,
-   block: (item: T) => R
+  block: (value: T, index: number, set: Set<T>) => R
 ): Array<R> {
   return iterableMap(
     this.values(), 
-    (item) => block(item) 
+    (item, index) => block(item, index, this) 
   )
 }
 
-function firstNotNullOf<T, R>(this: Array<T>, transform: ({value, i}: {value: T, i: number}) => R | undefined): R {
+function firstNotNullOf<T, R>(this: Array<T>, transform: (value: T, index: number, array: T[]) => R | undefined): R {
   for (const [i, value] of this.entries()) {
-    const result = transform({value, i})
+    const result = transform(value, i, this)
     if (result != undefined) {
         return result
     }
@@ -90,9 +131,9 @@ function firstNotNullOf<T, R>(this: Array<T>, transform: ({value, i}: {value: T,
   throw Error("No element of the array was transformed to a non-null value.")
 }
 
-function firstNotNullOfOrNull<T, R>(this: Array<T>, transform: ({value, i}: {value: T, i: number}) => R | undefined): R | undefined {
+function firstNotNullOfOrNull<T, R>(this: Array<T>, transform: (value: T, index: number, array: T[]) => R | undefined): R | undefined {
   for (const [i, value] of this.entries()) {
-    const result = transform({value, i})
+    const result = transform(value, i, this)
     if (result != undefined) {
         return result
     }

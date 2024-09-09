@@ -17,6 +17,7 @@ import * as GbApi from "../../wailsjs/go/api/GbApi";
 import { api } from "../../wailsjs/go/models";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { createContext, useMemo } from "react";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,8 +83,8 @@ export function ModIndexPage() {
     if (isTopLevelCat) {
       return [{ name: gameDispalyNameFromIdx(skinIdIdx), path: `cats/${id}` }];
     } else {
-      const item = subCats.firstNotNullOfOrNull(({ value, i }) => {
-        return value.firstNotNullOfOrNull(({ value }) =>
+      const item = subCats.firstNotNullOfOrNull((value, i) => {
+        return value.firstNotNullOfOrNull((value) =>
           value._idRow === id ? { i, value } : undefined
         );
       });
@@ -152,7 +153,7 @@ export function ModIndexPage() {
     <DataApiContext.Provider value={dataApi}>
       <div className="flex flex-col">
         <BreadCrumbList
-          className="sticky top-2 m-2" 
+          className="sticky top-2 m-2"
           onCrumbSelected={(path) => navigate(path)}
           crumbs={crumbs}
           topLevelCrumbs={topLevelCrumbs}
@@ -176,38 +177,43 @@ function BreadCrumbList({
   onCrumbSelected,
 }: BreadCurmbListProps) {
   return (
-    <Breadcrumb className={cn(className, "w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-30")}>
+    <Breadcrumb
+      className={cn(
+        className,
+        "w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-30"
+      )}
+    >
       <BreadcrumbList>
         {crumbs.map((item, i) => {
           if (i === 0) {
             return (
               <div className="flex flex-row items-center">
-              <BreadcrumbItem className="font-semibold text-foreground hover:underline text-base p-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="flex items-center gap-1">
-                    {item.name}
-                    <ChevronDownIcon />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    {topLevelCrumbs.map((crumb) => {
-                      return (
-                        <DropdownMenuItem
-                          onClick={() => onCrumbSelected(crumb.path)}
-                        >
-                          {crumb.name}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </BreadcrumbItem>
-              {
-                (crumbs.length > 1) ? ( 
+                <BreadcrumbItem className="font-semibold text-foreground hover:underline text-base p-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="flex items-center gap-1">
+                      {item.name}
+                      <ChevronDownIcon />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      {topLevelCrumbs.map((crumb) => {
+                        return (
+                          <DropdownMenuItem
+                            onClick={() => onCrumbSelected(crumb.path)}
+                          >
+                            {crumb.name}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </BreadcrumbItem>
+                {crumbs.length > 1 ? (
                   <BreadcrumbSeparator>
                     <Slash />
                   </BreadcrumbSeparator>
-                ) : <></>
-              }
+                ) : (
+                  <></>
+                )}
               </div>
             );
           }

@@ -80,7 +80,8 @@ function GameScreen(props: { dataApi: DataApi }) {
     <div className="h-full w-full flex flex-col">
       <div className="absolute bottom-2 end-12 flex flex-row z-10">
         <Button
-          className="mx-2"
+          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+          variant={'ghost'}
           onClick={() =>
             syncCharacters(props.dataApi, 1).then(refreshCharacters)
           }
@@ -88,6 +89,8 @@ function GameScreen(props: { dataApi: DataApi }) {
           Refresh Local
         </Button>
         <Button
+          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+          variant={'ghost'}
           onClick={() =>
             syncCharacters(props.dataApi, 2).then(refreshCharacters)
           }
@@ -120,19 +123,29 @@ function GameScreen(props: { dataApi: DataApi }) {
   );
 }
 
-interface CharacterFilterProps  extends React.HTMLAttributes<HTMLDivElement> {
-  elements: string[],
-  selectedElements: string[],
-  available: boolean,
-  toggleAvailable: (change: boolean) => void,
-  toggleElement: (element: string) => void
-} 
+interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement> {
+  elements: string[];
+  selectedElements: string[];
+  available: boolean;
+  toggleAvailable: (change: boolean) => void;
+  toggleElement: (element: string) => void;
+}
 
-function CharacterFilters(
- { elements, selectedElements, available, toggleAvailable, toggleElement, className }: CharacterFilterProps
-) {
+function CharacterFilters({
+  elements,
+  selectedElements,
+  available,
+  toggleAvailable,
+  toggleElement,
+  className,
+}: CharacterFilterProps) {
   return (
-    <div className={cn(className, "flex flex-row items-center justify-between p-2 me-2")}>
+    <div
+      className={cn(
+        className,
+        "flex flex-row items-center justify-between p-2 me-2"
+      )}
+    >
       <div className="flex flex-row space-x-2 p-2">
         {elements.map((element) => {
           return (
@@ -144,6 +157,12 @@ function CharacterFilters(
                   ? "secondary"
                   : "outline"
               }
+              className={cn(
+                selectedElements.includes(element.toLowerCase())
+                  ? "bg-primary/50"
+                  : "bg-secondary/20",
+                "rounded-full backdrop-blur-md border-0"
+              )}
               onPointerDown={() => toggleElement(element)}
             >
               {element}
@@ -152,14 +171,17 @@ function CharacterFilters(
         })}
       </div>
       <Button
-        className="mx-2"
+        className={cn(
+          available ? "bg-primary/50" : "bg-secondary/20",
+          "mx-2 rounded-full backdrop-blur-md border-0"
+        )}
         variant={available ? "secondary" : "outline"}
         onPointerDown={() => toggleAvailable(!available)}
       >
         Mods available
       </Button>
-  </div>
-  )
+    </div>
+  );
 }
 
 export function ModActionsDropDown(props: {
