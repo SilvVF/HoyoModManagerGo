@@ -3,14 +3,16 @@ import * as GbApi from "../../wailsjs/go/api/GbApi";
 import { api, types } from "../../wailsjs/go/models";
 import { useParams } from "react-router-dom";
 import { LogPrint } from "../../wailsjs/runtime/runtime";
-import { SelectModsByCharacterName, SelectClosestCharacter } from "../../wailsjs/go/core/DbHelper";
+import { SelectModsByCharacterName, SelectClosestCharacter, SelectCharactersByGame } from "../../wailsjs/go/core/DbHelper";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useContext, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Badge } from "@/components/ui/badge";
 import { DataApiContext } from "./ModIndexPage";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function ModViewScreen() {
   const { id } = useParams();
@@ -28,16 +30,16 @@ export function ModViewScreen() {
   );
 
 
-  const character = useStateProducer<types.Character | undefined>(
-    undefined,
-    async (update) => {
+  const [character, setCharacter] = useState<types.Character | undefined>(undefined)
+
+  useEffect(() => {
+    (async () => {
       const cName = content?._aCategory?._sName;
       if (cName !== undefined && dataApi !== undefined) {
-        SelectClosestCharacter(cName, await dataApi?.game()).then((character) => update(character));
+        SelectClosestCharacter(cName, await dataApi?.game()).then((character) => setCharacter(character));
       }
-    },
-    [content, dataApi]
-  );
+    })()
+  },  [content, dataApi])
 
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
@@ -86,11 +88,10 @@ export function ModViewScreen() {
 
   return (
     <div className="flex flex-col min-w-screen h-full items-center">
-      <img
-        src={character?.avatarUrl}
-        className="object-contain aspect-square h-32"
-      ></img>
-      <b>{character?.name}</b>
+      <CharacterSelectDropdown 
+        onSelected={setCharacter}
+        selected={character}
+      />
       <Carousel className="w-full m-8">
       <CarouselContent>
         {images.map((url, index) => (
@@ -202,4 +203,46 @@ function DownloadButton(
             </svg>
         </Button>
     )
+}
+
+export function CharacterSelectDropdown(
+  props: {
+    selected: types.Character | undefined,
+    onSelected: (c: types.Character) => void
+  }
+) {
+  const dataApi = useContext(DataApiContext)
+
+  const characters = useStateProducer<types.Character[]>([], async (update) => {
+    if (dataApi) {
+      SelectCharactersByGame(await dataApi.game()).then((v) => update(v))
+    }
+  }, [dataApi])
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <div className="flex flex-col">
+        <img
+          src={props.selected?.avatarUrl}
+          className="object-contain aspect-square h-32"
+        ></img>
+        <b>{props.selected?.name}</b>
+        </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="">
+        <ScrollArea className="h-[300px]">
+        {
+          characters.map((c)=> {
+            return (
+              <DropdownMenuItem onClick={() => props.onSelected(c)}>
+                <span className="w-full">{c.name}</span>
+              </DropdownMenuItem>
+            )
+          }) 
+        }
+        </ScrollArea>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }

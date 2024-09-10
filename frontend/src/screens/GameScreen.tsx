@@ -3,6 +3,7 @@ import { DataApi } from "../data/dataapi";
 import { syncCharacters } from "../data/sync";
 import { cn, useStateProducer } from "../lib/utils";
 import { types } from "wailsjs/go/models";
+import { Reload } from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import { EnableModById } from "../../wailsjs/go/core/DbHelper";
 import { Switch } from "@/components/ui/switch";
@@ -79,6 +80,13 @@ function GameScreen(props: { dataApi: DataApi }) {
   return (
     <div className="h-full w-full flex flex-col">
       <div className="absolute bottom-2 end-12 flex flex-row z-10">
+      <Button
+          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+          variant={'ghost'}
+          onClick={() => (async() => Reload(await props.dataApi.game()).catch())()}
+        >
+          Generate
+        </Button>
         <Button
           className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
           variant={'ghost'}
