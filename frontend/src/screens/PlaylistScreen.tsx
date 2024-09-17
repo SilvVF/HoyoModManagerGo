@@ -159,7 +159,7 @@ function SelectPlayListDialog(props: {
         <div className="flex flex-col items-center space-x-2">
           {props.playlists.map((pwmt) => {
             return (
-              <Button onPointerDown={() => props.onSelected(pwmt)}>
+              <Button className="w-full" variant={"ghost"} onPointerDown={() => props.onSelected(pwmt)}>
                 {pwmt.playlist.name}
               </Button>
             );

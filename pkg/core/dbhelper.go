@@ -377,6 +377,13 @@ func (h *DbHelper) UpdateModsEnabledFromSlice(ids []int64, game types.Game) erro
 	})
 }
 
+func (h *DbHelper) DeletePlaylistById(id int64) error {
+	query := fmt.Sprintf("DELETE FROM playlist WHERE id = %d", id)
+	log.LogDebug(query)
+	_, err := h.db.ExecContext(h.ctx, query)
+	return err
+}
+
 func (h *DbHelper) CreatePlaylist(game types.Game, name string) error {
 	pid, err := h.queries.InsertPlaylist(h.ctx, db.InsertPlaylistParams{PlaylistName: name, Game: int64(game)})
 	if err != nil {

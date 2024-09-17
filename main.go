@@ -125,6 +125,7 @@ func main() {
 			appPrefs.WuwaDirPref,
 			appPrefs.ZZZDirPref,
 			appPrefs.IgnoreDirPref,
+			appPrefs.SortModPref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

@@ -18,6 +18,27 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
+import { ChevronDownIcon } from "lucide-react";
+import { usePrefrenceAsState, sortModPref } from "@/data/prefs";
+
+type Sorts = "MostLiked" | "MostDownloaded" | "MostViewed" | "";
+const sortName = (s: string | undefined) => {
+  switch(s) {
+    case "": return "Default"
+    case "MostLiked": return "Most liked"
+    case "MostDownloaded": return "Most downloaded"
+    case "MostViewed": return "Most view"
+    default: return ""
+  }
+}
+
+const sortOptions: Sorts[] = ["MostLiked", "MostDownloaded", "MostViewed", ""];
 
 export default function ModBrowseScreen() {
   const { id } = useParams();
@@ -31,8 +52,9 @@ export default function ModBrowseScreen() {
     },
     [id]
   );
-
+  const [sort, setSort] = usePrefrenceAsState<string>(sortModPref);
   const [page, setPage] = useState(1);
+
   useEffect(() => setPage(1), [id]);
 
   const { loading, value, error } = useStateProducerT<
@@ -40,9 +62,11 @@ export default function ModBrowseScreen() {
   >(
     undefined,
     async (update) => {
-      update(await GbApi.CategoryContent(Number(id), 30, page, ""));
+      if (sort !== undefined) {
+        update(await GbApi.CategoryContent(Number(id), 30, page, sort));
+      }
     },
-    [page, id]
+    [page, id, sort]
   );
 
   const lastPage = useMemo<number>(() => {
@@ -56,6 +80,24 @@ export default function ModBrowseScreen() {
 
   return (
     <div className="flex flex-row justify-end items-start max-w-full h-full min-w-full">
+      <div className="absolute top-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger 
+          className="flex items-center gap-1 w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-30 p-2 me-12 font-semibold text-foreground">
+            {sortName(sort)}
+            <ChevronDownIcon />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {sortOptions.map((s) => {
+              return (
+                <DropdownMenuItem onPointerDown={() => setSort(s)}>
+                  <Button variant={'ghost'} className="w-full">{sortName(s)}</Button>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <CategoryItemsList res={value} error={error} loading={loading} />
       <div className="absolute bottom-4 -translate-y-1 start-1/2 -translate-x-1/2 bg-primary/30 backdrop-blur-lg rounded-full">
         <Paginator

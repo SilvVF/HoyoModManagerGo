@@ -9,10 +9,12 @@ import {
   GlobeIcon,
   LibraryIcon,
   Moon,
+  RefreshCwIcon,
   SettingsIcon,
   SparkleIcon,
   Sun,
   TrainIcon,
+  TrashIcon,
   WavesIcon,
 } from "lucide-react";
 import { ReactNode } from "react";
@@ -26,6 +28,8 @@ import {
 import { Card } from "./ui/card";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
+  refreshPlaylist: () => void;
+  onDeletePlaylist: (id: number) => void;
   playlists: types.PlaylistWithModsAndTags[];
 }
 
@@ -87,7 +91,7 @@ function ModeToggle() {
   );
 }
 
-export function Sidebar({ className, playlists }: SidebarProps) {
+export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylist }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -154,36 +158,46 @@ export function Sidebar({ className, playlists }: SidebarProps) {
       </div>
 
       <div className="px-3 py-2">
-        <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-          Playlists
-        </h2>
+      <div className="flex flex-row justify-between items-baseline w-full">
+          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+            Playlists
+          </h2>
+          <Button onPointerDown={refreshPlaylist} size={"icon"} variant={"ghost"}>
+            <RefreshCwIcon className="h-4"/>
+          </Button>
+        </div>
         <Card className="max-h-[300px] h-full">
           <ScrollArea className="px-1 h-56">
             <div className="space-y-1 p-2 flex flex-col">
               {playlists?.map((playlist, i) => (
-                <Button
-                  key={`${playlist}-${i}`}
-                  variant="ghost"
-                  className="w-full justify-start font-normal"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2 h-4 w-4"
+                <div className="flex flex-row">
+                  <Button
+                    key={`${playlist}-${i}`}
+                    variant="ghost"
+                    className="w-full justify-start font-normal"
                   >
-                    <path d="M21 15V6" />
-                    <path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                    <path d="M12 12H3" />
-                    <path d="M16 6H3" />
-                    <path d="M12 18H3" />
-                  </svg>
-                  {playlist.playlist.name}
-                </Button>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-2 h-4 w-4"
+                    >
+                      <path d="M21 15V6" />
+                      <path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+                      <path d="M12 12H3" />
+                      <path d="M16 6H3" />
+                      <path d="M12 18H3" />
+                    </svg>
+                    {playlist.playlist.name}
+                  </Button>
+                  <Button onPointerDown={() => onDeletePlaylist(playlist.playlist.id)} variant={"ghost"} size={"icon"}>
+                    <TrashIcon></TrashIcon>
+                  </Button>
+                </div>
               ))}
             </div>
             <ScrollBar orientation="vertical" />

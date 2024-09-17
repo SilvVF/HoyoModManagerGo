@@ -10,6 +10,10 @@ export function DeleteModById(arg1) {
   return window['go']['core']['DbHelper']['DeleteModById'](arg1);
 }
 
+export function DeletePlaylistById(arg1) {
+  return window['go']['core']['DbHelper']['DeletePlaylistById'](arg1);
+}
+
 export function DeleteUnusedMods(arg1, arg2) {
   return window['go']['core']['DbHelper']['DeleteUnusedMods'](arg1, arg2);
 }

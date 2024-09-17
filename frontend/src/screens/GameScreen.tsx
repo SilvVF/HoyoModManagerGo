@@ -19,12 +19,40 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CheckCheckIcon, PencilIcon, Trash, ViewIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+
+type GameDialog = "rename_mod" | "create_tag" | "rename_tag"
+
+type IDialogMap = {
+  [key in GameDialog]: {
+    title: string;
+    description: string;
+  };
+};
+
+const dialogSettings: IDialogMap = {
+  "rename_mod": {
+    title: "Rename mod",
+    description: "rename the current mod (this will change the folder name in files)"
+  },
+  "create_tag": {
+    title: "Create tag",
+    description: "create a tag for the mod"
+  },
+  "rename_tag": {
+   title: "Rename tag",
+   description: "Rename the current tag"
+  }
+}
 
 function GameScreen(props: { dataApi: DataApi }) {
   const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedElements, setSelectedElements] = useState<string[]>([]);
   const [available, setAvailableOnly] = useState(false);
+
+  const [dialog, setDialog] = useState<GameDialog | undefined>(undefined)
 
   useEffect(() => {
     syncCharacters(props.dataApi, 0);
@@ -77,9 +105,26 @@ function GameScreen(props: { dataApi: DataApi }) {
     EnableModById(enabled, id).then(refreshCharacters);
   };
 
+  const handleDialogSuccess = (dialog: string, _: string) => {
+      switch(dialog) {
+          case "rename_mod": break;
+          case "rename_tag": break;
+          case "create_tag": break;
+      }
+  }
+
+  const settings = dialog !== undefined ? dialogSettings[dialog] : undefined
+
   return (
     <div className="h-full w-full flex flex-col">
       <div className="absolute bottom-2 end-12 flex flex-row z-10">
+      <NameDialog
+           title={settings?.title ?? ""}
+           description={settings?.description ?? ""}
+           open={dialog !== undefined} 
+           onOpenChange={() => setDialog(undefined)} 
+           onSuccess={(n) => handleDialogSuccess(dialog ?? "", n)} 
+        />
       <Button
           className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
           variant={'ghost'}
@@ -123,6 +168,7 @@ function GameScreen(props: { dataApi: DataApi }) {
               cmt={c}
               deleteMod={deleteMod}
               viewMod={(gbId) => navigate(`/mods/${gbId}`)}
+              setDialog={(d) => setDialog(d)}
             />
           </div>
         ))}
@@ -192,6 +238,60 @@ function CharacterFilters({
   );
 }
 
+function NameDialog(
+  props: { 
+    title: string
+    description: string
+    onSuccess: (name: string) => void,
+    open: boolean
+    onOpenChange: (open: boolean) => void
+  }
+) {
+  const [inputValue, setInputValue] = useState("");
+  const handleChange = (event: any) => {
+    setInputValue(event.target.value);
+  };
+
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{props.title}</DialogTitle>
+          <DialogDescription>
+            {props.description}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center space-x-2">
+          <div className="grid flex-1 gap-2">
+            <Input
+              value={inputValue}
+              onChange={handleChange}
+              defaultValue="Playlist"
+            />
+          </div>
+        </div>
+        <DialogFooter className="sm:justify-start">
+          <DialogClose asChild>
+            <Button type="button" variant="secondary">
+              Cancel
+            </Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button
+              onPointerDown={() => props.onSuccess(inputValue)}
+              type="button"
+              variant="secondary"
+            >
+              Confirm
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 export function ModActionsDropDown(props: {
   onDelete: () => void;
   onRename: () => void;
@@ -249,11 +349,13 @@ function CharacterBox({
   enableMod,
   deleteMod,
   viewMod,
+  setDialog
 }: {
   cmt: types.CharacterWithModsAndTags;
   enableMod: (id: number, enabled: boolean) => void;
   deleteMod: (id: number) => void;
   viewMod: (gbId: number) => void;
+  setDialog: (d: GameDialog) => void;
 }) {
   const character: types.Character = cmt.characters;
 
@@ -284,7 +386,7 @@ function CharacterBox({
                 <ModActionsDropDown
                   onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
                   onDelete={() => deleteMod(mwt.mod.id)}
-                  onRename={() => {}}
+                  onRename={() => setDialog("rename_mod")}
                   onView={() => {
                     if (mwt.mod.gbId !== 0) {
                       viewMod(mwt.mod.gbId);
