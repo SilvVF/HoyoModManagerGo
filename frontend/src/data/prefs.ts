@@ -7,8 +7,13 @@ import * as ZZZDirPref from "../../wailsjs/go/core/ZZZDirPref"
 import * as WuwaDirPref from "../../wailsjs/go/core/WuwaDirPref"
 import * as IgnorePref from "../../wailsjs/go/core/IgnoreDirPref"
 import * as SortModPref from "../../wailsjs/go/core/SortModPref"
+import * as ModsAvailablePref from "../../wailsjs/go/core/ModsAvailablePref"
+import * as GenshinElementPref from "../../wailsjs/go/core/GenshinElementPref"
+import * as HonkaiElementPref from "../../wailsjs/go/core/HonkaiElementPref"
+import * as ZenlessElementPref from "../../wailsjs/go/core/ZenlessElementPref"
+import * as WuwaElementPref from "../../wailsjs/go/core/WuwaElementPref"
 
-type GoPref<T extends any> = {
+export type GoPref<T extends any> = {
     DefaultValue():Promise<T>;
     Delete():Promise<void>;
     Get():Promise<T>;
@@ -27,6 +32,27 @@ const wuwaDirPref = WuwaDirPref as GoPref<string>
 const ignorePref = IgnorePref as GoPref<string[]>
 const sortModPref = SortModPref as GoPref<string>
 
+const modsAvailablePref = ModsAvailablePref as GoPref<boolean>
+const genshinElementPref = GenshinElementPref as GoPref<string[]>
+const honkaiElementPref = HonkaiElementPref as GoPref<string[]>
+const zzzElementPref = ZenlessElementPref as GoPref<string[]>
+const wuwaElementPref = WuwaElementPref as GoPref<string[]>
+
+
+export function usePrefrenceAsStateDefault<T extends any>(defaultValue: T, pref: GoPref<T>): [T, Dispatch<SetStateAction<T>>] {
+
+    const [state, setState] = useState<T>(defaultValue)
+
+    useEffect(() => {
+        pref.Get().then((value) => setState(value))
+    }, [pref])
+
+    useEffect(() => {
+        if (state !== undefined) { pref.Set(state) }
+    }, [state])
+
+    return [state, setState]
+}
 
 export function usePrefrenceAsState<T extends any>(pref: GoPref<T>): [T | undefined, Dispatch<SetStateAction<T | undefined>>] {
 
@@ -43,4 +69,18 @@ export function usePrefrenceAsState<T extends any>(pref: GoPref<T>): [T | undefi
     return [state, setState]
 }
 
-export { darkThemePref , startScreenPref, honkaiDirPref, zzzDirPref, genshinDirPref, wuwaDirPref, ignorePref, sortModPref }
+export { 
+    darkThemePref, 
+    startScreenPref, 
+    honkaiDirPref,
+    zzzDirPref, 
+    genshinDirPref, 
+    wuwaDirPref, 
+    ignorePref, 
+    sortModPref,
+    modsAvailablePref,
+    genshinElementPref,
+    honkaiElementPref,
+    zzzElementPref,
+    wuwaElementPref 
+}

@@ -5,7 +5,7 @@ import { cn, useStateProducer } from "../lib/utils";
 import { types } from "wailsjs/go/models";
 import { Reload } from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
-import { EnableModById } from "../../wailsjs/go/core/DbHelper";
+import { EnableModById, RenameMod } from "../../wailsjs/go/core/DbHelper";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,38 +21,30 @@ import { CheckCheckIcon, PencilIcon, Trash, ViewIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { genshinElementPref, GoPref, honkaiElementPref, modsAvailablePref, usePrefrenceAsState, wuwaElementPref, zzzElementPref } from "@/data/prefs";
 
-type GameDialog = "rename_mod" | "create_tag" | "rename_tag"
+type DialogType = "rename_mod" | "create_tag" | "rename_tag"
+type GameDialog = Pair<DialogType, number>
+type Pair<T, V> = { x: T, y: V }
 
-type IDialogMap = {
-  [key in GameDialog]: {
-    title: string;
-    description: string;
-  };
-};
+function GameScreen(props: { dataApi: DataApi, game: number }) {
 
-const dialogSettings: IDialogMap = {
-  "rename_mod": {
-    title: "Rename mod",
-    description: "rename the current mod (this will change the folder name in files)"
-  },
-  "create_tag": {
-    title: "Create tag",
-    description: "create a tag for the mod"
-  },
-  "rename_tag": {
-   title: "Rename tag",
-   description: "Rename the current tag"
-  }
-}
-
-function GameScreen(props: { dataApi: DataApi }) {
   const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [selectedElements, setSelectedElements] = useState<string[]>([]);
-  const [available, setAvailableOnly] = useState(false);
+  const [available, setAvailableOnly] = usePrefrenceAsState(modsAvailablePref);
 
   const [dialog, setDialog] = useState<GameDialog | undefined>(undefined)
+  
+  const getElementPref = (): GoPref<string[]> => {
+    switch(props.game) {
+      case 1: return genshinElementPref;
+      case 2: return honkaiElementPref;
+      case 3: return zzzElementPref;
+      case 4: return wuwaElementPref;
+      default: return genshinElementPref;
+    }
+  }
+  const [selectedElements, setSelectedElements] = usePrefrenceAsState(getElementPref())
 
   useEffect(() => {
     syncCharacters(props.dataApi, 0);
@@ -75,24 +67,29 @@ function GameScreen(props: { dataApi: DataApi }) {
   );
 
   const filteredCharacters = useMemo(() => {
-    return characters
+    if (selectedElements !== undefined && available !== undefined) {
+      return characters
       .filter(
         (cwmt) =>
           selectedElements.includes(cwmt.characters.element.toLowerCase()) ||
           selectedElements.isEmpty()
       )
       .filter((cwmt) => (available ? !cwmt.modWithTags.isEmpty() : true));
+    } else {
+      return []
+    }
   }, [characters, selectedElements, available]);
+
 
   const refreshCharacters = () => setRefreshTrigger((prev) => prev + 1);
 
   const onElementSelected = (element: string) => {
     setSelectedElements((prev) => {
       const lowerElement = element.toLowerCase();
-      if (prev.includes(lowerElement)) {
+      if (prev?.includes(lowerElement)) {
         return prev.filter((it) => it !== lowerElement);
       } else {
-        return [...prev, lowerElement];
+        return [...(prev ?? []), lowerElement];
       }
     });
   };
@@ -105,25 +102,39 @@ function GameScreen(props: { dataApi: DataApi }) {
     EnableModById(enabled, id).then(refreshCharacters);
   };
 
-  const handleDialogSuccess = (dialog: string, _: string) => {
-      switch(dialog) {
-          case "rename_mod": break;
-          case "rename_tag": break;
-          case "create_tag": break;
+  const dialogSettings = useMemo(() => {
+    return {
+      "rename_mod": {
+        title: "Rename mod",
+        description: "rename the current mod (this will change the folder name in files)",
+        onSuccess: (id: number, name: string) => {
+            RenameMod(id, name).then(refreshCharacters)
+        }
+      },
+      "create_tag": {
+        title: "Create tag",
+        description: "create a tag for the mod",
+        onSuccess: () => {}
+      },
+      "rename_tag": {
+       title: "Rename tag",
+       description: "Rename the current tag",
+       onSuccess: () => {}
       }
-  }
+    }
+  }, [])
 
-  const settings = dialog !== undefined ? dialogSettings[dialog] : undefined
+  const settings = dialog !== undefined ? dialogSettings[dialog.x] : undefined
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <div className="h-full w-full flex flex-col" key={props.game}>
       <div className="absolute bottom-2 end-12 flex flex-row z-10">
       <NameDialog
            title={settings?.title ?? ""}
            description={settings?.description ?? ""}
            open={dialog !== undefined} 
            onOpenChange={() => setDialog(undefined)} 
-           onSuccess={(n) => handleDialogSuccess(dialog ?? "", n)} 
+           onSuccess={(n) => settings!!.onSuccess(dialog!!.y, n) } 
         />
       <Button
           className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
@@ -154,8 +165,8 @@ function GameScreen(props: { dataApi: DataApi }) {
       <CharacterFilters
         className={`absolute h-[64px] top-0 w-full z-10`}
         elements={elements}
-        selectedElements={selectedElements}
-        available={available}
+        selectedElements={selectedElements ?? []}
+        available={available ?? false}
         toggleElement={onElementSelected}
         toggleAvailable={setAvailableOnly}
       />
@@ -386,7 +397,7 @@ function CharacterBox({
                 <ModActionsDropDown
                   onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
                   onDelete={() => deleteMod(mwt.mod.id)}
-                  onRename={() => setDialog("rename_mod")}
+                  onRename={() => setDialog( { x: "rename_mod", y: mwt.mod.id } )}
                   onView={() => {
                     if (mwt.mod.gbId !== 0) {
                       viewMod(mwt.mod.gbId);

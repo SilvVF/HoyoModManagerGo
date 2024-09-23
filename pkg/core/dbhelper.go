@@ -9,6 +9,9 @@ import (
 	"hmm/db"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
+	"os"
+	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -381,6 +384,24 @@ func (h *DbHelper) DeletePlaylistById(id int64) error {
 	query := fmt.Sprintf("DELETE FROM playlist WHERE id = %d", id)
 	log.LogDebug(query)
 	_, err := h.db.ExecContext(h.ctx, query)
+	return err
+}
+
+func (h *DbHelper) RenameMod(id int64, name string) error {
+	dbmod, err := h.queries.SelectModById(h.ctx, id)
+	if err != nil {
+		return err
+	}
+	mod := modFromDb(dbmod)
+	currDir := GetModDir(mod)
+	newDir := path.Join(filepath.Dir(currDir), name)
+	err = os.Rename(currDir, newDir)
+	if err != nil {
+		return err
+	}
+	query := fmt.Sprintf("UPDATE mod SET fname = \"%s\" WHERE id = %d;", name, id)
+	log.LogDebug(query)
+	_, err = h.db.ExecContext(h.ctx, query)
 	return err
 }
 

@@ -14,6 +14,8 @@ export function EnableModById(arg1:boolean,arg2:number):Promise<void>;
 
 export function InsertMod(arg1:types.Mod):Promise<void>;
 
+export function RenameMod(arg1:number,arg2:string):Promise<void>;
+
 export function SelectCharacterWithModsAndTags(arg1:types.Game,arg2:string,arg3:string,arg4:string):Promise<Array<types.CharacterWithModsAndTags>>;
 
 export function SelectCharactersByGame(arg1:types.Game):Promise<Array<types.Character>>;

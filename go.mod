@@ -8,6 +8,7 @@ require (
 	github.com/alitto/pond v1.9.1
 	github.com/anaskhan96/soup v1.2.5
 	github.com/mattn/go-sqlite3 v1.14.22
+	github.com/nwaples/rardecode v1.1.3
 	github.com/wailsapp/wails/v2 v2.9.1
 	golift.io/xtractr v0.2.2
 )
@@ -25,7 +26,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/kdomanski/iso9660 v0.3.3 // indirect
 	github.com/klauspost/compress v1.16.3 // indirect
-	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
 	github.com/robfig/cron/v3 v3.0.0 // indirect
 	github.com/rosedblabs/wal v1.3.8 // indirect

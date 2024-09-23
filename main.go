@@ -99,10 +99,13 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		Menu:             nil,
-		Logger:           nil,
-		LogLevel:         logger.DEBUG,
-		OnStartup:        app.startup,
+		Menu:     nil,
+		Logger:   nil,
+		LogLevel: logger.DEBUG,
+		OnStartup: func(ctx context.Context) {
+			downloader.Ctx = ctx
+			app.startup(ctx)
+		},
 		OnDomReady:       app.domReady,
 		OnBeforeClose:    app.beforeClose,
 		OnShutdown:       app.shutdown,
@@ -126,6 +129,11 @@ func main() {
 			appPrefs.ZZZDirPref,
 			appPrefs.IgnoreDirPref,
 			appPrefs.SortModPref,
+			appPrefs.ModsAvailablePref,
+			appPrefs.GenshinElementPref,
+			appPrefs.HonkaiElementPref,
+			appPrefs.ZenlessElementPref,
+			appPrefs.WuwaElementPref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

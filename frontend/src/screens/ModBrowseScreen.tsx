@@ -1,6 +1,7 @@
 import {
   cn,
   CSSstring,
+  range,
   useStateProducer,
   useStateProducerT,
 } from "@/lib/utils";
@@ -192,8 +193,6 @@ function CategoryItemsList({
   );
 }
 
-const range = (start: number, stop: number, step: number) =>
-  Array.from({ length: (stop - start) / step + 1 }, (_, i) => start + i * step);
 
 function Paginator(props: {
   page: number;
@@ -205,7 +204,7 @@ function Paginator(props: {
     const mp = props.page + 9 - (props.page - minPage);
     const maxPage = Math.min(Math.max(1, props.lastPage), Math.max(1, mp));
 
-    return range(minPage, maxPage, 1);
+    return range(minPage, maxPage);
   }, [props.page, props.lastPage]);
 
   return (

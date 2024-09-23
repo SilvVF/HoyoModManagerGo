@@ -26,6 +26,10 @@ export function InsertMod(arg1) {
   return window['go']['core']['DbHelper']['InsertMod'](arg1);
 }
 
+export function RenameMod(arg1, arg2) {
+  return window['go']['core']['DbHelper']['RenameMod'](arg1, arg2);
+}
+
 export function SelectCharacterWithModsAndTags(arg1, arg2, arg3, arg4) {
   return window['go']['core']['DbHelper']['SelectCharacterWithModsAndTags'](arg1, arg2, arg3, arg4);
 }

@@ -18,19 +18,19 @@ const router = createHashRouter([
     children: [
       {
         path: "genshin",
-        element: <GameScreen dataApi={GenshinApi}/>,
+        element: <GameScreen dataApi={GenshinApi} game={1}/>,
       },
       {
         path: "starrail",
-        element: <GameScreen dataApi={StarRailApi}/>,
+        element: <GameScreen dataApi={StarRailApi}  game={2}/>,
       },
       {
         path: "zenless",
-        element: <GameScreen dataApi={ZenlessApi}/>,
+        element: <GameScreen dataApi={ZenlessApi}  game={3}/>,
       },
       {
         path: "wuwa",
-        element: <GameScreen dataApi={WutheringWavesApi}/>,
+        element: <GameScreen dataApi={WutheringWavesApi}  game={4}/>,
       },
       {
         path: "playlist",
