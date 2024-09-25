@@ -25,6 +25,7 @@ const (
 	TYPE_DOWNLOAD = "download"
 	TYPE_QUEUED   = "queued"
 	TYPE_FINISHED = "finished"
+	TYPE_ERROR    = "error"
 	TYPE_UNZIP    = "unzip"
 )
 
@@ -50,6 +51,10 @@ func NewDownloader(db *DbHelper) *Downloader {
 
 func (d *Downloader) GetQueue() map[string]DLItem {
 	return d.Queue
+}
+
+func (d *Downloader) RemoveFromQueue(key string) {
+	delete(d.Queue, key)
 }
 
 func (d *Downloader) Delete(modId int) error {
@@ -83,8 +88,24 @@ func (cw *countingWriter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
-func (d *Downloader) Donwload(link string, filename string, character string, characterId int, game types.Game, gbId int) (err error) {
+func (d *Downloader) Download(link, filename, character string, characterId int, game types.Game, gbId int) (err error) {
+	go d.internalDonwload(link, filename, character, characterId, game, gbId)
+	return nil
+}
+
+func (d *Downloader) internalDonwload(link string, filename string, character string, characterId int, game types.Game, gbId int) (err error) {
 	log.LogPrint(fmt.Sprintf("Downloading %s %d", character, game))
+	defer func() {
+		if err != nil {
+			item, ok := d.Queue[filename]
+			if !ok {
+				item = DLItem{Filename: filename}
+			}
+			item.State = TYPE_ERROR
+			d.Queue[filename] = item
+			runtime.EventsEmit(d.Ctx, "download", TYPE_ERROR)
+		}
+	}()
 
 	updateProgress := func(state string, dp DataProgress) {
 		item, ok := d.Queue[filename]
@@ -209,7 +230,7 @@ func (d *Downloader) Donwload(link string, filename string, character string, ch
 		DataProgress{},
 	)
 
-	return err
+	return
 }
 
 func archiveUncompressedSize(a *unarr.Archive) (int64, error) {

@@ -1,4 +1,4 @@
-import { EventsOn } from "../../wailsjs/runtime/runtime";
+import { EventsOn, LogPrint } from "../../wailsjs/runtime/runtime";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import { create } from "zustand";
 
@@ -7,9 +7,11 @@ export type DownloadProgress = {
   progress: number;
 };
 
+type State = "download" | "queued" | "finished" | "unzip" | "error"
+
 export type Download = {
   filename: string;
-  state: string;
+  state: State;
   unzip: DownloadProgress;
   fetch: DownloadProgress;
 };
@@ -40,27 +42,34 @@ export const useDownloadStore = create<DownloadState>((set) => ({
     cancel: undefined,
     updateQueue: async () => {
         Downloader.GetQueue().then((q) => {
-          set(() => ({downloads: q}))
+          set(() => ({
+            downloads: q
+          }))
         })
     },
     subscribe: () => {
       const cancel = EventsOn(
         'download',
         (data) => {
-          const event = data as string;
+          LogPrint("download event" + data)
+          const event = (data as State);
           if (event === "queued") {
-              set((state) => ({running: state.running + 1, expanded: true}))
-          } else if (event === "finished") {
+            set((state) => ({running: state.running + 1, expanded: true}))
+          } else {
             set((state) => ({running: state.running - 1}))
           }
       })
       return cancel
     },
     toggleExpanded: () => set((state) => ({expanded: !state.expanded})),
-    remove: (key: string) => {
-        set((state) => {
-            delete state.downloads[key];
-            return ({downloads: state.downloads})
-        })
+    remove: async (key: string) => {
+      await Downloader.RemoveFromQueue(key)
+      Downloader.GetQueue().then((q) => {
+        set(() => (
+          {
+            downloads: q,
+          }
+        ))
+      })
     }
 }))

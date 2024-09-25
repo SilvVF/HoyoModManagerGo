@@ -66,7 +66,7 @@ export function ModViewScreen() {
   const download = async (link: string, filename: string) => {
     if (character !== undefined && content?._idRow !== undefined) {
       setDownloadsInProgress((prev) => [...prev, filename])
-      Downloader.Donwload(
+      Downloader.Download(
             link, 
             filename,
             character.name, 

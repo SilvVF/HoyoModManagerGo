@@ -5,6 +5,8 @@ import {core} from '../models';
 
 export function Delete(arg1:number):Promise<void>;
 
-export function Donwload(arg1:string,arg2:string,arg3:string,arg4:number,arg5:types.Game,arg6:number):Promise<void>;
+export function Download(arg1:string,arg2:string,arg3:string,arg4:number,arg5:types.Game,arg6:number):Promise<void>;
 
 export function GetQueue():Promise<{[key: string]: core.DLItem}>;
+
+export function RemoveFromQueue(arg1:string):Promise<void>;

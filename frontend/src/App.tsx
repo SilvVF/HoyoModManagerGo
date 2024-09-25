@@ -15,9 +15,10 @@ import {
   ChevronUpIcon,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
-import { DownloadProgress, useDownloadStore } from "./state/downloadStore";
+import { Download, DownloadProgress, useDownloadStore } from "./state/downloadStore";
 import { Progress } from "./components/ui/progress";
 import { useShallow } from "zustand/shallow";
+import { LogDebug } from "../wailsjs/runtime/runtime";
 
 
 function App() {
@@ -26,19 +27,8 @@ function App() {
 
   const subscribe = useDownloadStore((state) => state.subscribe)
   const updateQueue = useDownloadStore((state) => state.updateQueue)
-  const running = useDownloadStore(useShallow((state) => state.running))
+  const running = useDownloadStore((state) => state.running)
   const expanded = useDownloadStore((state) => state.expanded)
-
-  useEffect(() => subscribe(), [])
-  useEffect(() => {
-    if (running <= 0) return
-
-    const interval = setInterval(() => {
-      updateQueue().catch()
-    }, 10);
-  
-    return () => clearInterval(interval);
-  }, [running])
 
   const [playlistTrigger, setPlaylistTrigger] = useState(0);
 
@@ -52,6 +42,27 @@ function App() {
   const deletePlaylist = (id: number) => {
     DeletePlaylistById(id).then(() => setPlaylistTrigger((prev) => prev + 1));
   };
+
+  useEffect(() => {
+    const listener = subscribe()
+    return () => {
+      listener()
+    } 
+  }, [])
+
+  useEffect(() => {
+    LogDebug(`running ${running}`)
+    if (running <= 0) {
+      updateQueue().catch()
+      return
+    }
+    const interval = setInterval(() => {
+      updateQueue().catch()
+    }, 100);
+    return () => {
+      clearInterval(interval)
+    };
+  }, [running])
 
   return (
     <ThemeProvider defaultTheme="dark">
@@ -77,7 +88,7 @@ function App() {
 
 function DownloadOverlay() {
  
-  const downloads = useDownloadStore<string[]>(useShallow((state) => Object.keys(state.downloads)))
+  const downloads = useDownloadStore<Download[]>(useShallow((state) => Object.values(state.downloads)))
   const toggleExpanded = useDownloadStore((state) => state.toggleExpanded)
   const expanded = useDownloadStore((state) => state.expanded)
   
@@ -87,7 +98,7 @@ function DownloadOverlay() {
         <Card className="bg-primary/20 backdrop-blur-md flex flex-col absolute top-2 w-3/4 max-h-60 min-h-40 z-40 start-1/2 -translate-x-1/2 overflow-y-scroll">
         <ChevronUpIcon className="w-full" onPointerDown={() => toggleExpanded()}/>
         {
-          downloads.map((name) => <DownloadItem filename={name} />)
+          downloads.map((download) => <DownloadItem download={download} />)
         }
       </Card>
       )
@@ -107,13 +118,7 @@ function DownloadOverlay() {
   return (<></>)
 }
 
-function DownloadItem({
-  filename
-}: {
-  filename: string;
-}) {
-
-  const download = useDownloadStore((state) => state.downloads[filename])
+function DownloadItem({download}:{download: Download}) {
   const onClear = useDownloadStore((state) => state.remove)
 
   if (download.state === "finished") {
