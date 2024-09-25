@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
-import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GenshinApi } from "@/data/dataapi";
 import { types } from "../../wailsjs/go/models";
@@ -166,10 +165,9 @@ export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylis
             <RefreshCwIcon className="h-4"/>
           </Button>
         </div>
-        <Card className="max-h-[300px] h-full">
-          <ScrollArea className="px-1 h-56">
+        <Card className="max-h-[calc(30vh)] overflow-y-auto">
             <div className="space-y-1 p-2 flex flex-col">
-              {playlists?.map((playlist, i) => (
+              {[...playlists, ...playlists]?.map((playlist, i) => (
                 <div className="flex flex-row">
                   <Button
                     key={`${playlist}-${i}`}
@@ -200,8 +198,6 @@ export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylis
                 </div>
               ))}
             </div>
-            <ScrollBar orientation="vertical" />
-          </ScrollArea>
         </Card>
       </div>
     </div>

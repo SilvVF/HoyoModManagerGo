@@ -23,16 +23,33 @@ import (
 
 const (
 	TYPE_DOWNLOAD = "download"
+	TYPE_QUEUED   = "queued"
+	TYPE_FINISHED = "finished"
 	TYPE_UNZIP    = "unzip"
 )
 
+type DLItem struct {
+	Filename string       `json:"filename"`
+	State    string       `json:"state"`
+	Unzip    DataProgress `json:"unzip"`
+	Fetch    DataProgress `json:"fetch"`
+}
+
 type Downloader struct {
-	db  *DbHelper
-	Ctx context.Context
+	db    *DbHelper
+	Ctx   context.Context
+	Queue map[string]DLItem `json:"queue"`
 }
 
 func NewDownloader(db *DbHelper) *Downloader {
-	return &Downloader{db: db}
+	return &Downloader{
+		db:    db,
+		Queue: map[string]DLItem{},
+	}
+}
+
+func (d *Downloader) GetQueue() map[string]DLItem {
+	return d.Queue
 }
 
 func (d *Downloader) Delete(modId int) error {
@@ -49,15 +66,9 @@ func (d *Downloader) Delete(modId int) error {
 	return d.db.DeleteModById(modId)
 }
 
-type DownloadEvent struct {
-	Filename string
-	DataProgress
-}
-
 type DataProgress struct {
-	Ptype    string
-	Total    int64
-	Progress int64
+	Total    int64 `json:"total"`
+	Progress int64 `json:"progress"`
 }
 
 type countingWriter struct {
@@ -75,18 +86,32 @@ func (cw *countingWriter) Write(p []byte) (int, error) {
 func (d *Downloader) Donwload(link string, filename string, character string, characterId int, game types.Game, gbId int) (err error) {
 	log.LogPrint(fmt.Sprintf("Downloading %s %d", character, game))
 
-	updateProgress := func(dp DataProgress) {
-		runtime.EventsEmit(
-			d.Ctx,
-			"download",
-			DownloadEvent{
-				Filename:     filename,
-				DataProgress: dp,
-			},
-		)
+	updateProgress := func(state string, dp DataProgress) {
+		item, ok := d.Queue[filename]
+		if !ok {
+			item = DLItem{
+				Filename: filename,
+				State:    state,
+				Unzip:    dp,
+				Fetch:    dp,
+			}
+		}
+		item.State = state
+
+		if state == TYPE_QUEUED {
+			runtime.EventsEmit(d.Ctx, "download", TYPE_QUEUED)
+		} else if state == TYPE_FINISHED {
+			runtime.EventsEmit(d.Ctx, "download", TYPE_FINISHED)
+		}
+		if state == TYPE_DOWNLOAD {
+			item.Fetch = dp
+		} else if state == TYPE_UNZIP {
+			item.Unzip = dp
+		}
+		d.Queue[filename] = item
 	}
 
-	log.LogPrint(fmt.Sprintf("Downloading %s %d", character, game))
+	updateProgress(TYPE_QUEUED, DataProgress{})
 	// Determinate the file size
 	resp, err := http.Head(link)
 	if err != nil {
@@ -108,8 +133,8 @@ func (d *Downloader) Donwload(link string, filename string, character string, ch
 	byteCounter := io.TeeReader(res.Body, &countingWriter{
 		onProgress: func(p int64) {
 			updateProgress(
+				TYPE_DOWNLOAD,
 				DataProgress{
-					Ptype:    TYPE_DOWNLOAD,
 					Total:    int64(total),
 					Progress: p,
 				},
@@ -137,8 +162,8 @@ func (d *Downloader) Donwload(link string, filename string, character string, ch
 
 	onProgress := func(progress int64, total int64) {
 		updateProgress(
+			TYPE_UNZIP,
 			DataProgress{
-				Ptype:    TYPE_UNZIP,
 				Progress: progress,
 				Total:    total,
 			},
@@ -178,6 +203,11 @@ func (d *Downloader) Donwload(link string, filename string, character string, ch
 		GbFileName:     filename,
 		GbDownloadLink: link,
 	})
+
+	updateProgress(
+		TYPE_FINISHED,
+		DataProgress{},
+	)
 
 	return err
 }

@@ -79,7 +79,6 @@ declare global {
     map<R>(block: (value: T, index: number, set: Set<T>) => R): Array<R>
   }
 }
-
 Set.prototype.map = setMap
 Set.prototype.isEmpty = isEmptySet
 Array.prototype.isEmpty = isEmptyArray
@@ -87,6 +86,28 @@ Array.prototype.firstNotNullOf = firstNotNullOf
 Array.prototype.firstNotNullOfOrNull = firstNotNullOfOrNull
 String.prototype.ifEmpty = ifEmpty
 
+
+export function formatBytes(bytes: number, decimals: number = 2): string {
+  if (!+bytes) return "0 Bytes";
+
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = [
+    "Bytes",
+    "KiB",
+    "MiB",
+    "GiB",
+    "TiB",
+    "PiB",
+    "EiB",
+    "ZiB",
+    "YiB",
+  ];
+
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
  
 function ifEmpty(this: string, block: () => string): string {
   if (this === "") {

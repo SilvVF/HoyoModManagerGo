@@ -9,3 +9,7 @@ export function Delete(arg1) {
 export function Donwload(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['core']['Downloader']['Donwload'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
+
+export function GetQueue() {
+  return window['go']['core']['Downloader']['GetQueue']();
+}

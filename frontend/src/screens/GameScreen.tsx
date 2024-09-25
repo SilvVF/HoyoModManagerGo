@@ -128,7 +128,7 @@ function GameScreen(props: { dataApi: DataApi, game: number }) {
 
   return (
     <div className="h-full w-full flex flex-col" key={props.game}>
-      <div className="absolute bottom-2 end-12 flex flex-row z-10">
+      <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10">
       <NameDialog
            title={settings?.title ?? ""}
            description={settings?.description ?? ""}

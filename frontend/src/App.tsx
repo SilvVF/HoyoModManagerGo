@@ -1,25 +1,44 @@
-
 import { Outlet, useNavigate } from "react-router-dom";
 import { ScrollArea } from "./components/ui/scroll-area";
 import { useEffect, useState } from "react";
 import { ThemeProvider } from "./components/theme-provider";
-import { range, useStateProducer } from "./lib/utils";
-import { SelectPlaylistWithModsAndTags, DeletePlaylistById } from "../wailsjs/go/core/DbHelper"
+import { cn, formatBytes, range, useStateProducer } from "./lib/utils";
+import {
+  DeletePlaylistById,
+  SelectPlaylistWithModsAndTags,
+} from "../wailsjs/go/core/DbHelper";
 import { types } from "../wailsjs/go/models";
 import { Sidebar } from "./components/sidebar";
-import { EventsOn, LogPrint } from "../wailsjs/runtime/runtime";
+import { Card } from "./components/ui/card";
+import {
+  CheckCircle2Icon,
+  ChevronUpIcon,
+} from "lucide-react";
+import { Button } from "./components/ui/button";
+import { DownloadProgress, useDownloadStore } from "./state/downloadStore";
+import { Progress } from "./components/ui/progress";
+import { useShallow } from "zustand/shallow";
 
-// type DownloadEvent = {
-//   filename: string,
-//   ptype: string,
-//   total: number,
-//   progress: number
-// }
 
 function App() {
+  const navigate = useNavigate();
+  useEffect(() => navigate("/genshin"), []);
 
-  const navigate = useNavigate()
-  useEffect(() => navigate('/genshin'), []) 
+  const subscribe = useDownloadStore((state) => state.subscribe)
+  const updateQueue = useDownloadStore((state) => state.updateQueue)
+  const running = useDownloadStore(useShallow((state) => state.running))
+  const expanded = useDownloadStore((state) => state.expanded)
+
+  useEffect(() => subscribe(), [])
+  useEffect(() => {
+    if (running <= 0) return
+
+    const interval = setInterval(() => {
+      updateQueue().catch()
+    }, 10);
+  
+    return () => clearInterval(interval);
+  }, [running])
 
   const [playlistTrigger, setPlaylistTrigger] = useState(0);
 
@@ -31,40 +50,126 @@ function App() {
   }, [playlistTrigger])
 
   const deletePlaylist = (id: number) => {
-    DeletePlaylistById(id).then(() => setPlaylistTrigger(prev => prev + 1))
-  }
-
-  useEffect(() =>  {
-      EventsOn(
-        "download",
-        (data) => {
-          LogPrint(
-            `filename: ${data.Filename}, progress: ${data.Progress}, total: ${data.Total}, type: ${data.Ptype}`
-          )
-        }
-      )
-  }, [])
+    DeletePlaylistById(id).then(() => setPlaylistTrigger((prev) => prev + 1));
+  };
 
   return (
     <ThemeProvider defaultTheme="dark">
-      <div className="bg-background max-h-screen overflow-hidden">
+      <div className="bg-background max-h-screen overflow-hidden flex flex-col">
+        <DownloadOverlay />
         <div className="grid lg:grid-cols-5">
-          <Sidebar 
-              refreshPlaylist={() => setPlaylistTrigger(prev => prev + 1)}
-              playlists={playlists} 
-              onDeletePlaylist={deletePlaylist}
-              className="hidden lg:block max-h-screen overflow-hidden">
-          </Sidebar>
-          <div className="col-span-3 lg:col-span-4 lg:border-l">
-              <ScrollArea className={`h-full scroll-mt- max-h-screen`}>
-                <Outlet />
-              </ScrollArea>
-            </div>
+          <Sidebar
+            refreshPlaylist={() => setPlaylistTrigger((prev) => prev + 1)}
+            playlists={playlists}
+            onDeletePlaylist={deletePlaylist}
+            className="hidden lg:block max-h-screen overflow-hidden"
+          />
+          <div className={cn(`col-span-3 lg:col-span-4 lg:border-l`, !expanded ? "max-h-[calc(100vh-30px)]" : "max-h-[calc(100vh)]")}>
+            <ScrollArea className={`h-full scroll-mt-`}>
+              <Outlet />
+            </ScrollArea>
           </div>
+        </div>
       </div>
     </ThemeProvider>
+  );
+}
+
+function DownloadOverlay() {
+ 
+  const downloads = useDownloadStore<string[]>(useShallow((state) => Object.keys(state.downloads)))
+  const toggleExpanded = useDownloadStore((state) => state.toggleExpanded)
+  const expanded = useDownloadStore((state) => state.expanded)
+  
+
+  if (expanded && downloads.length > 0) {
+      return (
+        <Card className="bg-primary/20 backdrop-blur-md flex flex-col absolute top-2 w-3/4 max-h-60 min-h-40 z-40 start-1/2 -translate-x-1/2 overflow-y-scroll">
+        <ChevronUpIcon className="w-full" onPointerDown={() => toggleExpanded()}/>
+        {
+          downloads.map((name) => <DownloadItem filename={name} />)
+        }
+      </Card>
+      )
+  }
+
+  if (!expanded && downloads.length > 0) {
+    return (
+      <div
+        className="h-[30px] w-full bg-primary"
+        onPointerDown={() => toggleExpanded()}
+      >
+        {`Downloading ${downloads.length}`}
+      </div>
+    )
+  }
+
+  return (<></>)
+}
+
+function DownloadItem({
+  filename
+}: {
+  filename: string;
+}) {
+
+  const download = useDownloadStore((state) => state.downloads[filename])
+  const onClear = useDownloadStore((state) => state.remove)
+
+  if (download.state === "finished") {
+    return (
+      <div className="flex flex-row items-center justify-between pb-2">
+        <div className="flex flex-col space-y-1 px-4">
+          <b>{download.filename}</b>
+          <div className="text-sm">{`Downloaded ${formatBytes(download.fetch.total)}`}</div>
+          <div className="text-sm">{`Unzipped ${formatBytes(download.unzip.total)}`}</div>
+        </div>
+        <Button
+          size="icon"
+          className="me-12"
+          onClick={() => onClear(download.filename)}
+        >
+          <CheckCircle2Icon></CheckCircle2Icon>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col space-y-1 p-4">
+      <b>{download.filename}</b>
+      <ProgressBar progress={download.fetch} title="Downloading"/>
+      <ProgressBar progress={download.unzip} title="Unzipping"/>
+    </div>
+  );
+}
+
+function ProgressBar(
+  {
+    title,
+    progress
+  }: {
+    title: string,
+    progress: DownloadProgress
+  }
+) {
+
+  return (
+    <div className="flex flex-row items-center justify-start space-x-2">
+    <Progress
+      value={
+        progress.total !== 0 ? 
+        (progress.progress / progress.total) *
+        100 : 0
+      }
+      className="w-[75%] h-6"
+    />
+    <div className="flex flex-col">
+      <div>{title}</div>
+      <div className="text-sm">{`${formatBytes(progress.progress)} / ${formatBytes(progress.total)}`}</div>
+    </div>
+  </div>
   )
 }
 
-export default App
-
+export default App;
