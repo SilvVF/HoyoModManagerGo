@@ -10,27 +10,15 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/nwaples/rardecode v1.1.3
 	github.com/wailsapp/wails/v2 v2.9.1
-	golift.io/xtractr v0.2.2
 )
 
 require (
-	github.com/andybalholm/brotli v1.0.5 // indirect
-	github.com/bodgit/plumbing v1.3.0 // indirect
-	github.com/bodgit/sevenzip v1.4.0 // indirect
-	github.com/bodgit/windows v1.0.1 // indirect
 	github.com/bwmarrin/snowflake v0.3.0 // indirect
-	github.com/connesc/cipherio v0.2.1 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/google/btree v1.1.2 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/kdomanski/iso9660 v0.3.3 // indirect
-	github.com/klauspost/compress v1.16.3 // indirect
-	github.com/pierrec/lz4/v4 v4.1.17 // indirect
+	github.com/kr/pretty v0.1.0 // indirect
 	github.com/robfig/cron/v3 v3.0.0 // indirect
 	github.com/rosedblabs/wal v1.3.8 // indirect
-	github.com/ulikunitz/xz v0.5.11 // indirect
-	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
 )
 
 require (

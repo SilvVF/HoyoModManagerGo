@@ -14,6 +14,10 @@ export function GetQueue() {
   return window['go']['core']['Downloader']['GetQueue']();
 }
 
+export function Pause() {
+  return window['go']['core']['Downloader']['Pause']();
+}
+
 export function RemoveFromQueue(arg1) {
   return window['go']['core']['Downloader']['RemoveFromQueue'](arg1);
 }

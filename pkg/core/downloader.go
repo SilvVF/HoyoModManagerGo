@@ -13,12 +13,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/alitto/pond"
 	"github.com/nwaples/rardecode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	unarr "github.com/gen2brain/go-unarr"
-	"golift.io/xtractr"
 )
 
 const (
@@ -29,27 +30,53 @@ const (
 	TYPE_UNZIP    = "unzip"
 )
 
+type DLMeta struct {
+	filename    string
+	link        string
+	character   string
+	characterId int
+	game        types.Game
+	gbId        int
+}
+
 type DLItem struct {
 	Filename string       `json:"filename"`
 	State    string       `json:"state"`
 	Unzip    DataProgress `json:"unzip"`
 	Fetch    DataProgress `json:"fetch"`
+	meta     DLMeta
 }
 
 type Downloader struct {
 	db    *DbHelper
 	Ctx   context.Context
-	Queue map[string]DLItem `json:"queue"`
+	count Preference[int]
+	pool  *pond.WorkerPool
+	mutex *sync.Mutex
+	Queue map[string]*DLItem `json:"queue"`
 }
 
-func NewDownloader(db *DbHelper) *Downloader {
+func NewDownloader(db *DbHelper, count Preference[int]) *Downloader {
+
 	return &Downloader{
 		db:    db,
-		Queue: map[string]DLItem{},
+		mutex: &sync.Mutex{},
+		count: count,
+		pool:  pond.New(count.Get(), count.Get()*2),
+		Queue: map[string]*DLItem{},
 	}
 }
 
-func (d *Downloader) GetQueue() map[string]DLItem {
+func (d *Downloader) GetQueue() map[string]*DLItem {
+
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	copy := make(map[string]DLItem)
+	for link, item := range d.Queue {
+		copy[link] = *item
+	}
+
 	return d.Queue
 }
 
@@ -88,8 +115,34 @@ func (cw *countingWriter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
+func (d *Downloader) Pause() {
+	d.pool.Stop()
+}
+
 func (d *Downloader) Download(link, filename, character string, characterId int, game types.Game, gbId int) (err error) {
-	go d.internalDonwload(link, filename, character, characterId, game, gbId)
+
+	if d.pool.Stopped() {
+		d.pool = pond.New(d.count.Get(), d.count.Get()*2)
+
+		d.mutex.Lock()
+		defer d.mutex.Unlock()
+
+		for itemLink, item := range d.Queue {
+			if item.State != TYPE_FINISHED {
+				item.State = TYPE_QUEUED
+				item.Fetch = DataProgress{}
+				item.Unzip = DataProgress{}
+				d.pool.Submit(func() {
+					d.internalDonwload(itemLink, item.meta.filename, item.meta.character, item.meta.characterId, item.meta.game, item.meta.gbId)
+				})
+			}
+		}
+	}
+
+	d.pool.Submit(func() {
+		d.internalDonwload(link, filename, character, characterId, game, gbId)
+	})
+
 	return nil
 }
 
@@ -97,39 +150,51 @@ func (d *Downloader) internalDonwload(link string, filename string, character st
 	log.LogPrint(fmt.Sprintf("Downloading %s %d", character, game))
 	defer func() {
 		if err != nil {
-			item, ok := d.Queue[filename]
-			if !ok {
-				item = DLItem{Filename: filename}
+			item, ok := d.Queue[link]
+			if ok && item.State != TYPE_FINISHED {
+				item.State = TYPE_ERROR
+				runtime.EventsEmit(d.Ctx, "download", TYPE_ERROR)
 			}
-			item.State = TYPE_ERROR
-			d.Queue[filename] = item
-			runtime.EventsEmit(d.Ctx, "download", TYPE_ERROR)
 		}
 	}()
 
 	updateProgress := func(state string, dp DataProgress) {
-		item, ok := d.Queue[filename]
-		if !ok {
-			item = DLItem{
-				Filename: filename,
-				State:    state,
-				Unzip:    dp,
-				Fetch:    dp,
-			}
-		}
-		item.State = state
+		go func() {
+			d.mutex.Lock()
+			defer d.mutex.Unlock()
 
-		if state == TYPE_QUEUED {
-			runtime.EventsEmit(d.Ctx, "download", TYPE_QUEUED)
-		} else if state == TYPE_FINISHED {
-			runtime.EventsEmit(d.Ctx, "download", TYPE_FINISHED)
-		}
-		if state == TYPE_DOWNLOAD {
-			item.Fetch = dp
-		} else if state == TYPE_UNZIP {
-			item.Unzip = dp
-		}
-		d.Queue[filename] = item
+			item, ok := d.Queue[link]
+			log.LogDebug(fmt.Sprintf("%s %v", link, ok))
+			if !ok {
+				item = &DLItem{
+					Filename: filename,
+					State:    state,
+					Unzip:    dp,
+					Fetch:    dp,
+					meta: DLMeta{
+						filename:    filename,
+						link:        link,
+						character:   character,
+						characterId: characterId,
+						game:        game,
+						gbId:        gbId,
+					},
+				}
+				d.Queue[link] = item
+			}
+			item.State = state
+
+			if state == TYPE_QUEUED {
+				runtime.EventsEmit(d.Ctx, "download", TYPE_QUEUED)
+			} else if state == TYPE_FINISHED {
+				runtime.EventsEmit(d.Ctx, "download", TYPE_FINISHED)
+			}
+			if state == TYPE_DOWNLOAD {
+				item.Fetch = dp
+			} else if state == TYPE_UNZIP {
+				item.Unzip = dp
+			}
+		}()
 	}
 
 	updateProgress(TYPE_QUEUED, DataProgress{})
@@ -179,7 +244,7 @@ func (d *Downloader) internalDonwload(link string, filename string, character st
 
 	dotIdx := strings.LastIndex(filename, ".")
 	outputDir := path.Join(GetCharacterDir(character, game), filename[:dotIdx])
-	os.MkdirAll(outputDir, 0777)
+	_ = os.MkdirAll(outputDir, 0777)
 
 	onProgress := func(progress int64, total int64) {
 		updateProgress(
@@ -195,13 +260,7 @@ func (d *Downloader) internalDonwload(link string, filename string, character st
 
 	if strings.Contains(filename[dotIdx:], ".rar") {
 		log.LogDebug("extracting rar " + filename)
-		x := &xtractr.XFile{
-			FilePath:  filePath,
-			OutputDir: outputDir, // do not forget this.
-			FileMode:  0777,
-			DirMode:   0777,
-		}
-		if _, _, _, err := extractRAR(x, onProgress); err != nil {
+		if _, _, _, err := extractRAR(filePath, outputDir, onProgress); err != nil {
 			log.LogError(err.Error())
 			return err
 		}
@@ -230,7 +289,7 @@ func (d *Downloader) internalDonwload(link string, filename string, character st
 		DataProgress{},
 	)
 
-	return
+	return nil
 }
 
 func archiveUncompressedSize(a *unarr.Archive) (int64, error) {
@@ -306,18 +365,18 @@ func extract(archivePath, path string, onProgress func(progress int64, total int
 	return
 }
 
-func extractRAR(xFile *xtractr.XFile, onProgress func(progress int64, total int64)) (int64, []string, []string, error) {
-	rarReader, err := rardecode.OpenReader(xFile.FilePath, xFile.Password)
+func extractRAR(filepath, outputDir string, onProgress func(progress int64, total int64)) (int64, []string, []string, error) {
+	rarReader, err := rardecode.OpenReader(filepath, "")
 
 	if err != nil {
 		return 0, nil, nil, fmt.Errorf("rardecode.OpenReader: %w", err)
 	}
 	defer rarReader.Close()
 
-	size, files, err := unrar(xFile, rarReader, onProgress)
+	size, files, err := unrar(filepath, outputDir, rarReader, onProgress)
 
 	if err != nil {
-		lastFile := xFile.FilePath
+		lastFile := filepath
 		if volumes := rarReader.Volumes(); len(volumes) > 0 {
 			lastFile = volumes[len(volumes)-1]
 		}
@@ -330,7 +389,7 @@ func extractRAR(xFile *xtractr.XFile, onProgress func(progress int64, total int6
 
 // clean returns an absolute path for a file inside the OutputDir.
 // If trim length is > 0, then the suffixes are trimmed, and filepath removed.
-func clean(x *xtractr.XFile, filePath string, trim ...string) string {
+func clean(filePath, outputDir string, trim ...string) string {
 	if len(trim) != 0 {
 		filePath = filepath.Base(filePath)
 		for _, suffix := range trim {
@@ -338,7 +397,7 @@ func clean(x *xtractr.XFile, filePath string, trim ...string) string {
 		}
 	}
 
-	return filepath.Clean(filepath.Join(x.OutputDir, filePath))
+	return filepath.Clean(filepath.Join(outputDir, filePath))
 }
 
 func rarUncompressedSize(rarReader *rardecode.ReadCloser) (int64, error) {
@@ -361,12 +420,12 @@ func rarUncompressedSize(rarReader *rardecode.ReadCloser) (int64, error) {
 	return totalSize, nil
 }
 
-func unrar(x *xtractr.XFile, rarReader *rardecode.ReadCloser, onProgress func(progress int64, total int64)) (int64, []string, error) {
+func unrar(filpath, outputDir string, rarReader *rardecode.ReadCloser, onProgress func(progress int64, total int64)) (int64, []string, error) {
 	files := []string{}
 	size := int64(0)
 
 	var total int64
-	if sizeReader, err := rardecode.OpenReader(x.FilePath, x.Password); err != nil {
+	if sizeReader, err := rardecode.OpenReader(filpath, ""); err != nil {
 		return size, files, fmt.Errorf("error reading total size %w", err)
 	} else {
 		t, _ := rarUncompressedSize(sizeReader)
@@ -384,30 +443,30 @@ func unrar(x *xtractr.XFile, rarReader *rardecode.ReadCloser, onProgress func(pr
 		case err != nil:
 			return size, files, fmt.Errorf("rarReader.Next: %w", err)
 		case header == nil:
-			return size, files, fmt.Errorf("%w: %s", xtractr.ErrInvalidHead, x.FilePath)
+			return size, files, fmt.Errorf("%w: %s", errors.New("invalid Header"), filpath)
 		}
 
-		wfile := clean(x, header.Name)
+		wfile := clean(filpath, outputDir, header.Name)
 		//nolint:gocritic // this 1-argument filepath.Join removes a ./ prefix should there be one.
-		if !strings.HasPrefix(wfile, filepath.Join(x.OutputDir)) {
+		if !strings.HasPrefix(wfile, filepath.Join(outputDir)) {
 			// The file being written is trying to write outside of our base path. Malicious archive?
 			return size, files, fmt.Errorf("%s: %w: %s != %s (from: %s)",
-				x.FilePath, xtractr.ErrInvalidPath, wfile, x.OutputDir, header.Name)
+				filpath, errors.New("invalid path"), wfile, outputDir, header.Name)
 		}
 
 		if header.IsDir {
-			if err = os.MkdirAll(wfile, x.DirMode); err != nil {
+			if err = os.MkdirAll(wfile, 0777); err != nil {
 				return size, files, fmt.Errorf("os.MkdirAll: %w", err)
 			}
 
 			continue
 		}
 
-		if err = os.MkdirAll(filepath.Dir(wfile), x.DirMode); err != nil {
+		if err = os.MkdirAll(filepath.Dir(wfile), 0777); err != nil {
 			return size, files, fmt.Errorf("os.MkdirAll: %w", err)
 		}
 
-		fSize, err := writeFile(wfile, rarReader, x.FileMode, x.DirMode)
+		fSize, err := writeFile(wfile, rarReader, 0777, 0777)
 		if err != nil {
 			return size, files, err
 		}

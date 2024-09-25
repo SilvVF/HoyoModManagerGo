@@ -1,19 +1,20 @@
 package core
 
 type AppPrefs struct {
-	DarkTheme          *DarkThemePref
-	StartScreen        *StartScreenPref
-	GenshinDirPref     *GenshinDirPref
-	HonkaiDirPref      *HonkaiDirPref
-	ZZZDirPref         *ZZZDirPref
-	WuwaDirPref        *WuwaDirPref
-	IgnoreDirPref      *IgnoreDirPref
-	SortModPref        *SortModPref
-	ModsAvailablePref  *ModsAvailablePref
-	GenshinElementPref *GenshinElementPref
-	HonkaiElementPref  *HonkaiElementPref
-	ZenlessElementPref *ZenlessElementPref
-	WuwaElementPref    *WuwaElementPref
+	DarkTheme              *DarkThemePref
+	StartScreen            *StartScreenPref
+	GenshinDirPref         *GenshinDirPref
+	HonkaiDirPref          *HonkaiDirPref
+	ZZZDirPref             *ZZZDirPref
+	WuwaDirPref            *WuwaDirPref
+	IgnoreDirPref          *IgnoreDirPref
+	SortModPref            *SortModPref
+	ModsAvailablePref      *ModsAvailablePref
+	GenshinElementPref     *GenshinElementPref
+	HonkaiElementPref      *HonkaiElementPref
+	ZenlessElementPref     *ZenlessElementPref
+	WuwaElementPref        *WuwaElementPref
+	MaxDownloadWorkersPref *MaxDownloadWorkersPref
 }
 
 func NewAppPrefs(store PreferenceStore) *AppPrefs {
@@ -58,6 +59,9 @@ func NewAppPrefs(store PreferenceStore) *AppPrefs {
 		&WuwaElementPref{
 			Preference: store.GetStringSlice("WuwaElementPref", []string{}),
 		},
+		&MaxDownloadWorkersPref{
+			Preference: store.GetInt("max_download_workers", 4),
+		},
 	}
 }
 
@@ -68,6 +72,8 @@ type StartScreenPref struct{ Preference[string] }
 type SortModPref struct{ Preference[string] }
 
 type ModsAvailablePref struct{ Preference[bool] }
+
+type MaxDownloadWorkersPref struct{ Preference[int] }
 
 type GenshinElementPref struct{ Preference[[]string] }
 type HonkaiElementPref struct{ Preference[[]string] }

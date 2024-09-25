@@ -61,14 +61,12 @@ func main() {
 	}
 
 	queries := db.New(dbSql)
+	prefs := core.NewPrefs()
+	appPrefs := core.NewAppPrefs(prefs)
 
 	dbHelper := core.NewDbHelper(queries, dbSql)
-	downloader := core.NewDownloader(dbHelper)
+	downloader := core.NewDownloader(dbHelper, appPrefs.MaxDownloadWorkersPref.Preference)
 	sync := core.NewSyncHelper(dbHelper)
-
-	prefs := core.NewPrefs()
-
-	appPrefs := core.NewAppPrefs(prefs)
 
 	generator := core.NewGenerator(
 		dbHelper,
