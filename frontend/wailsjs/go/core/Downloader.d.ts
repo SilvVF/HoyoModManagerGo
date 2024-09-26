@@ -9,6 +9,8 @@ export function Download(arg1:string,arg2:string,arg3:string,arg4:number,arg5:ty
 
 export function GetQueue():Promise<{[key: string]: core.DLItem}>;
 
-export function Pause():Promise<void>;
-
 export function RemoveFromQueue(arg1:string):Promise<void>;
+
+export function Retry(arg1:string):Promise<void>;
+
+export function Stop():Promise<void>;

@@ -13,56 +13,63 @@ import { Card } from "./components/ui/card";
 import {
   CheckCircle2Icon,
   ChevronUpIcon,
+  RefreshCwIcon,
+  XIcon,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
-import { Download, DownloadProgress, useDownloadStore } from "./state/downloadStore";
+import {
+  Download,
+  DownloadProgress,
+  useDownloadStore,
+} from "./state/downloadStore";
 import { Progress } from "./components/ui/progress";
 import { useShallow } from "zustand/shallow";
-import { LogDebug } from "../wailsjs/runtime/runtime";
-
 
 function App() {
   const navigate = useNavigate();
   useEffect(() => navigate("/genshin"), []);
 
-  const subscribe = useDownloadStore((state) => state.subscribe)
-  const updateQueue = useDownloadStore((state) => state.updateQueue)
-  const running = useDownloadStore((state) => state.running)
-  const expanded = useDownloadStore((state) => state.expanded)
+  const subscribe = useDownloadStore((state) => state.subscribe);
+  const updateQueue = useDownloadStore((state) => state.updateQueue);
+  const running = useDownloadStore((state) => state.running);
+  const expanded = useDownloadStore((state) => state.expanded);
 
   const [playlistTrigger, setPlaylistTrigger] = useState(0);
 
-  const playlists = useStateProducer<types.PlaylistWithModsAndTags[]>([], async (update) => {
-    const playlistList = await Promise.all(
-      range(1, 4).flatMap(i => SelectPlaylistWithModsAndTags(i)) 
-    )
-    update(playlistList.flatMap((it) => it))
-  }, [playlistTrigger])
+  const playlists = useStateProducer<types.PlaylistWithModsAndTags[]>(
+    [],
+    async (update) => {
+      const playlistList = await Promise.all(
+        range(1, 4).flatMap((i) => SelectPlaylistWithModsAndTags(i))
+      );
+      update(playlistList.flatMap((it) => it));
+    },
+    [playlistTrigger]
+  );
 
   const deletePlaylist = (id: number) => {
     DeletePlaylistById(id).then(() => setPlaylistTrigger((prev) => prev + 1));
   };
 
   useEffect(() => {
-    const listener = subscribe()
+    const listener = subscribe();
     return () => {
-      listener()
-    } 
-  }, [])
+      listener();
+    };
+  }, []);
 
   useEffect(() => {
-    LogDebug(`running ${running}`)
-    if (running <= 0) {
-      updateQueue().catch()
-      return
-    }
+    updateQueue().catch();
+    
+    if (running <= 0) return;
+    
     const interval = setInterval(() => {
-      updateQueue().catch()
+      updateQueue().catch();
     }, 100);
     return () => {
-      clearInterval(interval)
+      clearInterval(interval);
     };
-  }, [running])
+  }, [running]);
 
   return (
     <ThemeProvider defaultTheme="dark">
@@ -75,7 +82,12 @@ function App() {
             onDeletePlaylist={deletePlaylist}
             className="hidden lg:block max-h-screen overflow-hidden"
           />
-          <div className={cn(`col-span-3 lg:col-span-4 lg:border-l`, !expanded ? "max-h-[calc(100vh-30px)]" : "max-h-[calc(100vh)]")}>
+          <div
+            className={cn(
+              `col-span-3 lg:col-span-4 lg:border-l`,
+              !expanded ? "max-h-[calc(100vh-30px)]" : "max-h-[calc(100vh)]"
+            )}
+          >
             <ScrollArea className={`h-full scroll-mt-`}>
               <Outlet />
             </ScrollArea>
@@ -87,21 +99,26 @@ function App() {
 }
 
 function DownloadOverlay() {
- 
-  const downloads = useDownloadStore<Download[]>(useShallow((state) => Object.values(state.downloads)))
-  const toggleExpanded = useDownloadStore((state) => state.toggleExpanded)
-  const expanded = useDownloadStore((state) => state.expanded)
-  
+  const downloads = useDownloadStore<Download[]>(
+    useShallow((state) => Object.values(state.downloads))
+  );
+  const toggleExpanded = useDownloadStore((state) => state.toggleExpanded);
+  const expanded = useDownloadStore((state) => state.expanded);
 
   if (expanded && downloads.length > 0) {
-      return (
-        <Card className="bg-primary/20 backdrop-blur-md flex flex-col absolute top-2 w-3/4 max-h-60 min-h-40 z-40 start-1/2 -translate-x-1/2 overflow-y-scroll">
-        <ChevronUpIcon className="w-full" onPointerDown={() => toggleExpanded()}/>
-        {
-          downloads.map((download) => <DownloadItem download={download} />)
-        }
+    return (
+      <Card className="bg-primary/20 backdrop-blur-md flex flex-col absolute top-2 w-2/3 max-h-60 min-h-40 z-40 start-1/2 -translate-x-1/2 overflow-y-hidden overflow-x-hidden">
+        <ChevronUpIcon
+          className="w-full m-2"
+          onPointerDown={() => toggleExpanded()}
+        />
+        <ScrollArea className="h-60 w-full">
+          {downloads.map((download) => (
+            <DownloadItem download={download} />
+          ))}
+        </ScrollArea>
       </Card>
-      )
+    );
   }
 
   if (!expanded && downloads.length > 0) {
@@ -112,27 +129,32 @@ function DownloadOverlay() {
       >
         {`Downloading ${downloads.length}`}
       </div>
-    )
+    );
   }
 
-  return (<></>)
+  return <></>;
 }
 
-function DownloadItem({download}:{download: Download}) {
-  const onClear = useDownloadStore((state) => state.remove)
+function DownloadItem({ download }: { download: Download }) {
+  const onClear = useDownloadStore((state) => state.remove);
+  const retry = useDownloadStore((state) => state.retry);
 
   if (download.state === "finished") {
     return (
       <div className="flex flex-row items-center justify-between pb-2">
         <div className="flex flex-col space-y-1 px-4">
           <b>{download.filename}</b>
-          <div className="text-sm">{`Downloaded ${formatBytes(download.fetch.total)}`}</div>
-          <div className="text-sm">{`Unzipped ${formatBytes(download.unzip.total)}`}</div>
+          <div className="text-sm">{`Downloaded ${formatBytes(
+            download.fetch.total
+          )}`}</div>
+          <div className="text-sm">{`Unzipped ${formatBytes(
+            download.unzip.total
+          )}`}</div>
         </div>
         <Button
           size="icon"
           className="me-12"
-          onClick={() => onClear(download.filename)}
+          onClick={() => onClear(download.link)}
         >
           <CheckCircle2Icon></CheckCircle2Icon>
         </Button>
@@ -140,41 +162,65 @@ function DownloadItem({download}:{download: Download}) {
     );
   }
 
+  if (download.state === "error") {
+    return (
+      <div className="flex flex-row items-center justify-between pb-2">
+        <div className="flex flex-col space-y-1 px-4">
+          <b>{download.filename}</b>
+          <div className="text-sm">{`An error occured while trying to download ${download.filename}`}</div>
+        </div>
+        <Button
+          size="icon"
+          className="me-12"
+          onClick={() => retry(download.link)}
+        >
+          <RefreshCwIcon />
+        </Button>
+        <Button
+          size="icon"
+          className="me-12"
+          onClick={() => onClear(download.link)}
+        >
+          <XIcon />
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col space-y-1 p-4">
-      <b>{download.filename}</b>
-      <ProgressBar progress={download.fetch} title="Downloading"/>
-      <ProgressBar progress={download.unzip} title="Unzipping"/>
+      <b>{`${download.filename} ${
+        download.state === "queued" ? "queued" : ""
+      }`}</b>
+      <ProgressBar progress={download.fetch} title="Downloading" />
+      <ProgressBar progress={download.unzip} title="Unzipping" />
     </div>
   );
 }
 
-function ProgressBar(
-  {
-    title,
-    progress
-  }: {
-    title: string,
-    progress: DownloadProgress
-  }
-) {
-
+function ProgressBar({
+  title,
+  progress,
+}: {
+  title: string;
+  progress: DownloadProgress;
+}) {
   return (
     <div className="flex flex-row items-center justify-start space-x-2">
-    <Progress
-      value={
-        progress.total !== 0 ? 
-        (progress.progress / progress.total) *
-        100 : 0
-      }
-      className="w-[75%] h-6"
-    />
-    <div className="flex flex-col">
-      <div>{title}</div>
-      <div className="text-sm">{`${formatBytes(progress.progress)} / ${formatBytes(progress.total)}`}</div>
+      <Progress
+        value={
+          progress.total !== 0 ? (progress.progress / progress.total) * 100 : 0
+        }
+        className="w-[75%] h-6"
+      />
+      <div className="flex flex-col">
+        <div>{title}</div>
+        <div className="text-sm">{`${formatBytes(
+          progress.progress
+        )} / ${formatBytes(progress.total)}`}</div>
+      </div>
     </div>
-  </div>
-  )
+  );
 }
 
 export default App;

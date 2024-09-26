@@ -1,4 +1,4 @@
-import { EventsOn, LogPrint } from "../../wailsjs/runtime/runtime";
+import { EventsOn, LogDebug, LogPrint } from "../../wailsjs/runtime/runtime";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import { create } from "zustand";
 
@@ -7,31 +7,26 @@ export type DownloadProgress = {
   progress: number;
 };
 
-type State = "download" | "queued" | "finished" | "unzip" | "error"
+export type State = "download" | "queued" | "finished" | "unzip" | "error"
 
 export type Download = {
   filename: string;
+  link: string;
   state: State;
   unzip: DownloadProgress;
   fetch: DownloadProgress;
 };
 
-export type DownloadEvent = {
-  Filename: string;
-  Ptype: string;
-  Total: number;
-  Progress: number;
-};
-
 export type DownloadState = {
     downloads: {
-        [filname: string]: Download
+        [link: string]: Download
     },
     running: number,
     expanded: boolean,
     remove: (key: string) => void,
     subscribe: () => () => void,
     updateQueue: () => Promise<void>,
+    retry: (key: string) => Promise<void>,
     toggleExpanded: () => void, 
 }
 
@@ -56,10 +51,13 @@ export const useDownloadStore = create<DownloadState>((set) => ({
           if (event === "queued") {
             set((state) => ({running: state.running + 1, expanded: true}))
           } else {
-            set((state) => ({running: state.running - 1}))
+            set((state) => ({running: Math.max(0, state.running - 1)}))
           }
       })
       return cancel
+    },
+    retry: async (key: string) => {
+        Downloader.Retry(key).catch((e) => LogDebug(e))
     },
     toggleExpanded: () => set((state) => ({expanded: !state.expanded})),
     remove: async (key: string) => {

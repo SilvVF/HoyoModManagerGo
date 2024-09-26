@@ -60,7 +60,7 @@ func NewAppPrefs(store PreferenceStore) *AppPrefs {
 			Preference: store.GetStringSlice("WuwaElementPref", []string{}),
 		},
 		&MaxDownloadWorkersPref{
-			Preference: store.GetInt("max_download_workers", 4),
+			Preference: store.GetInt("max_download_workers", 1),
 		},
 	}
 }
