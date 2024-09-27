@@ -1,13 +1,8 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { ScrollArea } from "./components/ui/scroll-area";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ThemeProvider } from "./components/theme-provider";
-import { cn, formatBytes, range, useStateProducer } from "./lib/utils";
-import {
-  DeletePlaylistById,
-  SelectPlaylistWithModsAndTags,
-} from "../wailsjs/go/core/DbHelper";
-import { types } from "../wailsjs/go/models";
+import { cn, formatBytes } from "./lib/utils";
 import { Sidebar } from "./components/sidebar";
 import { Card } from "./components/ui/card";
 import {
@@ -24,6 +19,7 @@ import {
 } from "./state/downloadStore";
 import { Progress } from "./components/ui/progress";
 import { useShallow } from "zustand/shallow";
+import { usePlaylistStore } from "./state/playlistStore";
 
 function App() {
   const navigate = useNavigate();
@@ -34,22 +30,11 @@ function App() {
   const running = useDownloadStore((state) => state.running);
   const expanded = useDownloadStore((state) => state.expanded);
 
-  const [playlistTrigger, setPlaylistTrigger] = useState(0);
+  const playlists = usePlaylistStore(useShallow((state) => Object.values(state.playlists).flatMap((it) => it)))
+  const refreshAllPlaylists = usePlaylistStore((state) => state.init)
+  const deletePlaylist = usePlaylistStore((state) => state.delete)
 
-  const playlists = useStateProducer<types.PlaylistWithModsAndTags[]>(
-    [],
-    async (update) => {
-      const playlistList = await Promise.all(
-        range(1, 4).flatMap((i) => SelectPlaylistWithModsAndTags(i))
-      );
-      update(playlistList.flatMap((it) => it));
-    },
-    [playlistTrigger]
-  );
-
-  const deletePlaylist = (id: number) => {
-    DeletePlaylistById(id).then(() => setPlaylistTrigger((prev) => prev + 1));
-  };
+  useEffect(() =>  { refreshAllPlaylists() }, [])
 
   useEffect(() => {
     const listener = subscribe();
@@ -77,7 +62,7 @@ function App() {
         <DownloadOverlay />
         <div className="grid lg:grid-cols-5">
           <Sidebar
-            refreshPlaylist={() => setPlaylistTrigger((prev) => prev + 1)}
+            refreshPlaylist={refreshAllPlaylists}
             playlists={playlists}
             onDeletePlaylist={deletePlaylist}
             className="hidden lg:block max-h-screen overflow-hidden"

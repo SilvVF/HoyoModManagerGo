@@ -167,7 +167,7 @@ export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylis
         </div>
         <Card className="max-h-[calc(30vh)] overflow-y-auto">
             <div className="space-y-1 p-2 flex flex-col">
-              {[...playlists, ...playlists]?.map((playlist, i) => (
+              {playlists.map((playlist, i) => (
                 <div className="flex flex-row">
                   <Button
                     key={`${playlist}-${i}`}

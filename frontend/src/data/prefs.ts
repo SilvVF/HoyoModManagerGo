@@ -12,6 +12,8 @@ import * as GenshinElementPref from "../../wailsjs/go/core/GenshinElementPref"
 import * as HonkaiElementPref from "../../wailsjs/go/core/HonkaiElementPref"
 import * as ZenlessElementPref from "../../wailsjs/go/core/ZenlessElementPref"
 import * as WuwaElementPref from "../../wailsjs/go/core/WuwaElementPref"
+import * as MaxDownloadWorkersPref from "../../wailsjs/go/core/MaxDownloadWorkersPref"
+import * as PlaylistGamePref from "../../wailsjs/go/core/PlaylistGamePref"
 
 export type GoPref<T extends any> = {
     DefaultValue():Promise<T>;
@@ -38,6 +40,9 @@ const honkaiElementPref = HonkaiElementPref as GoPref<string[]>
 const zzzElementPref = ZenlessElementPref as GoPref<string[]>
 const wuwaElementPref = WuwaElementPref as GoPref<string[]>
 
+const maxDownloadWorkersPref = MaxDownloadWorkersPref as GoPref<number>
+
+const playlistGamePref = PlaylistGamePref as GoPref<number>
 
 export function usePrefrenceAsStateDefault<T extends any>(defaultValue: T, pref: GoPref<T>): [T, Dispatch<SetStateAction<T>>] {
 
@@ -82,5 +87,7 @@ export {
     genshinElementPref,
     honkaiElementPref,
     zzzElementPref,
-    wuwaElementPref 
+    wuwaElementPref,
+    maxDownloadWorkersPref,
+    playlistGamePref
 }

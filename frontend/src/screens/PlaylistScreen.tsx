@@ -1,10 +1,7 @@
 import { useState } from "react";
 import {
-  SelectPlaylistWithModsAndTags,
-  CreatePlaylist,
   SelectCharacterWithModsAndTags,
   EnableModById,
-  UpdateModsEnabledFromSlice,
 } from "../../wailsjs/go/core/DbHelper";
 import { useStateProducer } from "@/lib/utils";
 import { types } from "wailsjs/go/models";
@@ -22,6 +19,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { usePlaylistStore } from "@/state/playlistStore";
+import { useShallow } from "zustand/shallow";
+import { playlistGamePref, usePrefrenceAsState } from "@/data/prefs";
 
 const gameNameFromId = (n: number) => {
   switch (n) {
@@ -41,17 +41,32 @@ const gameNameFromId = (n: number) => {
 const ids = [1, 2, 3, 4];
 
 export function PlaylistScreen() {
-  const [modRefreshTrigger, setModRefreshTrigger] = useState(0);
-  const [playlistRefreshTrigger, setPlaylistRefreshTrigger] = useState(0);
-  const [game, setGame] = useState(1);
+  const [game, setGame] = usePrefrenceAsState(playlistGamePref);
 
-  const playlists = useStateProducer<types.PlaylistWithModsAndTags[]>(
-    [],
-    async (update) => {
-      SelectPlaylistWithModsAndTags(game).then((value) => update(value));
-    },
-    [game, playlistRefreshTrigger]
-  );
+  if (game === undefined) {
+    return (
+      <></>
+    )
+  }
+
+  return (
+    <PlaylistScreenContent
+      game={game}
+      setGame={setGame}
+    />
+  )
+}
+
+function PlaylistScreenContent({game, setGame}: {
+  game: number,
+  setGame: (game: number) => void
+}) {
+
+  const [modRefreshTrigger, setModRefreshTrigger] = useState(0);
+
+  const playlists = usePlaylistStore(useShallow((state) => state.playlists[game]))
+  const createPlaylist = usePlaylistStore((state) => state.create)
+  const enablePlaylist = usePlaylistStore((state) => state.enable)
 
   const mods = useStateProducer<types.CharacterWithModsAndTags[]>(
     [],
@@ -61,23 +76,14 @@ export function PlaylistScreen() {
     [modRefreshTrigger, game]
   );
 
-  const createPlaylist = async (name: string) => {
-    CreatePlaylist(game, name).then(() =>
-      setPlaylistRefreshTrigger((prev) => prev + 1)
-    );
-  };
-
   const toggleModEnabled = async (enabled: boolean, id: number) => {
     EnableModById(enabled, id).then(() =>
       setModRefreshTrigger((prev) => prev + 1)
     );
   };
 
-  const enablePlaylist = async (pwmt: types.PlaylistWithModsAndTags) => {
-    UpdateModsEnabledFromSlice(
-      pwmt.modsWithTags.map(({ mod }) => mod.id),
-      game
-    ).then(() => setModRefreshTrigger((prev) => prev + 1));
+  const togglePlaylistEnabled = async (pwmt: types.PlaylistWithModsAndTags) => {
+    enablePlaylist(pwmt.playlist.game, pwmt.playlist.id).then(() => setModRefreshTrigger((prev) => prev + 1));
   };
 
   return (
@@ -128,11 +134,11 @@ export function PlaylistScreen() {
         <div className="flex flex-row absolute bottom-3 end-4">
           <SelectPlayListDialog
             playlists={playlists}
-            onSelected={(it) => enablePlaylist(it)}
+            onSelected={(it) => togglePlaylistEnabled(it)}
           />
           <div className="w-2" />
           <CreatePlaylistDialog
-            onCreate={(name) => createPlaylist(name)}
+            onCreate={(name) => createPlaylist(game, name)}
           ></CreatePlaylistDialog>
         </div>
       </div>

@@ -36,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { State, useDownloadStore } from "@/state/downloadStore";
+import { useDownloadStore } from "@/state/downloadStore";
 import { useShallow } from "zustand/shallow";
 
 const dlStates = ["download", "queued", "unzip"]

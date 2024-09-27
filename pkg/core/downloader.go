@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/alitto/pond"
 	"github.com/nwaples/rardecode"
@@ -60,37 +59,24 @@ type Downloader struct {
 	Ctx   context.Context
 	count Preference[int]
 	pool  *pond.WorkerPool
-	mutex *sync.Mutex
-	Queue map[string]*DLItem `json:"queue"`
+	Queue ConcurrentMap[string, *DLItem]
 }
 
 func NewDownloader(db *DbHelper, count Preference[int]) *Downloader {
 	return &Downloader{
 		db:    db,
-		mutex: &sync.Mutex{},
 		count: count,
 		pool:  pond.New(count.Get(), 100),
-		Queue: map[string]*DLItem{},
+		Queue: NewCMap[*DLItem](),
 	}
 }
 
 func (d *Downloader) GetQueue() map[string]*DLItem {
-
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
-
-	copy := make(map[string]DLItem)
-	for link, item := range d.Queue {
-		copy[link] = *item
-	}
-
-	return d.Queue
+	return d.Queue.Items()
 }
 
 func (d *Downloader) RemoveFromQueue(key string) {
-	d.mutex.Lock()
-	delete(d.Queue, key)
-	d.mutex.Unlock()
+	d.Queue.Remove(key)
 }
 
 func (d *Downloader) Delete(modId int) error {
@@ -129,23 +115,18 @@ func (d *Downloader) Stop() {
 }
 
 func (d *Downloader) Retry(link string) error {
-	d.mutex.Lock()
-	item, ok := d.Queue[link]
+	item, ok := d.Queue.Get(link)
 	if !ok {
 		return errors.New("item not found")
 	}
-	delete(d.Queue, item.Link)
-	d.mutex.Unlock()
+	d.Queue.Remove(item.Link)
 	return d.Download(item.Link, item.Filename, item.meta.character, item.meta.characterId, item.meta.game, item.meta.gbId)
 }
 
 func (d *Downloader) restart() {
 	d.pool = pond.New(d.count.Get(), 100)
 
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
-
-	for _, item := range d.Queue {
+	for _, item := range d.Queue.Items() {
 		if item.State != TYPE_FINISHED {
 			item.State = TYPE_QUEUED
 			item.Fetch = DataProgress{}
@@ -159,7 +140,7 @@ func (d *Downloader) restart() {
 
 func (d *Downloader) Download(link, filename, character string, characterId int, game types.Game, gbId int) error {
 
-	if _, ok := d.Queue[link]; ok {
+	if _, ok := d.Queue.Get(link); ok {
 		return errors.New("already downloading")
 	}
 
@@ -167,8 +148,7 @@ func (d *Downloader) Download(link, filename, character string, characterId int,
 		d.restart()
 	}
 
-	d.mutex.Lock()
-	d.Queue[link] = &DLItem{
+	d.Queue.Set(link, &DLItem{
 		Filename: filename,
 		Link:     link,
 		State:    TYPE_QUEUED,
@@ -178,8 +158,7 @@ func (d *Downloader) Download(link, filename, character string, characterId int,
 			game:        game,
 			gbId:        gbId,
 		},
-	}
-	d.mutex.Unlock()
+	})
 
 	runtime.EventsEmit(
 		d.Ctx,
@@ -198,7 +177,7 @@ func (d *Downloader) internalDonwload(link, filename, character string, characte
 	log.LogPrint(fmt.Sprintf("Downloading %s %d", character, game))
 
 	defer func() {
-		item, ok := d.Queue[link]
+		item, ok := d.Queue.Get(link)
 		if !ok {
 			return
 		}
@@ -213,10 +192,7 @@ func (d *Downloader) internalDonwload(link, filename, character string, characte
 	}()
 
 	updateProgress := func(state string, dp DataProgress) {
-		d.mutex.Lock()
-		defer d.mutex.Unlock()
-
-		item, ok := d.Queue[link]
+		item, ok := d.Queue.Get(link)
 		if !ok {
 			return
 		}
@@ -504,7 +480,7 @@ func unrar(x *XFile, rarReader *rardecode.ReadCloser, onProgress func(progress i
 
 		files = append(files, wfile)
 		size += fSize
-		go onProgress(size, total)
+		onProgress(size, total)
 	}
 }
 

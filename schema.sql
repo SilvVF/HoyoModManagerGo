@@ -13,6 +13,20 @@ CREATE TABLE IF NOT EXISTS mod(
     UNIQUE(fname, char_id, char_name)
 );
 
+CREATE TABLE IF NOT EXISTS mod_texture(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mod_id INTEGER,
+    fname TEXT NOT NULL,
+    selected BOOLEAN NOT NULL DEFAULT FALSE,
+    preview_images TEXT NOT NULL DEFAULT '',
+    gb_id INTEGER,
+    mod_link TEXT,
+    gb_file_name TEXT,
+    gb_download_link TEXT,
+    UNIQUE(fname, mod_id),
+    FOREIGN KEY (mod_id) REFERENCES mod(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS playlist(
     id INTEGER PRIMARY KEY NOT NULL,
     playlist_name TEXT NOT NULL DEFAULT '',

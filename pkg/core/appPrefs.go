@@ -1,5 +1,7 @@
 package core
 
+import "hmm/pkg/types"
+
 type AppPrefs struct {
 	DarkTheme              *DarkThemePref
 	StartScreen            *StartScreenPref
@@ -15,6 +17,7 @@ type AppPrefs struct {
 	ZenlessElementPref     *ZenlessElementPref
 	WuwaElementPref        *WuwaElementPref
 	MaxDownloadWorkersPref *MaxDownloadWorkersPref
+	PlaylistGamePref       *PlaylistGamePref
 }
 
 func NewAppPrefs(store PreferenceStore) *AppPrefs {
@@ -62,6 +65,9 @@ func NewAppPrefs(store PreferenceStore) *AppPrefs {
 		&MaxDownloadWorkersPref{
 			Preference: store.GetInt("max_download_workers", 1),
 		},
+		&PlaylistGamePref{
+			Preference: store.GetInt("playlist_game", types.Genshin),
+		},
 	}
 }
 
@@ -86,3 +92,5 @@ type ZZZDirPref struct{ Preference[string] }
 type WuwaDirPref struct{ Preference[string] }
 
 type IgnoreDirPref struct{ Preference[[]string] }
+
+type PlaylistGamePref struct{ Preference[int] }

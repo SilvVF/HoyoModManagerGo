@@ -132,6 +132,8 @@ func main() {
 			appPrefs.HonkaiElementPref,
 			appPrefs.ZenlessElementPref,
 			appPrefs.WuwaElementPref,
+			appPrefs.MaxDownloadWorkersPref,
+			appPrefs.PlaylistGamePref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{
