@@ -16,7 +16,7 @@ import { cn, useStateProducer } from "@/lib/utils";
 import * as GbApi from "../../wailsjs/go/api/GbApi";
 import { api } from "../../wailsjs/go/models";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { createContext, useMemo } from "react";
+import { createContext, useEffect, useMemo } from "react";
 
 import {
   DropdownMenu,
@@ -25,6 +25,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
+import { discoverGamePref, usePrefrenceAsState } from "@/data/prefs";
+import { LogDebug } from "../../wailsjs/runtime/runtime";
 
 const gameDispalyNameFromIdx = (n: number) => {
   switch (n) {
@@ -57,8 +59,10 @@ const currentPathInfo = (path: string) => {
 export function ModIndexPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  //prettier-ignore
-  const skinIds = useStateProducer<number[]>([], async (update) => {
+
+  const skinIds = useStateProducer<number[]>(
+    [],
+    async (update) => {
       const ids = await Promise.all([
         GenshinApi.skinId(),
         StarRailApi.skinId(),
@@ -66,16 +70,22 @@ export function ModIndexPage() {
         WutheringWavesApi.skinId(),
       ]);
       update(ids);
-  },[] );
-  //prettier-ignore
-  const subCats = useStateProducer<api.CategoryListResponseItem[][]>([], async (update) => {
+    },
+    []
+  );
+  const subCats = useStateProducer<api.CategoryListResponseItem[][]>(
+    [],
+    async (update) => {
       update(
         await Promise.all(
           skinIds.map(async (item): Promise<api.CategoryListResponseItem[]> => {
             return await GbApi.Categories(item);
           })
-      ));
-  }, [skinIds]);
+        )
+      );
+    },
+    [skinIds]
+  );
 
   const createCategoryCrumbs = (id: number): Crumb[] => {
     const skinIdIdx = skinIds.indexOf(id);
@@ -103,13 +113,17 @@ export function ModIndexPage() {
     }
     return [];
   };
-  //prettier-ignore
-  const topLevelCrumbs = useMemo<Crumb[]>(() => skinIds.map((id, i) => {
-    return { name: gameDispalyNameFromIdx(i), path: `cats/${id}` }
-  }), [skinIds])
+  const topLevelCrumbs = useMemo<Crumb[]>(
+    () =>
+      skinIds.map((id, i) => {
+        return { name: gameDispalyNameFromIdx(i), path: `cats/${id}` };
+      }),
+    [skinIds]
+  );
 
-  // prettier-ignore
-  const crumbs = useStateProducer<Crumb[]>([], async (update) => {
+  const crumbs = useStateProducer<Crumb[]>(
+    [],
+    async (update) => {
       const { isCategroy, id } = currentPathInfo(location.pathname);
       if (isCategroy) {
         update(createCategoryCrumbs(id));
@@ -133,7 +147,16 @@ export function ModIndexPage() {
     },
     [location.pathname, subCats]
   );
-  // prettier-ignore
+
+  useEffect(() => {
+    try {
+      const idx = location.pathname.indexOf("/mods/")
+      discoverGamePref.Set(location.pathname.slice(idx + 6, location.pathname.length))
+    } catch {
+      LogDebug(`error reading first crumb id`)
+    }
+  }, [location.pathname])
+
   const dataApi = useMemo(() => {
     if (crumbs[0] === undefined) return undefined
     const path = crumbs[0].path

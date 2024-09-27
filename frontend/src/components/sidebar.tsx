@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useLocation, useNavigate } from "react-router-dom";
-import { GenshinApi } from "@/data/dataapi";
+import { GenshinApi, StarRailApi, WutheringWavesApi, ZenlessApi } from "@/data/dataapi";
 import { types } from "../../wailsjs/go/models";
 import {
   BananaIcon,
@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Card } from "./ui/card";
+import { discoverGamePref } from "@/data/prefs";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   refreshPlaylist: () => void;
@@ -94,9 +95,14 @@ export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylis
   const location = useLocation();
   const navigate = useNavigate();
 
-  const navigateToGenshinCat = async () => {
-    const skinId = await GenshinApi.skinId();
-    navigate("/mods/cats/" + skinId);
+  const navigateToLastDiscoverCat = async () => {
+    const defaultPath = await GenshinApi.skinId()
+    if (await discoverGamePref.IsSet()) {
+      const path = (await discoverGamePref.Get()).ifEmpty(() => `cats/${defaultPath}`)
+      navigate(`/mods/${path}`);
+    } else {
+      navigate(`/mods/cats/${defaultPath}`);
+    }
   };
 
   return (
@@ -122,7 +128,7 @@ export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylis
           Discover
         </h2>
         <SidebarItem
-          onClick={navigateToGenshinCat}
+          onClick={navigateToLastDiscoverCat}
           name="Game Bannana"
           selected={location.pathname.includes("mods")}
         >

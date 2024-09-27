@@ -14,6 +14,7 @@ import * as ZenlessElementPref from "../../wailsjs/go/core/ZenlessElementPref"
 import * as WuwaElementPref from "../../wailsjs/go/core/WuwaElementPref"
 import * as MaxDownloadWorkersPref from "../../wailsjs/go/core/MaxDownloadWorkersPref"
 import * as PlaylistGamePref from "../../wailsjs/go/core/PlaylistGamePref"
+import * as DiscoverGamePref from "../../wailsjs/go/core/DiscoverGamePref"
 
 export type GoPref<T extends any> = {
     DefaultValue():Promise<T>;
@@ -43,6 +44,7 @@ const wuwaElementPref = WuwaElementPref as GoPref<string[]>
 const maxDownloadWorkersPref = MaxDownloadWorkersPref as GoPref<number>
 
 const playlistGamePref = PlaylistGamePref as GoPref<number>
+const discoverGamePref = DiscoverGamePref as GoPref<string>
 
 export function usePrefrenceAsStateDefault<T extends any>(defaultValue: T, pref: GoPref<T>): [T, Dispatch<SetStateAction<T>>] {
 
@@ -89,5 +91,6 @@ export {
     zzzElementPref,
     wuwaElementPref,
     maxDownloadWorkersPref,
-    playlistGamePref
+    playlistGamePref,
+    discoverGamePref
 }

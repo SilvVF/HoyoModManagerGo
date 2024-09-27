@@ -1,6 +1,8 @@
 package core
 
-import "hmm/pkg/types"
+import (
+	"hmm/pkg/types"
+)
 
 type AppPrefs struct {
 	DarkTheme              *DarkThemePref
@@ -70,7 +72,7 @@ func NewAppPrefs(store PreferenceStore) *AppPrefs {
 			Preference: store.GetInt("playlist_game", types.Genshin),
 		},
 		&DiscoverGamePref{
-			Preference: store.GetInt("discover_game", types.Genshin),
+			Preference: store.GetString("discovergamepref", ""),
 		},
 	}
 }
@@ -98,4 +100,4 @@ type WuwaDirPref struct{ Preference[string] }
 type IgnoreDirPref struct{ Preference[[]string] }
 
 type PlaylistGamePref struct{ Preference[int] }
-type DiscoverGamePref struct{ Preference[int] }
+type DiscoverGamePref struct{ Preference[string] }
