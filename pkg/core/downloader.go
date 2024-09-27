@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
+	"hmm/pkg/util"
 	"io"
 	"net/http"
 	"os"
@@ -85,7 +86,7 @@ func (d *Downloader) Delete(modId int) error {
 		log.LogPrint(err.Error())
 		return err
 	}
-	path := path.Join(GetCharacterDir(mod.Character, mod.Game), mod.Filename)
+	path := path.Join(util.GetCharacterDir(mod.Character, mod.Game), mod.Filename)
 	log.LogPrint(path)
 	if err = os.RemoveAll(path); err != nil {
 		return err
@@ -244,7 +245,7 @@ func (d *Downloader) internalDonwload(link, filename, character string, characte
 	defer os.RemoveAll(file.Name())
 
 	dotIdx := strings.LastIndex(filename, ".")
-	outputDir := path.Join(GetCharacterDir(character, game), filename[:dotIdx])
+	outputDir := path.Join(util.GetCharacterDir(character, game), filename[:dotIdx])
 	_ = os.MkdirAll(outputDir, 0777)
 
 	onProgress := func(progress int64, total int64) {

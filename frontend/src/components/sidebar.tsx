@@ -94,11 +94,9 @@ export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylis
   const location = useLocation();
   const navigate = useNavigate();
 
-  const navigateToGenshinCat = () => {
-    (async () => {
-      const skinId = await GenshinApi.skinId();
-      navigate("/mods/cats/" + skinId);
-    })();
+  const navigateToGenshinCat = async () => {
+    const skinId = await GenshinApi.skinId();
+    navigate("/mods/cats/" + skinId);
   };
 
   return (

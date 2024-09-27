@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
+	"hmm/pkg/util"
 	"os"
 	"os/exec"
 	"path"
@@ -101,7 +102,7 @@ func (g *Generator) Reload(game types.Game) error {
 	}
 
 	for _, mod := range selected {
-		err := CopyRecursivley(GetModDir(mod), path.Join(outputDir, fmt.Sprintf("%d_%s", mod.Id, mod.Filename)), false)
+		err := util.CopyRecursivley(util.GetModDir(mod), path.Join(outputDir, fmt.Sprintf("%d_%s", mod.Id, mod.Filename)), false)
 		if err != nil {
 			log.LogError(err.Error())
 		}

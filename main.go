@@ -8,6 +8,7 @@ import (
 	"hmm/pkg/api"
 	"hmm/pkg/core"
 	"hmm/pkg/types"
+	"hmm/pkg/util"
 	"log"
 	"os"
 	"path/filepath"
@@ -44,11 +45,11 @@ func main() {
 
 	gbApi := &api.GbApi{}
 
-	dbfile := filepath.Join(core.GetCacheDir(), "hmm.db")
+	dbfile := filepath.Join(util.GetCacheDir(), "hmm.db")
 
 	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
 
-	core.CreateFileIfNotExists(dbfile)
+	util.CreateFileIfNotExists(dbfile)
 
 	dbSql, err := sql.Open("sqlite3", dbfile)
 	if err != nil {
@@ -134,6 +135,7 @@ func main() {
 			appPrefs.WuwaElementPref,
 			appPrefs.MaxDownloadWorkersPref,
 			appPrefs.PlaylistGamePref,
+			appPrefs.DiscoverGamePref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

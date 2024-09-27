@@ -39,7 +39,7 @@ func (z *ZenlessZoneZeroApi) Elements() []string {
 }
 
 func (z *ZenlessZoneZeroApi) Characters() []types.Character {
-	res, err := soup.Get(fmt.Sprintf("%s/zenless/characters/", PRYDWEN_URL))
+	res, err := soup.GetWithClient(fmt.Sprintf("%s/zenless/characters/", PRYDWEN_URL), &client)
 	if err != nil {
 		return make([]types.Character, 0)
 	}

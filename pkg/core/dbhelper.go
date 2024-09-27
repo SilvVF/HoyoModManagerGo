@@ -9,6 +9,7 @@ import (
 	"hmm/db"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
+	"hmm/pkg/util"
 	"os"
 	"path"
 	"path/filepath"
@@ -393,7 +394,7 @@ func (h *DbHelper) RenameMod(id int64, name string) error {
 		return err
 	}
 	mod := modFromDb(dbmod)
-	currDir := GetModDir(mod)
+	currDir := util.GetModDir(mod)
 	newDir := path.Join(filepath.Dir(currDir), name)
 	err = os.Rename(currDir, newDir)
 	if err != nil {

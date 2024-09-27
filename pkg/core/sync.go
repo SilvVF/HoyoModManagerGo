@@ -5,6 +5,7 @@ import (
 	"hmm/pkg/api"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
+	"hmm/pkg/util"
 	"os"
 	"strings"
 
@@ -40,7 +41,7 @@ func NewSyncHelper(db *DbHelper) *SyncHelper {
 		db:              db,
 		running:         pools,
 		initialComplete: m,
-		rootDir:         GetRootModDir(),
+		rootDir:         util.GetRootModDir(),
 	}
 }
 
@@ -85,7 +86,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 			}
 		}
 
-		gameDir := GetGameDir(game)
+		gameDir := util.GetGameDir(game)
 		os.MkdirAll(gameDir, 0777)
 
 		file, err := os.Open(gameDir)
@@ -96,7 +97,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 
 		for _, character := range characters {
 
-			charDir := GetCharacterDir(character.Name, game)
+			charDir := util.GetCharacterDir(character.Name, game)
 			os.MkdirAll(charDir, 0777)
 
 			file, err := os.Open(charDir)

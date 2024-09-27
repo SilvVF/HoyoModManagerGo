@@ -6,7 +6,6 @@ import (
 	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"io"
-	"net/http"
 	"strings"
 )
 
@@ -97,7 +96,7 @@ func avatarIconUrl(name string) string {
 }
 
 func (g *GenshinApi) Characters() []types.Character {
-	resp, err := http.Get("https://api.github.com/repos/theBowja/genshin-db/contents/src/data/English/characters")
+	resp, err := client.Get("https://api.github.com/repos/theBowja/genshin-db/contents/src/data/English/characters")
 
 	if err != nil {
 		return make([]types.Character, 0)
@@ -122,7 +121,7 @@ func (g *GenshinApi) Characters() []types.Character {
 		name = strings.ToLower(name)
 
 		url := genshinCharUrl(name)
-		resp, err := http.Get(url)
+		resp, err := client.Get(url)
 
 		if err != nil {
 			log.LogError(err.Error())

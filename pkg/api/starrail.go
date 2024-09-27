@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"hmm/pkg/types"
 	"io"
-	"net/http"
 )
 
 const (
@@ -54,7 +53,7 @@ type Characters map[string]struct {
 }
 
 func (s *StarRailApi) Characters() []types.Character {
-	resp, err := http.Get("https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/index_new/en/characters.json")
+	resp, err := client.Get("https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/index_new/en/characters.json")
 
 	if err != nil {
 		return make([]types.Character, 0)

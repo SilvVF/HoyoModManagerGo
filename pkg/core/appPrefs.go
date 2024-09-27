@@ -18,6 +18,7 @@ type AppPrefs struct {
 	WuwaElementPref        *WuwaElementPref
 	MaxDownloadWorkersPref *MaxDownloadWorkersPref
 	PlaylistGamePref       *PlaylistGamePref
+	DiscoverGamePref       *DiscoverGamePref
 }
 
 func NewAppPrefs(store PreferenceStore) *AppPrefs {
@@ -68,6 +69,9 @@ func NewAppPrefs(store PreferenceStore) *AppPrefs {
 		&PlaylistGamePref{
 			Preference: store.GetInt("playlist_game", types.Genshin),
 		},
+		&DiscoverGamePref{
+			Preference: store.GetInt("discover_game", types.Genshin),
+		},
 	}
 }
 
@@ -94,3 +98,4 @@ type WuwaDirPref struct{ Preference[string] }
 type IgnoreDirPref struct{ Preference[[]string] }
 
 type PlaylistGamePref struct{ Preference[int] }
+type DiscoverGamePref struct{ Preference[int] }
