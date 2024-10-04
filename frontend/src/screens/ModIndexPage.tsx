@@ -25,8 +25,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
-import { discoverGamePref, usePrefrenceAsState } from "@/data/prefs";
+import { discoverGamePref, sortModPref, usePrefrenceAsState } from "@/data/prefs";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
+import { Button } from "@/components/ui/button";
 
 const gameDispalyNameFromIdx = (n: number) => {
   switch (n) {
@@ -39,11 +40,26 @@ const gameDispalyNameFromIdx = (n: number) => {
     case 3:
       return "Wuthering Waves";
     default:
-      return "";
+      return ""
   }
 };
 
-const createCategoryCrumbs = (id: number, skinIds: number[], subCats: api.CategoryListResponseItem[][]): Crumb[] => {
+const gameDispalyNameWithCatId = async (n: number) => {
+  switch (n) {
+    case 0:
+      return {name: "Genshin Impact", id: await GenshinApi.skinId()};
+    case 1:
+      return {name:"Honkai Star Rail", id: await StarRailApi.skinId()};
+    case 2:
+      return {name:"Zenless Zone Zero", id: await ZenlessApi.skinId()};
+    case 3:
+      return {name:"Wuthering Waves", id: await WutheringWavesApi.skinId()};
+    default:
+      return {name: "", id: -1};
+  }
+};
+
+const createCategoryCrumbs = async (id: number, skinIds: number[], subCats: api.CategoryListResponseItem[][]): Promise<Crumb[]> => {
   const skinIdIdx = skinIds.indexOf(id);
   const isTopLevelCat = skinIdIdx !== -1;
   if (isTopLevelCat) {
@@ -55,10 +71,11 @@ const createCategoryCrumbs = (id: number, skinIds: number[], subCats: api.Catego
       );
     });
     if (item?.value !== undefined) {
+      const { name, id } = await gameDispalyNameWithCatId(item.i)
       return [
         {
-          path: `cats/${item.i}`,
-          name: gameDispalyNameFromIdx(item.i),
+          path: `cats/${id}`,
+          name: name,
         },
         {
           path: `cats/${item.value._idRow!!}`,
@@ -70,7 +87,26 @@ const createCategoryCrumbs = (id: number, skinIds: number[], subCats: api.Catego
   }
 };
 
+type Sorts = "MostLiked" | "MostDownloaded" | "MostViewed" | "";
+const sortName = (s: string | undefined) => {
+  switch (s) {
+    case "":
+      return "Default";
+    case "MostLiked":
+      return "Most liked";
+    case "MostDownloaded":
+      return "Most downloaded";
+    case "MostViewed":
+      return "Most view";
+    default:
+      return "";
+  }
+};
+
+const sortOptions: Sorts[] = ["MostLiked", "MostDownloaded", "MostViewed", ""];
+
 export const DataApiContext = createContext<DataApi | undefined>(GenshinApi);
+export const SortModeContext = createContext<Sorts>("");
 
 type Crumb = { name: string; path: string };
 
@@ -129,7 +165,7 @@ export function ModIndexPage() {
       const { isCategroy, id } = currentPathInfo(location.pathname);
       let crumbs: Crumb[] | undefined = undefined
       if (isCategroy) {
-        crumbs = createCategoryCrumbs(id, skinIds, subCats);
+        crumbs = await createCategoryCrumbs(id, skinIds, subCats);
       } else {
         const modPage = await GbApi.ModPage(id);
         crumbs = [
@@ -151,6 +187,8 @@ export function ModIndexPage() {
     },
     [location.pathname, subCats]
   );
+
+  const [sort, setSort] = usePrefrenceAsState<string>(sortModPref);
 
   useEffect(() => {
     try {
@@ -178,15 +216,39 @@ export function ModIndexPage() {
 
   return (
     <DataApiContext.Provider value={dataApi}>
+      <SortModeContext.Provider value={sort as Sorts}>
       <div className="flex flex-col">
+        <div className="flex flex-row justify-between sticky top-2 end-0 m-2 z-30">
         <BreadCrumbList
-          className="sticky top-2 m-2"
           onCrumbSelected={(path) => navigate(path)}
           crumbs={crumbs}
           topLevelCrumbs={topLevelCrumbs}
         />
+        {crumbs.length !== 3 ? 
+          <div>
+          <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 p-2 me-12 font-semibold text-foreground">
+                {sortName(sort)}
+                <ChevronDownIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {sortOptions.map((s) => {
+                  return (
+                    <DropdownMenuItem onPointerDown={() => setSort(s)}>
+                      <Button variant={"ghost"} className="w-full">
+                        {sortName(s)}
+                      </Button>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div> : undefined 
+        }
+        </div>
         <Outlet />
       </div>
+      </SortModeContext.Provider>
     </DataApiContext.Provider>
   );
 }

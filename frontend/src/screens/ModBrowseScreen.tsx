@@ -15,7 +15,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,24 +27,15 @@ import {
 import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
 import { usePrefrenceAsState, sortModPref } from "@/data/prefs";
-
-type Sorts = "MostLiked" | "MostDownloaded" | "MostViewed" | "";
-const sortName = (s: string | undefined) => {
-  switch(s) {
-    case "": return "Default"
-    case "MostLiked": return "Most liked"
-    case "MostDownloaded": return "Most downloaded"
-    case "MostViewed": return "Most view"
-    default: return ""
-  }
-}
-
-const sortOptions: Sorts[] = ["MostLiked", "MostDownloaded", "MostViewed", ""];
+import { useScrollContext } from "@/App";
+import { SortModeContext } from "./ModIndexPage";
 
 export default function ModBrowseScreen() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+
+  const { toTop } = useScrollContext();
 
   const categories = useStateProducer<api.CategoryListResponseItem[]>(
     [],
@@ -53,10 +44,10 @@ export default function ModBrowseScreen() {
     },
     [id]
   );
-  const [sort, setSort] = usePrefrenceAsState<string>(sortModPref);
   const [page, setPage] = useState(1);
 
   useEffect(() => setPage(1), [id]);
+  const sort = useContext(SortModeContext)
 
   const { loading, value, error } = useStateProducerT<
     api.CategoryResponse | undefined
@@ -70,6 +61,8 @@ export default function ModBrowseScreen() {
     [page, id, sort]
   );
 
+  useEffect(() => {toTop()}, [value]);
+
   const lastPage = useMemo<number>(() => {
     const records = value?._aMetadata._nRecordCount;
     const perPage = value?._aMetadata._nPerpage;
@@ -81,52 +74,35 @@ export default function ModBrowseScreen() {
 
   return (
     <div className="flex flex-row justify-end items-start max-w-full h-full min-w-full">
-      <div className="absolute top-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger 
-          className="flex items-center gap-1 w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-30 p-2 me-12 font-semibold text-foreground">
-            {sortName(sort)}
-            <ChevronDownIcon />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {sortOptions.map((s) => {
-              return (
-                <DropdownMenuItem onPointerDown={() => setSort(s)}>
-                  <Button variant={'ghost'} className="w-full">{sortName(s)}</Button>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <CategoryItemsList res={value} error={error} loading={loading} />
-      <div className="absolute bottom-4 -translate-y-1 start-1/2 -translate-x-1/2 bg-primary/30 backdrop-blur-lg rounded-full">
+       <div className="absolute bottom-4 start-1/2 -translate-x-1/2 lg:-translate-x-1/4 bg-primary/30 backdrop-blur-lg rounded-full">
         <Paginator
           page={page}
           lastPage={lastPage}
-          goToPage={(page) => setPage(Math.min(Math.max(1, page), lastPage))}
-        />
-      </div>
-      <div className="flex flex-col w-fit me-2 overflow-clip">
-        {categories.map((c) => {
-          return (
-            <Button
-              key={c._sName}
-              onClick={() => navigate("/mods/cats/" + c._idRow)}
-              variant={
-                c._idRow !== undefined &&
-                location.pathname.includes(c._idRow.toString())
+          goToPage={(page) => setPage(Math.max(0, Math.min(lastPage, page)))} />
+        </div>
+        <CategoryItemsList 
+          res={value} 
+          error={error} 
+          loading={loading}
+         />
+        <div className="flex flex-col w-fit me-2 overflow-clip">
+          {categories.map((c) => {
+            return (
+              <Button
+                key={c._sName}
+                onClick={() => navigate("/mods/cats/" + c._idRow)}
+                variant={c._idRow !== undefined &&
+                  location.pathname.includes(c._idRow.toString())
                   ? "secondary"
-                  : "ghost"
-              }
-              className="min-w-max justify-start font-normal rounded-full"
-            >
-              {c._sName}
-            </Button>
-          );
-        })}
+                  : "ghost"}
+                className="min-w-max justify-start font-normal rounded-full"
+              >
+                {c._sName}
+              </Button>
+            );
+          })}
+        </div>
       </div>
-    </div>
   );
 }
 
@@ -137,7 +113,7 @@ function CategoryItemsList({
 }: {
   res: api.CategoryResponse | undefined;
   loading: boolean;
-  error: any;
+  error: any
 }) {
   const navigate = useNavigate();
 
@@ -151,11 +127,11 @@ function CategoryItemsList({
 
   if (loading || res === undefined) {
     return (
-      <div className="grid grid-cols-3">
+      <div className="grid grid-cols-3"> 
         {range(0, 15, 1).map(() => {
           return (
             <div className="col-span-1 aspect-video m-2 space-y-3">
-              <Skeleton className="h-96 w-full object-cover  rounded-lg object-top fade-in" />
+              <Skeleton className="h-96 w-full object-cover rounded-lg object-top fade-in" />
               <div className="space-y-2">
                 <Skeleton className="h-4 w-[250px]" />
                 <Skeleton className="h-4 w-[200px]" />
@@ -168,7 +144,7 @@ function CategoryItemsList({
   }
 
   return (
-    <div className="grid grid-cols-3">
+    <div className="grid grid-cols-3 mb-14"> 
       {res._aRecords?.map((record) => {
         const image = record._aPreviewMedia._aImages[0];
 
@@ -192,7 +168,6 @@ function CategoryItemsList({
     </div>
   );
 }
-
 
 function Paginator(props: {
   page: number;

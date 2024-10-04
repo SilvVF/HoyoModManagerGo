@@ -39,13 +39,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDownloadStore } from "@/state/downloadStore";
 import { useShallow } from "zustand/shallow";
 
-const dlStates = ["download", "queued", "unzip"]
+const dlStates = ["download", "queued", "unzip"];
 const inDownloadState = (state: string | undefined) => {
   if (state) {
-    return dlStates.includes(state)
+    return dlStates.includes(state);
   }
-  return false
-}
+  return false;
+};
 
 export function ModViewScreen() {
   const { id } = useParams();
@@ -56,13 +56,8 @@ export function ModViewScreen() {
   );
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const downloads = useDownloadStore(
-    useShallow((state) => state.downloads)
-  );
-  const running = useDownloadStore(
-    useShallow((state) => state.running)
-  );
-
+  const downloads = useDownloadStore(useShallow((state) => state.downloads));
+  const running = useDownloadStore(useShallow((state) => state.running));
 
   const downloaded = useStateProducer<types.Mod[]>(
     [],
@@ -85,7 +80,6 @@ export function ModViewScreen() {
     },
     [id]
   );
-
 
   const deleteMod = async (id: number) => {
     Downloader.Delete(id).then(() => refresh());
@@ -197,13 +191,15 @@ export function ModViewScreen() {
                       const mod = downloaded.find(
                         (it) =>
                           it.gbFileName.toLowerCase() ===
-                            f._sFile?.toLowerCase() ?? ""
+                          (f._sFile?.toLowerCase() ?? "")
                       );
                       if (mod) {
                         deleteMod(mod.id);
                       }
                     }}
-                    downloading={inDownloadState(downloads[f._sDownloadUrl ?? ""]?.state)}
+                    downloading={inDownloadState(
+                      downloads[f._sDownloadUrl ?? ""]?.state
+                    )}
                     onDownloadClick={() =>
                       download(f._sDownloadUrl ?? "", f._sFile ?? "")
                     }

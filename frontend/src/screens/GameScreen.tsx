@@ -127,50 +127,52 @@ function GameScreen(props: { dataApi: DataApi, game: number }) {
   const settings = dialog !== undefined ? dialogSettings[dialog.x] : undefined
 
   return (
-    <div className="h-full w-full flex flex-col" key={props.game}>
-      <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10">
-      <NameDialog
-           title={settings?.title ?? ""}
-           description={settings?.description ?? ""}
-           open={dialog !== undefined} 
-           onOpenChange={() => setDialog(undefined)} 
-           onSuccess={(n) => settings!!.onSuccess(dialog!!.y, n) } 
-        />
-      <Button
-          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
-          variant={'ghost'}
-          onClick={() => (async() => Reload(await props.dataApi.game()).catch())()}
-        >
-          Generate
-        </Button>
-        <Button
-          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
-          variant={'ghost'}
-          onClick={() =>
-            syncCharacters(props.dataApi, 1).then(refreshCharacters)
-          }
-        >
-          Refresh Local
-        </Button>
-        <Button
-          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
-          variant={'ghost'}
-          onClick={() =>
-            syncCharacters(props.dataApi, 2).then(refreshCharacters)
-          }
-        >
-          Refresh
-        </Button>
+    <div className="flex flex-col w-full" key={props.game}>
+      <div className="sticky top-0 z-10 backdrop-blur-md"> {/* Make the CharacterFilters sticky */}
+          <CharacterFilters
+              className={`relative w-full`} // Remove translate-y class
+              elements={elements}
+              selectedElements={selectedElements ?? []}
+              available={available ?? false}
+              toggleElement={onElementSelected}
+              toggleAvailable={setAvailableOnly}
+          />
       </div>
-      <CharacterFilters
-        className={`absolute h-[64px] top-0 w-full z-10`}
-        elements={elements}
-        selectedElements={selectedElements ?? []}
-        available={available ?? false}
-        toggleElement={onElementSelected}
-        toggleAvailable={setAvailableOnly}
-      />
-      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 mt-[64px]">
+      <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10">
+        <NameDialog
+            title={settings?.title ?? ""}
+            description={settings?.description ?? ""}
+            open={dialog !== undefined} 
+            onOpenChange={() => setDialog(undefined)} 
+            onSuccess={(n) => settings!!.onSuccess(dialog!!.y, n) } 
+          />
+        <Button
+            className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+            variant={'ghost'}
+            onClick={() => (async() => Reload(await props.dataApi.game()).catch())()}
+          >
+            Generate
+          </Button>
+          <Button
+            className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+            variant={'ghost'}
+            onClick={() =>
+              syncCharacters(props.dataApi, 1).then(refreshCharacters)
+            }
+          >
+            Refresh Local
+          </Button>
+          <Button
+            className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+            variant={'ghost'}
+            onClick={() =>
+              syncCharacters(props.dataApi, 2).then(refreshCharacters)
+            }
+          >
+            Refresh
+          </Button>
+      </div>
+      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
         {filteredCharacters.map((c) => (
           <div className="col-span-1">
             <CharacterBox
