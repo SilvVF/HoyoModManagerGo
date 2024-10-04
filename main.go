@@ -62,7 +62,7 @@ func main() {
 	}
 
 	queries := db.New(dbSql)
-	prefs := core.NewPrefs()
+	prefs := core.NewPrefs(false)
 	appPrefs := core.NewAppPrefs(prefs)
 
 	dbHelper := core.NewDbHelper(queries, dbSql)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
+	"errors"
 	"hmm/pkg/log"
 	"hmm/pkg/util"
 	"math"
@@ -14,7 +15,7 @@ import (
 )
 
 type Prefs struct {
-	db *rosedb.DB
+	db PrefrenceDb
 }
 
 type Preference[T any] interface {
@@ -36,14 +37,54 @@ type PreferenceStore interface {
 	Close() error
 }
 
-func NewPrefs() PreferenceStore {
-	options := rosedb.DefaultOptions
-	options.DirPath = filepath.Join(util.GetCacheDir(), "/rosedb_basic")
+type MemeoryPreferenceDb struct {
+	m map[string][]byte
+}
 
-	// open a database
-	db, err := rosedb.Open(options)
-	if err != nil {
-		panic(err)
+func (mp *MemeoryPreferenceDb) Put(key []byte, value []byte) error {
+	if key != nil && value != nil {
+		mp.m[string(key)] = value
+	}
+	return nil
+}
+func (mp *MemeoryPreferenceDb) Get(key []byte) ([]byte, error) {
+	v, ok := mp.m[string(key)]
+	var err error
+	if !ok {
+		err = errors.New("value not found")
+	}
+	return v, err
+}
+func (mp *MemeoryPreferenceDb) Delete(key []byte) error {
+	if key != nil {
+		delete(mp.m, string(key))
+	}
+	return nil
+}
+func (mp *MemeoryPreferenceDb) Exist(key []byte) (bool, error) {
+	if key != nil {
+		_, ok := mp.m[string(key)]
+		return ok, nil
+	}
+	return false, nil
+}
+func (mp *MemeoryPreferenceDb) Close() error {
+	return nil
+}
+
+func NewPrefs(debug bool) PreferenceStore {
+	var db PrefrenceDb
+
+	if debug {
+		db = &MemeoryPreferenceDb{m: map[string][]byte{}}
+	} else {
+		options := rosedb.DefaultOptions
+		options.DirPath = filepath.Join(util.GetCacheDir(), "/rosedb_basic")
+		rose, err := rosedb.Open(options)
+		if err != nil {
+			panic(err)
+		}
+		db = rose
 	}
 
 	return &Prefs{
@@ -51,8 +92,16 @@ func NewPrefs() PreferenceStore {
 	}
 }
 
+type PrefrenceDb interface {
+	Put(key []byte, value []byte) error
+	Get(key []byte) ([]byte, error)
+	Delete(key []byte) error
+	Exist(key []byte) (bool, error)
+	Close() error
+}
+
 type StringPreference struct {
-	db           *rosedb.DB
+	db           PrefrenceDb
 	key          string
 	defaultValue string
 }
@@ -108,7 +157,7 @@ func (p *Prefs) GetString(key string, defaultValue string) Preference[string] {
 // ===========================================
 
 type IntPreference struct {
-	db           *rosedb.DB
+	db           PrefrenceDb
 	key          string
 	defaultValue int
 }
@@ -163,7 +212,7 @@ func (p *Prefs) GetInt(key string, defaultValue int) Preference[int] {
 // =============================================================================
 
 type LongPreference struct {
-	db           *rosedb.DB
+	db           PrefrenceDb
 	key          string
 	defaultValue int64
 }
@@ -216,7 +265,7 @@ func (p *Prefs) GetLong(key string, defaultValue int64) Preference[int64] {
 // =============================================================
 
 type FloatPreference struct {
-	db           *rosedb.DB
+	db           PrefrenceDb
 	key          string
 	defaultValue float32
 }
@@ -269,7 +318,7 @@ func (p *Prefs) GetFloat(key string, defaultValue float32) Preference[float32] {
 // ================================================================================
 
 type BooleanPreference struct {
-	db           *rosedb.DB
+	db           PrefrenceDb
 	key          string
 	defaultValue bool
 }
@@ -326,7 +375,7 @@ func (p *Prefs) GetBoolean(key string, defaultValue bool) Preference[bool] {
 // ==========================
 
 type StringSlicePreference struct {
-	db           *rosedb.DB
+	db           PrefrenceDb
 	key          string
 	defaultValue []string
 }

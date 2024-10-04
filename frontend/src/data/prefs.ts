@@ -46,12 +46,16 @@ const maxDownloadWorkersPref = MaxDownloadWorkersPref as GoPref<number>
 const playlistGamePref = PlaylistGamePref as GoPref<number>
 const discoverGamePref = DiscoverGamePref as GoPref<string>
 
-export function usePrefrenceAsStateDefault<T extends any>(defaultValue: T, pref: GoPref<T>): [T, Dispatch<SetStateAction<T>>] {
+export function usePrefrenceAsStateDefault<T extends any>(defaultValue: T, pref: GoPref<T>): [T, Dispatch<SetStateAction<T | undefined>>] {
 
-    const [state, setState] = useState<T>(defaultValue)
+    const [isSet, setIsSet] = useState(false)
+    const [state, setState] = useState<T | undefined>(undefined)
 
     const refresh = () => {
-        pref.Get().then((value) => setState(value))
+        pref.Get().then((value) => {
+            setState(value)
+            setIsSet(true)
+        })
     }
 
     useEffect(() => {
@@ -59,19 +63,29 @@ export function usePrefrenceAsStateDefault<T extends any>(defaultValue: T, pref:
     }, [pref])
 
     useEffect(() => {
-        if (state !== undefined) { pref.Set(state) }
-        else { pref.Delete().then(refresh) }
+        const s = state
+        const set = isSet
+        if (s !== undefined) { pref.Set(s) }
+        else if (s === undefined && set) {
+            setIsSet(false) 
+            setState(undefined)
+            pref.Delete().then(refresh) 
+        }
     }, [state])
 
-    return [state, setState]
+    return [state ?? defaultValue, setState]
 }
 
 export function usePrefrenceAsState<T extends any>(pref: GoPref<T>): [T | undefined, Dispatch<SetStateAction<T | undefined>>] {
 
+    const [isSet, setIsSet] = useState(false)
     const [state, setState] = useState<T | undefined>(undefined)
 
     const refresh = () => {
-        pref.Get().then((value) => setState(value))
+        pref.Get().then((value) => {
+            setState(value)
+            setIsSet(true)
+        })
     }
 
     useEffect(() => {
@@ -79,8 +93,14 @@ export function usePrefrenceAsState<T extends any>(pref: GoPref<T>): [T | undefi
     }, [pref])
 
     useEffect(() => {
-        if (state !== undefined) { pref.Set(state) }
-        else { pref.Delete().then(refresh) }
+        const s = state
+        const set = isSet
+        if (s !== undefined) { pref.Set(s) }
+        else if (s === undefined && set) {
+            setIsSet(false) 
+            setState(undefined)
+            pref.Delete().then(refresh) 
+        }
     }, [state])
 
     return [state, setState]
