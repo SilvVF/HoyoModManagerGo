@@ -5,6 +5,8 @@
 * Runs skin fix .exe automatically when regenerating the mod folder if exists.
 * Dark and light themes using Catapuccin Mocha and Latte.
 
+### Building and running
+
 ```console
 cd frontend
 ```
