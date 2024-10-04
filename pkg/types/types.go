@@ -9,6 +9,8 @@ const (
 
 type Game int
 
+var Games = []Game{Genshin, StarRail, ZZZ, WuWa}
+
 func (g Game) Int64() int64 {
 	switch g {
 	case Genshin:
@@ -35,6 +37,16 @@ func (g Game) Name() string {
 		return "WuWa"
 	}
 	return ""
+}
+
+type FileInfo struct {
+	File  string `json:"file"`
+	Bytes int64  `json:"bytes"`
+}
+
+type DownloadStats struct {
+	Data       [][]FileInfo `json:"data"`
+	TotalBytes int64        `json:"totalBytes"`
 }
 
 type Character struct {

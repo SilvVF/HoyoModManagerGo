@@ -35,7 +35,12 @@ var ddl string
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
+	debug := false
 
+	argsWithoutProg := os.Args[1:]
+	if len(argsWithoutProg) >= 1 {
+		debug = argsWithoutProg[0] == "debug"
+	}
 	ctx := context.Background()
 
 	genshinApi := api.ApiList[types.Genshin]
@@ -62,21 +67,24 @@ func main() {
 	}
 
 	queries := db.New(dbSql)
-	prefs := core.NewPrefs(false)
+	prefs := core.NewPrefs(debug)
 	appPrefs := core.NewAppPrefs(prefs)
+
+	preferenceDirs := map[types.Game]core.Preference[string]{
+		types.Genshin:  appPrefs.GenshinDirPref.Preference,
+		types.ZZZ:      appPrefs.ZZZDirPref.Preference,
+		types.StarRail: appPrefs.HonkaiDirPref.Preference,
+		types.WuWa:     appPrefs.WuwaDirPref.Preference,
+	}
 
 	dbHelper := core.NewDbHelper(queries, dbSql)
 	downloader := core.NewDownloader(dbHelper, appPrefs.MaxDownloadWorkersPref.Preference)
 	sync := core.NewSyncHelper(dbHelper)
+	stats := core.NewStats(preferenceDirs)
 
 	generator := core.NewGenerator(
 		dbHelper,
-		map[types.Game]core.Preference[string]{
-			types.Genshin:  appPrefs.GenshinDirPref.Preference,
-			types.ZZZ:      appPrefs.ZZZDirPref.Preference,
-			types.StarRail: appPrefs.HonkaiDirPref.Preference,
-			types.WuWa:     appPrefs.WuwaDirPref.Preference,
-		},
+		preferenceDirs,
 		appPrefs.IgnoreDirPref.Preference,
 	)
 
@@ -120,6 +128,7 @@ func main() {
 			dbHelper,
 			downloader,
 			generator,
+			stats,
 			appPrefs.DarkTheme,
 			appPrefs.StartScreen,
 			appPrefs.HonkaiDirPref,

@@ -13,8 +13,8 @@ import {
   ZenlessApi,
 } from "@/data/dataapi";
 import { cn, useStateProducer } from "@/lib/utils";
-import * as GbApi from "../../wailsjs/go/api/GbApi";
-import { api } from "../../wailsjs/go/models";
+import * as GbApi from "../../../wailsjs/go/api/GbApi";
+import { api } from "../../../wailsjs/go/models";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { createContext, useEffect, useMemo } from "react";
 
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
 import { discoverGamePref, sortModPref, usePrefrenceAsState } from "@/data/prefs";
-import { LogDebug } from "../../wailsjs/runtime/runtime";
+import { LogDebug } from "../../../wailsjs/runtime/runtime";
 import { Button } from "@/components/ui/button";
 
 const gameDispalyNameFromIdx = (n: number) => {

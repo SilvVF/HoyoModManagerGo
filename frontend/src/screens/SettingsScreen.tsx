@@ -14,11 +14,13 @@ import {
   GetExclusionPaths,
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, useStateProducer } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
 import { useEffect, useState } from "react";
 import { UndoIcon } from "lucide-react";
-
+import { getStats } from "@/data/stats";
+import { types } from "wailsjs/go/models";
+import { ModSizeChart } from "@/components/mod-size-chart";
 export default function SettingsScreen() {
   const [honkaiDir, setHonkaiDir] = usePrefrenceAsState(honkaiDirPref);
   const [genshinDir, setGenshinDir] = usePrefrenceAsState(genshinDirPref);
@@ -35,6 +37,14 @@ export default function SettingsScreen() {
   useEffect(
     () => setSliderValue(maxDownloadWorkers ?? 1),
     [maxDownloadWorkers]
+  );
+
+  const stats = useStateProducer<types.DownloadStats | undefined>(
+    undefined,
+    async (update) => {
+      getStats().then(update);
+    },
+    []
   );
 
   const items = [
@@ -89,8 +99,9 @@ export default function SettingsScreen() {
   };
 
   return (
-    <div className="px-4">
+    <div className="w-full px-4 overflow-hidden">
       <h1 className="text-2xl font-bold my-4">Settings</h1>
+      <ChartsList stats={stats} />
       <h2 className="text-lg font-semibold tracking-tight">Export Locations</h2>
       {items.map((item) => {
         return (
@@ -113,7 +124,9 @@ export default function SettingsScreen() {
       <h2 className="text-lg font-semibold tracking-tight mt-4">
         Max download workers
       </h2>
-      <div className="text-zinc-500  m-2">Requires restart for change to take effect</div>
+      <div className="text-zinc-500  m-2">
+        Requires restart for change to take effect
+      </div>
       <div className="px-4 flex flex-row justify-between">
         <Slider
           className="w-3/4"
@@ -131,10 +144,83 @@ export default function SettingsScreen() {
       </h2>
       <div className="px-4 flex flex-row justify-between">
         <div className="text-zinc-500  m-2">{`Path: ${discover}`}</div>
-        <Button size={'icon'} onPointerDown={() => setDiscover(undefined)}>
-          <UndoIcon/>
+        <Button size={"icon"} onPointerDown={() => setDiscover(undefined)}>
+          <UndoIcon />
         </Button>
       </div>
+    </div>
+  );
+}
+
+// Helper function to generate random HSL color
+function getRandomColor(): string {
+  const hue = Math.floor(Math.random() * 360); // Random hue value between 0 and 360
+  const saturation = Math.floor(Math.random() * 100); // Random saturation value between 0 and 100
+  const lightness = Math.floor(Math.random() * 80) + 20; // Lightness between 20 and 100 to avoid very dark or very light colors
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+function bytesToMB(bytes: number): number {
+  return bytes / (1024 * 1024); // 1024 * 1024 = 1,048,576
+}
+
+// Transformation function
+function transformDownloadStatsToChartData(
+  data: types.FileInfo[]
+) {
+  const chartData = data
+    .map((fileInfo: types.FileInfo) => {
+      const split = fileInfo.file.split("\\");
+      return {
+        file: split[split.length - 1],
+        size: bytesToMB(fileInfo.bytes),
+        fill: getRandomColor(),
+      };
+    });
+
+  const chartConfig = {
+    visitors: { label: "Visitors" },
+    ...chartData.reduce((acc, { file, fill }) => {
+      acc[file] = {
+        label: capitalizeFirstLetter(file), // Use file name for label
+        color: fill, // Assign the generated random color
+      };
+      return acc;
+    }, {} as Record<string, { label: string; color: string }>),
+  };
+
+  return { chartData, chartConfig };
+}
+
+// Helper function to capitalize browser (file) names
+function capitalizeFirstLetter(string: string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+function ChartsList({ stats }: { stats: types.DownloadStats | undefined }) {
+  if (stats === undefined) {
+    return <></>;
+  }
+
+  return (
+    <div 
+    className="max-w-screen w-full h-full flex flex-row overflow-x-scroll"
+    >
+      {stats.data.map((data) => {
+        const split = data[0].file.split("\\")
+        let game = split[split.length - 1]
+        const { chartData, chartConfig } = transformDownloadStatsToChartData(data.slice(1, data.length));
+        return (
+          <div className="min-w-[400px]">
+            <ModSizeChart
+              config={chartConfig}
+              title={game}
+              total={data.reduce((acc, curr) => acc + curr.bytes, 0)}
+              data={chartData}
+            />
+            </div>
+        );
+      })}
     </div>
   );
 }

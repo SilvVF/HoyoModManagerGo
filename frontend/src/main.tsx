@@ -5,10 +5,10 @@ import './index.css'
 import GameScreen from './screens/GameScreen.tsx';
 import { GenshinApi, StarRailApi, WutheringWavesApi, ZenlessApi } from './data/dataapi.ts';
 import { createHashRouter, RouterProvider, useNavigate, useRouteError } from 'react-router-dom';
-import ModBrowseScreen from './screens/ModBrowseScreen.tsx';
-import { ModViewScreen } from './screens/ModViewScreen.tsx';
+import ModBrowseScreen from './screens/mod/ModBrowseScreen.tsx';
+import { ModViewScreen } from './screens/mod/ModViewScreen.tsx';
 import { Button } from './components/ui/button.tsx';
-import { ModIndexPage } from './screens/ModIndexPage.tsx';
+import { ModIndexPage } from './screens/mod/ModIndexPage.tsx';
 import SettingsScreen from './screens/SettingsScreen.tsx';
 import { PlaylistScreen } from './screens/PlaylistScreen.tsx';
 import { SearchScreen } from './screens/SearchScreen.tsx';

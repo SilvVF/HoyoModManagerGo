@@ -1,14 +1,14 @@
 import { cn, getRelativeTimeString, useStateProducer } from "@/lib/utils";
-import * as GbApi from "../../wailsjs/go/api/GbApi";
-import { api, types } from "../../wailsjs/go/models";
+import * as GbApi from "../../../wailsjs/go/api/GbApi";
+import { api, types } from "../../../wailsjs/go/models";
 import { useParams } from "react-router-dom";
-import { LogPrint } from "../../wailsjs/runtime/runtime";
+import { LogPrint } from "../../../wailsjs/runtime/runtime";
 import {
   SelectModsByCharacterName,
   SelectClosestCharacter,
   SelectCharactersByGame,
-} from "../../wailsjs/go/core/DbHelper";
-import * as Downloader from "../../wailsjs/go/core/Downloader";
+} from "../../../wailsjs/go/core/DbHelper";
+import * as Downloader from "../../../wailsjs/go/core/Downloader";
 import {
   Table,
   TableBody,

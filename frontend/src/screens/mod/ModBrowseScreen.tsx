@@ -5,8 +5,8 @@ import {
   useStateProducer,
   useStateProducerT,
 } from "@/lib/utils";
-import * as GbApi from "../../wailsjs/go/api/GbApi";
-import { api } from "../../wailsjs/go/models";
+import * as GbApi from "../../../wailsjs/go/api/GbApi";
+import { api } from "../../../wailsjs/go/models";
 import {
   Pagination,
   PaginationContent,
@@ -15,12 +15,13 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { ImgHTMLAttributes, useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScrollContext } from "@/App";
 import { SortModeContext } from "./ModIndexPage";
+import { CrossfadeImage } from "@/components/crossfade-image";
 
 export default function ModBrowseScreen() {
   const { id } = useParams();
@@ -160,32 +161,6 @@ function CategoryItemsList({
     </div>
   );
 }
-
-interface CrossfadeImageProps extends ImgHTMLAttributes<HTMLImageElement>{}
-
-const CrossfadeImage = ({ src, alt, className }: CrossfadeImageProps) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    const img = new Image();
-    img.src = src ?? "";
-    img.onload = () => setIsLoaded(true);
-  }, [src]);
-
-  return (
-    <div className="relative">
-      {/* Placeholder */}
-      <div className={cn(className, `absolute inset-0 transition-opacity duration-500 ${isLoaded ? 'opacity-0' : 'opacity-100'}`)} />
-
-      {/* Image */}
-      <img
-        src={src}
-        alt={alt}
-        className={cn(className, `transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`)}
-      />
-    </div>
-  );
-};
 
 function Paginator(props: {
   page: number;
