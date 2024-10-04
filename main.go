@@ -26,7 +26,7 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-//go:embed build/appicon.png
+//go:embed build/appicon.jpg
 var icon []byte
 
 //go:embed schema.sql

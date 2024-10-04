@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import {
+  discoverGamePref,
   genshinDirPref,
   honkaiDirPref,
   ignorePref,
@@ -16,10 +17,12 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
 import { useEffect, useState } from "react";
+import { UndoIcon } from "lucide-react";
 
 export default function SettingsScreen() {
   const [honkaiDir, setHonkaiDir] = usePrefrenceAsState(honkaiDirPref);
   const [genshinDir, setGenshinDir] = usePrefrenceAsState(genshinDirPref);
+  const [discover, setDiscover] = usePrefrenceAsState(discoverGamePref);
   const [wuwaDir, setWuwaDir] = usePrefrenceAsState(wuwaDirPref);
   const [zzzDir, setZZZdir] = usePrefrenceAsState(zzzDirPref);
   const [ignore, setIgnore] = usePrefrenceAsState(ignorePref);
@@ -122,6 +125,15 @@ export default function SettingsScreen() {
           onValueCommit={(value) => setMaxDownloadWorkers(value[0])}
         />
         <div className="text-lg font-semibold tracking-tight mx-4">{`Max workers: ${sliderValue} `}</div>
+      </div>
+      <h2 className="text-lg font-semibold tracking-tight mt-4">
+        Saved discover path
+      </h2>
+      <div className="px-4 flex flex-row justify-between">
+        <div className="text-zinc-500  m-2">{`Path: ${discover}`}</div>
+        <Button size={'icon'} onPointerDown={() => setDiscover(undefined)}>
+          <UndoIcon/>
+        </Button>
       </div>
     </div>
   );

@@ -43,6 +43,33 @@ const gameDispalyNameFromIdx = (n: number) => {
   }
 };
 
+const createCategoryCrumbs = (id: number, skinIds: number[], subCats: api.CategoryListResponseItem[][]): Crumb[] => {
+  const skinIdIdx = skinIds.indexOf(id);
+  const isTopLevelCat = skinIdIdx !== -1;
+  if (isTopLevelCat) {
+    return [{ name: gameDispalyNameFromIdx(skinIdIdx), path: `cats/${id}` }];
+  } else {
+    const item = subCats.firstNotNullOfOrNull((value, i) => {
+      return value.firstNotNullOfOrNull((value) =>
+        value._idRow === id ? { i, value } : undefined
+      );
+    });
+    if (item?.value !== undefined) {
+      return [
+        {
+          path: `cats/${item.i}`,
+          name: gameDispalyNameFromIdx(item.i),
+        },
+        {
+          path: `cats/${item.value._idRow!!}`,
+          name: item.value._sName!!,
+        },
+      ];
+    }
+    return []
+  }
+};
+
 export const DataApiContext = createContext<DataApi | undefined>(GenshinApi);
 
 type Crumb = { name: string; path: string };
@@ -57,6 +84,7 @@ const currentPathInfo = (path: string) => {
 };
 
 export function ModIndexPage() {
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -87,32 +115,6 @@ export function ModIndexPage() {
     [skinIds]
   );
 
-  const createCategoryCrumbs = (id: number): Crumb[] => {
-    const skinIdIdx = skinIds.indexOf(id);
-    const isTopLevelCat = skinIdIdx !== -1;
-    if (isTopLevelCat) {
-      return [{ name: gameDispalyNameFromIdx(skinIdIdx), path: `cats/${id}` }];
-    } else {
-      const item = subCats.firstNotNullOfOrNull((value, i) => {
-        return value.firstNotNullOfOrNull((value) =>
-          value._idRow === id ? { i, value } : undefined
-        );
-      });
-      if (item?.value !== undefined) {
-        return [
-          {
-            path: `cats/${item.i}`,
-            name: gameDispalyNameFromIdx(item.i),
-          },
-          {
-            path: `cats/${item.value._idRow!!}`,
-            name: item.value._sName!!,
-          },
-        ];
-      }
-    }
-    return [];
-  };
   const topLevelCrumbs = useMemo<Crumb[]>(
     () =>
       skinIds.map((id, i) => {
@@ -125,11 +127,12 @@ export function ModIndexPage() {
     [],
     async (update) => {
       const { isCategroy, id } = currentPathInfo(location.pathname);
+      let crumbs: Crumb[] | undefined = undefined
       if (isCategroy) {
-        update(createCategoryCrumbs(id));
+        crumbs = createCategoryCrumbs(id, skinIds, subCats);
       } else {
         const modPage = await GbApi.ModPage(id);
-        update([
+        crumbs = [
           {
             name: modPage._aGame?._sName ?? "",
             path: `cats/${modPage?._aSuperCategory?._idRow}`,
@@ -142,8 +145,9 @@ export function ModIndexPage() {
             name: modPage._sName ?? "",
             path: `${modPage._idRow}`,
           },
-        ]);
+        ]
       }
+      update(crumbs ?? [{ name: "Genshin Impact", path: `cats/${await GenshinApi.skinId()}` }]);
     },
     [location.pathname, subCats]
   );
@@ -207,56 +211,14 @@ function BreadCrumbList({
       )}
     >
       <BreadcrumbList>
-        {crumbs.map((item, i) => {
-          if (i === 0) {
-            return (
-              <div className="flex flex-row items-center">
-                <BreadcrumbItem className="font-semibold text-foreground hover:underline text-base p-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="flex items-center gap-1">
-                      {item.name}
-                      <ChevronDownIcon />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      {topLevelCrumbs.map((crumb) => {
-                        return (
-                          <DropdownMenuItem
-                            onClick={() => onCrumbSelected(crumb.path)}
-                          >
-                            {crumb.name}
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </BreadcrumbItem>
-                {crumbs.length > 1 ? (
-                  <BreadcrumbSeparator>
-                    <Slash />
-                  </BreadcrumbSeparator>
-                ) : (
-                  <></>
-                )}
-              </div>
-            );
-          }
-          return (
-            <div className="flex flex-row items-center">
-              <BreadcrumbItem className="font-semibold text-foreground hover:underline text-base p-2">
-                <BreadcrumbLink onClick={() => onCrumbSelected(item.path)}>
-                  {item.name}
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              {i !== crumbs.length - 1 ? (
-                <BreadcrumbSeparator>
-                  <Slash />
-                </BreadcrumbSeparator>
-              ) : (
-                <></>
-              )}
-            </div>
-          );
-        })}
+        {crumbs.map((item, i, arr) => 
+          <BreadCrumbListItem 
+          crumbs={arr} 
+          item={item} 
+          i={i} 
+          topLevelCrumbs={topLevelCrumbs} 
+          onSelected={onCrumbSelected}/> 
+        )}
       </BreadcrumbList>
     </Breadcrumb>
   );
@@ -278,3 +240,60 @@ const Slash = () => (
     <path d="M22 2 2 22" />
   </svg>
 );
+
+function BreadCrumbListItem({i, item, topLevelCrumbs, crumbs, onSelected}: {
+   i: number,
+   item: Crumb, 
+   crumbs: Crumb[]
+   topLevelCrumbs: Crumb[],
+   onSelected: (path: string) => void
+}) {
+  if (i === 0) {
+    return (
+      <div className="flex flex-row items-center">
+        <BreadcrumbItem className="font-semibold text-foreground hover:underline text-base p-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1">
+              {item.name}
+              <ChevronDownIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {topLevelCrumbs.map((crumb) => {
+                return (
+                  <DropdownMenuItem
+                    onClick={() => onSelected(crumb.path)}
+                  >
+                    {crumb.name}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </BreadcrumbItem>
+        {crumbs.length > 1 ? (
+          <BreadcrumbSeparator>
+            <Slash />
+          </BreadcrumbSeparator>
+        ) : <></>}
+      </div>
+    );
+  } else {
+    return (
+      <div className="flex flex-row items-center">
+      <BreadcrumbItem className="font-semibold text-foreground hover:underline text-base p-2">
+        <BreadcrumbLink onClick={() => onSelected(item.path)}>
+          {item.name}
+        </BreadcrumbLink>
+      </BreadcrumbItem>
+      {i !== crumbs.length - 1 ? (
+        <BreadcrumbSeparator>
+          <Slash />
+        </BreadcrumbSeparator>
+      ) : (
+        <></>
+      )}
+    </div>
+    )
+  }
+}
+

@@ -9,6 +9,7 @@ import {
   LibraryIcon,
   Moon,
   RefreshCwIcon,
+  SearchIcon,
   SettingsIcon,
   SparkleIcon,
   Sun,
@@ -119,6 +120,13 @@ export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylis
             selected={location.pathname.includes("settings")}
           >
             {<SettingsIcon />}
+          </SidebarItem>
+          <SidebarItem
+            onClick={() => navigate("search")}
+            name="Search"
+            selected={location.pathname.includes("search")}
+          >
+            {<SearchIcon />}
           </SidebarItem>
         </div>
       </div>

@@ -50,12 +50,17 @@ export function usePrefrenceAsStateDefault<T extends any>(defaultValue: T, pref:
 
     const [state, setState] = useState<T>(defaultValue)
 
-    useEffect(() => {
+    const refresh = () => {
         pref.Get().then((value) => setState(value))
+    }
+
+    useEffect(() => {
+        refresh()
     }, [pref])
 
     useEffect(() => {
         if (state !== undefined) { pref.Set(state) }
+        else { pref.Delete().then(refresh) }
     }, [state])
 
     return [state, setState]
@@ -65,12 +70,17 @@ export function usePrefrenceAsState<T extends any>(pref: GoPref<T>): [T | undefi
 
     const [state, setState] = useState<T | undefined>(undefined)
 
-    useEffect(() => {
+    const refresh = () => {
         pref.Get().then((value) => setState(value))
+    }
+
+    useEffect(() => {
+        refresh()
     }, [pref])
 
     useEffect(() => {
         if (state !== undefined) { pref.Set(state) }
+        else { pref.Delete().then(refresh) }
     }, [state])
 
     return [state, setState]

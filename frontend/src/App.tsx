@@ -29,6 +29,7 @@ function App() {
   const updateQueue = useDownloadStore((state) => state.updateQueue);
   const running = useDownloadStore((state) => state.running);
   const expanded = useDownloadStore((state) => state.expanded);
+  const donwloadsInQueue = useDownloadStore(useShallow((state) => (Object.keys(state.downloads) as Array<any>).length));
 
   const playlists = usePlaylistStore(useShallow((state) => Object.values(state.playlists).flatMap((it) => it)))
   const refreshAllPlaylists = usePlaylistStore((state) => state.init)
@@ -70,10 +71,10 @@ function App() {
           <div
             className={cn(
               `col-span-3 lg:col-span-4 lg:border-l`,
-              !expanded ? "max-h-[calc(100vh-30px)]" : "max-h-[calc(100vh)]"
+              !expanded && (donwloadsInQueue >= 1) ? "max-h-[calc(100vh-30px)]" : "max-h-[calc(100vh)]"
             )}
           >
-            <ScrollArea className={`h-full scroll-mt-`}>
+            <ScrollArea className={`h-full`}>
               <Outlet />
             </ScrollArea>
           </div>
