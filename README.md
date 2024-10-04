@@ -26,9 +26,16 @@
 - [prydwen](https://www.prydwen.gg)
   
 ## Showcase
-![image](https://github.com/user-attachments/assets/a23177b4-554d-486e-9df8-96e3789a5386)
-![image](https://github.com/user-attachments/assets/a87d5cb7-0b17-4753-a555-2390f101a757)
-![image](https://github.com/user-attachments/assets/9081db59-2416-4714-b442-f5730f3b4a33)
-![image](https://github.com/user-attachments/assets/7e948227-d30d-4dc7-8847-ad8eb796b62a)
-![image](https://github.com/user-attachments/assets/bcb847e8-2912-4fba-a51e-b6af538521ce)
+![image](https://github.com/user-attachments/assets/699d67ea-fc63-4bee-863f-6c02fc09005e)
+![image](https://github.com/user-attachments/assets/e8e2047b-3f8e-489b-ad55-95730760e6e2)
+![image](https://github.com/user-attachments/assets/c6b17060-450a-4405-9a79-1774129c2b82)
+![image](https://github.com/user-attachments/assets/73c857f4-0bc1-4479-9be0-d474529b3bc0)
+![image](https://github.com/user-attachments/assets/f4750b77-a329-4a54-91d0-02ac77dceb1d)
+![image](https://github.com/user-attachments/assets/be452e6a-e1f9-4099-88e8-9a264a08ca7a)
+
+
+
+
+
+
 
