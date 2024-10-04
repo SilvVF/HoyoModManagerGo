@@ -23,7 +23,6 @@
 - [genshin optimizer](https://github.com/frzyc/genshin-optimizer)
 - [mar7th](https://github.com/Mar-7th)
 - [prydwen](https://www.prydwen.gg)
-- [prydwen](https://www.prydwen.gg)
   
 ## Showcase
 ![image](https://github.com/user-attachments/assets/699d67ea-fc63-4bee-863f-6c02fc09005e)
