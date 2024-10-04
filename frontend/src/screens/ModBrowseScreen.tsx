@@ -15,18 +15,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ImgHTMLAttributes, useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
-import { ChevronDownIcon } from "lucide-react";
-import { usePrefrenceAsState, sortModPref } from "@/data/prefs";
 import { useScrollContext } from "@/App";
 import { SortModeContext } from "./ModIndexPage";
 
@@ -74,7 +66,7 @@ export default function ModBrowseScreen() {
 
   return (
     <div className="flex flex-row justify-end items-start max-w-full h-full min-w-full">
-       <div className="absolute bottom-4 start-1/2 -translate-x-1/2 lg:-translate-x-1/4 bg-primary/30 backdrop-blur-lg rounded-full">
+       <div className="absolute z-20 bottom-4 start-1/2 -translate-x-1/2 lg:-translate-x-1/4 bg-primary/30 backdrop-blur-lg rounded-full">
         <Paginator
           page={page}
           lastPage={lastPage}
@@ -150,12 +142,12 @@ function CategoryItemsList({
 
         return (
           <div className="col-span-1 aspect-video m-2">
-            <img
+            <CrossfadeImage
               onClick={() => navigate("/mods/" + record._idRow)}
-              className="h-96 w-full object-cover  rounded-lg object-top fade-in"
+              className="h-96 w-full object-cover rounded-lg object-top bg-black/40 fade-in"
               src={`${image._sBaseUrl}/${image._sFile}`}
               alt={record._sName}
-            ></img>
+            />
             <div
               className="font-normal text-lg"
               style={CSSstring(record._aSubmitter?._sSubjectShaperCssCode)}
@@ -168,6 +160,32 @@ function CategoryItemsList({
     </div>
   );
 }
+
+interface CrossfadeImageProps extends ImgHTMLAttributes<HTMLImageElement>{}
+
+const CrossfadeImage = ({ src, alt, className }: CrossfadeImageProps) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = src ?? "";
+    img.onload = () => setIsLoaded(true);
+  }, [src]);
+
+  return (
+    <div className="relative">
+      {/* Placeholder */}
+      <div className={cn(className, `absolute inset-0 transition-opacity duration-500 ${isLoaded ? 'opacity-0' : 'opacity-100'}`)} />
+
+      {/* Image */}
+      <img
+        src={src}
+        alt={alt}
+        className={cn(className, `transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`)}
+      />
+    </div>
+  );
+};
 
 function Paginator(props: {
   page: number;

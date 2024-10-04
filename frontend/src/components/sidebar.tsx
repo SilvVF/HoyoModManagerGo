@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { useLocation, useNavigate } from "react-router-dom";
-import { GenshinApi, StarRailApi, WutheringWavesApi, ZenlessApi } from "@/data/dataapi";
+import { GenshinApi } from "@/data/dataapi";
 import { types } from "../../wailsjs/go/models";
 import {
   BananaIcon,

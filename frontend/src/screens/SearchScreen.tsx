@@ -1,10 +1,8 @@
-import { useCallback, useEffect } from "react"
 import { create } from "zustand"
-import * as DbHelper from '../../wailsjs/go/core/DbHelper'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { SearchIcon } from "lucide-react"
-import { LogDebug, LogPrint } from "../../wailsjs/runtime/runtime"
+import { LogDebug } from "../../wailsjs/runtime/runtime"
 import { useShallow } from "zustand/shallow"
 import { useNavigate } from "react-router-dom"
 
@@ -19,7 +17,6 @@ interface SearchState {
 }
 
 type Bang = "tag" | "mod" | "character" | "game" | "g"
-const validBangs: Set<Bang> = new Set(["tag", "mod", "character", "game"]);
 
 type BangWithQuery = {
     bang: Bang;
