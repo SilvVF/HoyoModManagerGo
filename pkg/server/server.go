@@ -19,9 +19,9 @@ type Server struct {
 	ctx  context.Context
 }
 
-func newServer(ctx context.Context, pref core.Preference[int], db *core.DbHelper) *Server {
+func newServer(ctx context.Context, port int, db *core.DbHelper) *Server {
 	return &Server{
-		port: pref.Get(),
+		port: port,
 		db:   db,
 		ctx:  ctx,
 	}

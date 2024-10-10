@@ -21,6 +21,7 @@ type AppPrefs struct {
 	MaxDownloadWorkersPref *MaxDownloadWorkersPref
 	PlaylistGamePref       *PlaylistGamePref
 	DiscoverGamePref       *DiscoverGamePref
+	ServerPortPref         *ServerPortPref
 }
 
 func NewAppPrefs(store PreferenceStore) *AppPrefs {
@@ -74,6 +75,9 @@ func NewAppPrefs(store PreferenceStore) *AppPrefs {
 		&DiscoverGamePref{
 			Preference: store.GetString("discovergamepref", ""),
 		},
+		&ServerPortPref{
+			Preference: store.GetInt("server_port", 6969),
+		},
 	}
 }
 
@@ -101,3 +105,5 @@ type IgnoreDirPref struct{ Preference[[]string] }
 
 type PlaylistGamePref struct{ Preference[int] }
 type DiscoverGamePref struct{ Preference[string] }
+
+type ServerPortPref struct{ Preference[int] }

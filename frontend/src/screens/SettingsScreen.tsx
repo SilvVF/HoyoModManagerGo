@@ -8,6 +8,7 @@ import {
   usePrefrenceAsState,
   wuwaDirPref,
   zzzDirPref,
+  serverPortPref,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
@@ -17,11 +18,14 @@ import { Card } from "@/components/ui/card";
 import { cn, useStateProducer } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
 import { useEffect, useState } from "react";
-import { UndoIcon } from "lucide-react";
+import { Edit, PlayIcon, RefreshCwIcon, StopCircleIcon, UndoIcon } from "lucide-react";
 import { getStats } from "@/data/stats";
 import { types } from "wailsjs/go/models";
 import { ModSizeChart } from "@/components/mod-size-chart";
 import { ChartConfig } from "@/components/ui/chart";
+import { NameDialog } from "./GameScreen";
+import { useServerStore } from "@/state/serverStore";
+import { useShallow } from "zustand/shallow";
 
 // Helper function to generate random HSL color
 function getRandomColor(): string {
@@ -79,6 +83,8 @@ type ChartItem = {
   }[]
 }
 
+type SettingsDialog = "edit_port"
+
 export default function SettingsScreen() {
   const [honkaiDir, setHonkaiDir] = usePrefrenceAsState(honkaiDirPref);
   const [genshinDir, setGenshinDir] = usePrefrenceAsState(genshinDirPref);
@@ -86,6 +92,7 @@ export default function SettingsScreen() {
   const [wuwaDir, setWuwaDir] = usePrefrenceAsState(wuwaDirPref);
   const [zzzDir, setZZZdir] = usePrefrenceAsState(zzzDirPref);
   const [ignore, setIgnore] = usePrefrenceAsState(ignorePref);
+  const [serverPort, setServerPort] = usePrefrenceAsState(serverPortPref);
   const [maxDownloadWorkers, setMaxDownloadWorkers] = usePrefrenceAsState(
     maxDownloadWorkersPref
   );
@@ -171,8 +178,32 @@ export default function SettingsScreen() {
     setIgnore((prev) => prev?.filter((it) => it !== path));
   };
 
+  const [dialog, setDialog] = useState<SettingsDialog | undefined>(undefined)
+
+  const dialogSettings: { [key: string]: { title: string, description: string, onSuccess: (value: string) => void } } = {
+    "edit_port": {
+      title: "Edit port number",
+      description: "change the port number the http server for external apps will run on (1024 - 49151)",
+      onSuccess: (port: string) => {
+          try {
+            const pNum = Math.max(Math.min(1024, Number(port)), 49151)
+            setServerPort(pNum)
+          } catch {}
+      }
+    }
+  }
+
+  const dialogSetting = dialog !== undefined ? dialogSettings[dialog] : undefined
+
   return (
-    <div className="w-full px-4 overflow-hidden">
+    <div className="w-full px-4 overflow-hidden mb-12">
+      <NameDialog
+            title={dialogSetting?.title ?? ""}
+            description={dialogSetting?.description ?? ""}
+            open={dialog !== undefined} 
+            onOpenChange={() => setDialog(undefined)} 
+            onSuccess={(n) => dialogSetting!!.onSuccess(n) } 
+          />
       <h1 className="text-2xl font-bold my-4">Settings</h1>
       <div 
           className="max-w-screen w-full h-full flex flex-row overflow-x-scroll"
@@ -209,16 +240,26 @@ export default function SettingsScreen() {
         Requires restart for change to take effect
       </div>
       <div className="px-4 flex flex-row justify-between">
-        <Slider
+        {maxDownloadWorkers ? <Slider
           className="w-3/4"
-          defaultValue={[maxDownloadWorkers ?? 0]}
+          defaultValue={[maxDownloadWorkers]}
           max={10}
           min={1}
           step={1}
           onValueChange={(value) => setSliderValue(value[0])}
           onValueCommit={(value) => setMaxDownloadWorkers(value[0])}
-        />
+        /> : undefined}
         <div className="text-lg font-semibold tracking-tight mx-4">{`Max workers: ${sliderValue} `}</div>
+      </div>
+      <h2 className="text-lg font-semibold tracking-tight mt-4">
+        Http server
+      </h2>
+      <div className="px-4 flex flex-row justify-between">
+        <div className="text-zinc-500  m-2">{`Port: ${serverPort}`}</div>
+        <Button size={"icon"} onPointerDown={() => setDialog("edit_port")}>
+          <Edit />
+        </Button>
+        <ServerActions />
       </div>
       <h2 className="text-lg font-semibold tracking-tight mt-4">
         Saved discover path
@@ -231,6 +272,37 @@ export default function SettingsScreen() {
       </div>
     </div>
   );
+}
+
+function ServerActions() {
+
+  const serverRunning = useServerStore(useShallow(state => state.running))
+
+  const startServer = useServerStore(state => state.start)
+  const restartServer = useServerStore(state => state.restart)
+  const stopServer = useServerStore(state => state.shutdown)
+
+
+  if (serverRunning) {
+    return (
+      <div className="flex flex-row space-y-1">
+      <Button size={"icon"} onClick={restartServer}>
+        <RefreshCwIcon />
+      </Button>
+      <Button size={"icon"} onClick={stopServer}>
+        <StopCircleIcon />
+      </Button>
+    </div>
+    )
+  }
+
+  return (
+    <div>
+       <Button size={"icon"} onClick={startServer}>
+        <PlayIcon />
+      </Button> 
+    </div>
+  )
 }
 
 function SizeChart({ item }: { item: ChartItem }) {

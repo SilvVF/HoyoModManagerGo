@@ -15,6 +15,7 @@ import * as WuwaElementPref from "../../wailsjs/go/core/WuwaElementPref"
 import * as MaxDownloadWorkersPref from "../../wailsjs/go/core/MaxDownloadWorkersPref"
 import * as PlaylistGamePref from "../../wailsjs/go/core/PlaylistGamePref"
 import * as DiscoverGamePref from "../../wailsjs/go/core/DiscoverGamePref"
+import * as ServerPortPref from "../../wailsjs/go/core/ServerPortPref"
 
 export type GoPref<T extends any> = {
     DefaultValue():Promise<T>;
@@ -27,6 +28,8 @@ export type GoPref<T extends any> = {
 
 const darkThemePref = DarkThemePref as GoPref<string>
 const startScreenPref = StartScreenPref as GoPref<string>
+
+const serverPortPref = ServerPortPref as GoPref<number>
 
 const honkaiDirPref = HonkaiDirPref as GoPref<string>
 const zzzDirPref = ZZZDirPref as GoPref<string>
@@ -122,5 +125,6 @@ export {
     wuwaElementPref,
     maxDownloadWorkersPref,
     playlistGamePref,
-    discoverGamePref
+    discoverGamePref,
+    serverPortPref
 }

@@ -20,6 +20,7 @@ import {
 import { Progress } from "./components/ui/progress";
 import { useShallow } from "zustand/shallow";
 import { usePlaylistStore } from "./state/playlistStore";
+import { useServerStore } from "./state/serverStore";
 
 const ScrollContext = createContext<{
   ref: React.RefObject<HTMLDivElement>, 
@@ -89,6 +90,16 @@ function App() {
   const playlists = usePlaylistStore(useShallow((state) => Object.values(state.playlists).flatMap((it) => it)))
   const refreshAllPlaylists = usePlaylistStore((state) => state.init)
   const deletePlaylist = usePlaylistStore((state) => state.delete)
+
+  const listen = useServerStore(state => state.listen)
+  useEffect(() => {
+    
+    const cancelFunc = listen()
+
+    return () => {
+      cancelFunc()
+    }
+  }, [])
 
   useEffect(() =>  { refreshAllPlaylists() }, [])
 

@@ -128,16 +128,16 @@ function GameScreen(props: { dataApi: DataApi, game: number }) {
 
   return (
     <div className="flex flex-col w-full" key={props.game}>
-      <div className="sticky top-0 z-10 backdrop-blur-md"> {/* Make the CharacterFilters sticky */}
-          <CharacterFilters
-              className={`relative w-full`} // Remove translate-y class
-              elements={elements}
-              selectedElements={selectedElements ?? []}
-              available={available ?? false}
-              toggleElement={onElementSelected}
-              toggleAvailable={setAvailableOnly}
-          />
-      </div>
+        <div className="sticky top-0 z-10 backdrop-blur-md">
+            <CharacterFilters
+                className={`relative w-full`} 
+                elements={elements}
+                selectedElements={selectedElements ?? []}
+                available={available ?? false}
+                toggleElement={onElementSelected}
+                toggleAvailable={setAvailableOnly}
+            />
+        </div>
       <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10">
         <NameDialog
             title={settings?.title ?? ""}
@@ -251,7 +251,7 @@ function CharacterFilters({
   );
 }
 
-function NameDialog(
+export function NameDialog(
   props: { 
     title: string
     description: string

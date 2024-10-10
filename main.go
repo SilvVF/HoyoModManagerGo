@@ -7,6 +7,7 @@ import (
 	"hmm/db"
 	"hmm/pkg/api"
 	"hmm/pkg/core"
+	"hmm/pkg/server"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
 	"log"
@@ -82,6 +83,8 @@ func main() {
 	sync := core.NewSyncHelper(dbHelper)
 	stats := core.NewStats(preferenceDirs)
 
+	serverManager := server.NewServerManager(appPrefs.ServerPortPref.Preference, dbHelper)
+
 	generator := core.NewGenerator(
 		dbHelper,
 		preferenceDirs,
@@ -111,6 +114,7 @@ func main() {
 		LogLevel: logger.DEBUG,
 		OnStartup: func(ctx context.Context) {
 			downloader.Ctx = ctx
+			serverManager.Listen(ctx)
 			app.startup(ctx)
 		},
 		OnDomReady:       app.domReady,
@@ -129,6 +133,8 @@ func main() {
 			downloader,
 			generator,
 			stats,
+			serverManager,
+
 			appPrefs.DarkTheme,
 			appPrefs.StartScreen,
 			appPrefs.HonkaiDirPref,
@@ -145,6 +151,7 @@ func main() {
 			appPrefs.MaxDownloadWorkersPref,
 			appPrefs.PlaylistGamePref,
 			appPrefs.DiscoverGamePref,
+			appPrefs.ServerPortPref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{
