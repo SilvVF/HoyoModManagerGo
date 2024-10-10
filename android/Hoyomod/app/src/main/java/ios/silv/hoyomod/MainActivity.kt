@@ -9,12 +9,23 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import ios.silv.hoyomod.databinding.ActivityMainBinding
+import okhttp3.Request
+
+object ServerConstants {
+    val FullDataUrl = "https://"
+}
 
 class MainViewmodel(
     savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
-    val client = SyncClient(savedStateHandle)
+    init {
+        App.client.newCall(
+            Request.Builder()
+                .url("")
+                .build()
+        )
+    }
 }
 
 class MainActivity : AppCompatActivity() {
@@ -32,21 +43,10 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContentView(binding.root)
 
-        lifecycle.addObserver(mainViewmodel.client)
-
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-    }
-
-    override fun onStop() {
-        super.onStop()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        lifecycle.removeObserver(mainViewmodel.client)
     }
 }

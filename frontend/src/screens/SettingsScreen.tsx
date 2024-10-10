@@ -17,8 +17,14 @@ import {
 import { Card } from "@/components/ui/card";
 import { cn, useStateProducer } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
-import { useEffect, useState } from "react";
-import { Edit, PlayIcon, RefreshCwIcon, StopCircleIcon, UndoIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Edit,
+  PlayIcon,
+  RefreshCwIcon,
+  StopCircleIcon,
+  UndoIcon,
+} from "lucide-react";
 import { getStats } from "@/data/stats";
 import { types } from "wailsjs/go/models";
 import { ModSizeChart } from "@/components/mod-size-chart";
@@ -40,18 +46,15 @@ function bytesToMB(bytes: number): number {
 }
 
 // Transformation function
-function transformDownloadStatsToChartData(
-  data: types.FileInfo[]
-) {
-  const chartData = data
-    .map((fileInfo: types.FileInfo) => {
-      const split = fileInfo.file.split("\\");
-      return {
-        file: split[split.length - 1],
-        size: bytesToMB(fileInfo.bytes),
-        fill: getRandomColor(),
-      };
-    });
+function transformDownloadStatsToChartData(data: types.FileInfo[]) {
+  const chartData = data.map((fileInfo: types.FileInfo) => {
+    const split = fileInfo.file.split("\\");
+    return {
+      file: split[split.length - 1],
+      size: bytesToMB(fileInfo.bytes),
+      fill: getRandomColor(),
+    };
+  });
 
   const chartConfig = {
     visitors: { label: "Visitors" },
@@ -73,17 +76,17 @@ function capitalizeFirstLetter(string: string) {
 }
 
 type ChartItem = {
-  game: string,
-  config: ChartConfig, 
-  total: number,
-  data:  {
+  game: string;
+  config: ChartConfig;
+  total: number;
+  data: {
     file: string;
     size: number;
-    fill: string
-  }[]
-}
+    fill: string;
+  }[];
+};
 
-type SettingsDialog = "edit_port"
+type SettingsDialog = "edit_port";
 
 export default function SettingsScreen() {
   const [honkaiDir, setHonkaiDir] = usePrefrenceAsState(honkaiDirPref);
@@ -97,58 +100,60 @@ export default function SettingsScreen() {
     maxDownloadWorkersPref
   );
 
+  const [dialog, setDialog] = useState<SettingsDialog | undefined>(undefined);
   const [sliderValue, setSliderValue] = useState(maxDownloadWorkers ?? 1);
-
-  useEffect(
-    () => setSliderValue(maxDownloadWorkers ?? 1),
-    [maxDownloadWorkers]
-  );
+  const ipAddr = useServerStore(useShallow((state) => state.addr));
 
   const stats = useStateProducer<ChartItem[] | undefined>(
     undefined,
     async (update) => {
-      const stats = await getStats()
+      const stats = await getStats();
 
       const charts = stats.data.map((data) => {
-        const split = data[0].file.split("\\")
-        let game = split[split.length - 1]
-        const { chartData, chartConfig } = transformDownloadStatsToChartData(data.slice(1, data.length));
+        const split = data[0].file.split("\\");
+        let game = split[split.length - 1];
+        const { chartData, chartConfig } = transformDownloadStatsToChartData(
+          data.slice(1, data.length)
+        );
 
-        return ({
+        return {
           game: game,
           config: chartConfig,
           data: chartData,
-          total: data.reduce((acc, curr) => acc + curr.bytes, 0)
-        }) as ChartItem
+          total: data.reduce((acc, curr) => acc + curr.bytes, 0),
+        } as ChartItem;
       });
 
-      update(charts)
+      update(charts);
     },
     []
   );
 
-  const items = [
-    {
-      name: "Honkai Star Rail",
-      value: honkaiDir,
-      setValue: setHonkaiDir,
-    },
-    {
-      name: "Genshin Impact",
-      value: genshinDir,
-      setValue: setGenshinDir,
-    },
-    {
-      name: "Wuthering Waves",
-      value: wuwaDir,
-      setValue: setWuwaDir,
-    },
-    {
-      name: "Zenless Zone Zero",
-      value: zzzDir,
-      setValue: setZZZdir,
-    },
-  ];
+  const items = useMemo(
+    () => [
+      {
+        name: "Honkai Star Rail",
+        value: honkaiDir,
+        setValue: setHonkaiDir,
+      },
+      {
+        name: "Genshin Impact",
+        value: genshinDir,
+        setValue: setGenshinDir,
+      },
+      {
+        name: "Wuthering Waves",
+        value: wuwaDir,
+        setValue: setWuwaDir,
+      },
+      {
+        name: "Zenless Zone Zero",
+        value: zzzDir,
+        setValue: setZZZdir,
+      },
+    ],
+    [honkaiDir, zzzDir, genshinDir, setHonkaiDir, setZZZdir, setGenshinDir]
+  );
 
   const openDialogAndSet = async (setDir: (s: string) => void) => {
     GetExportDirectory().then((dir) => {
@@ -178,41 +183,48 @@ export default function SettingsScreen() {
     setIgnore((prev) => prev?.filter((it) => it !== path));
   };
 
-  const [dialog, setDialog] = useState<SettingsDialog | undefined>(undefined)
+  useEffect(
+    () => setSliderValue(maxDownloadWorkers ?? 1),
+    [maxDownloadWorkers]
+  );
 
-  const dialogSettings: { [key: string]: { title: string, description: string, onSuccess: (value: string) => void } } = {
-    "edit_port": {
+  const dialogSettings: {
+    [key: string]: {
+      title: string;
+      description: string;
+      onSuccess: (value: string) => void;
+    };
+  } = {
+    edit_port: {
       title: "Edit port number",
-      description: "change the port number the http server for external apps will run on (1024 - 49151)",
+      description:
+        "change the port number the http server for external apps will run on (1024 - 49151)",
       onSuccess: (port: string) => {
-          try {
-            const pNum = Math.max(Math.min(1024, Number(port)), 49151)
-            setServerPort(pNum)
-          } catch {}
-      }
-    }
-  }
+        try {
+          const pNum = Math.max(Math.min(1024, Number(port)), 49151);
+          setServerPort(pNum);
+        } catch {}
+      },
+    },
+  };
 
-  const dialogSetting = dialog !== undefined ? dialogSettings[dialog] : undefined
+  const dialogSetting =
+    dialog !== undefined ? dialogSettings[dialog] : undefined;
 
   return (
     <div className="w-full px-4 overflow-hidden mb-12">
       <NameDialog
-            title={dialogSetting?.title ?? ""}
-            description={dialogSetting?.description ?? ""}
-            open={dialog !== undefined} 
-            onOpenChange={() => setDialog(undefined)} 
-            onSuccess={(n) => dialogSetting!!.onSuccess(n) } 
-          />
+        title={dialogSetting?.title ?? ""}
+        description={dialogSetting?.description ?? ""}
+        open={dialog !== undefined}
+        onOpenChange={() => setDialog(undefined)}
+        onSuccess={(n) => dialogSetting!!.onSuccess(n)}
+      />
       <h1 className="text-2xl font-bold my-4">Settings</h1>
-      <div 
-          className="max-w-screen w-full h-full flex flex-row overflow-x-scroll"
-          >
-      {
-        stats?.map((data) => {
-          return <SizeChart item={data} />
-        })   
-      }
+      <div className="max-w-screen w-full h-full flex flex-row overflow-x-scroll">
+        {stats?.map((data) => {
+          return <SizeChart item={data} />;
+        })}
       </div>
       <h2 className="text-lg font-semibold tracking-tight">Export Locations</h2>
       {items.map((item) => {
@@ -240,22 +252,25 @@ export default function SettingsScreen() {
         Requires restart for change to take effect
       </div>
       <div className="px-4 flex flex-row justify-between">
-        {maxDownloadWorkers ? <Slider
-          className="w-3/4"
-          defaultValue={[maxDownloadWorkers]}
-          max={10}
-          min={1}
-          step={1}
-          onValueChange={(value) => setSliderValue(value[0])}
-          onValueCommit={(value) => setMaxDownloadWorkers(value[0])}
-        /> : undefined}
+        {maxDownloadWorkers ? (
+          <Slider
+            className="w-3/4"
+            defaultValue={[maxDownloadWorkers]}
+            max={10}
+            min={1}
+            step={1}
+            onValueChange={(value) => setSliderValue(value[0])}
+            onValueCommit={(value) => setMaxDownloadWorkers(value[0])}
+          />
+        ) : undefined}
         <div className="text-lg font-semibold tracking-tight mx-4">{`Max workers: ${sliderValue} `}</div>
       </div>
-      <h2 className="text-lg font-semibold tracking-tight mt-4">
-        Http server
-      </h2>
+      <h2 className="text-lg font-semibold tracking-tight mt-4">Http server</h2>
       <div className="px-4 flex flex-row justify-between">
-        <div className="text-zinc-500  m-2">{`Port: ${serverPort}`}</div>
+        <div className="flex flex-col">
+          <div className="text-zinc-500  m-1">{`to connect go to https://${ipAddr}:${serverPort}`}</div>
+          <div className="text-zinc-500  m-1">{`Port: ${serverPort}`}</div>
+        </div>
         <Button size={"icon"} onPointerDown={() => setDialog("edit_port")}>
           <Edit />
         </Button>
@@ -275,46 +290,44 @@ export default function SettingsScreen() {
 }
 
 function ServerActions() {
+  const serverRunning = useServerStore(useShallow((state) => state.running));
 
-  const serverRunning = useServerStore(useShallow(state => state.running))
-
-  const startServer = useServerStore(state => state.start)
-  const restartServer = useServerStore(state => state.restart)
-  const stopServer = useServerStore(state => state.shutdown)
-
+  const startServer = useServerStore((state) => state.start);
+  const restartServer = useServerStore((state) => state.restart);
+  const stopServer = useServerStore((state) => state.shutdown);
 
   if (serverRunning) {
     return (
       <div className="flex flex-row space-y-1">
-      <Button size={"icon"} onClick={restartServer}>
-        <RefreshCwIcon />
-      </Button>
-      <Button size={"icon"} onClick={stopServer}>
-        <StopCircleIcon />
-      </Button>
-    </div>
-    )
+        <Button size={"icon"} onClick={restartServer}>
+          <RefreshCwIcon />
+        </Button>
+        <Button size={"icon"} onClick={stopServer}>
+          <StopCircleIcon />
+        </Button>
+      </div>
+    );
   }
 
   return (
     <div>
-       <Button size={"icon"} onClick={startServer}>
+      <Button size={"icon"} onClick={startServer}>
         <PlayIcon />
-      </Button> 
+      </Button>
     </div>
-  )
+  );
 }
 
 function SizeChart({ item }: { item: ChartItem }) {
   return (
-      <div className="min-w-[400px]">
-          <ModSizeChart
-            config={item.config}
-            title={item.game}
-            total={item.total}
-            data={item.data}
-          />
-      </div>
+    <div className="min-w-[400px]">
+      <ModSizeChart
+        config={item.config}
+        title={item.game}
+        total={item.total}
+        data={item.data}
+      />
+    </div>
   );
 }
 

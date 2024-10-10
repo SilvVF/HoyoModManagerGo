@@ -53,28 +53,5 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
     implementation("com.squareup.okio:okio:3.9.1")
-
-    val ktor_version = "2.3.12"
-
-    implementation("io.ktor:ktor-client-core:$ktor_version")
-    implementation("io.ktor:ktor-client-websockets:$ktor_version")
-    implementation("io.ktor:ktor-client-cio:$ktor_version")
-
-    implementation(libs.protobuf.javalite)
-}
-
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:3.19.4"
-    }
-
-    generateProtoTasks {
-        all().configureEach {
-            builtins {
-                id("java") {
-                    option("lite")
-                }
-            }
-        }
-    }
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
