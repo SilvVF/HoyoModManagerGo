@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.SavedStateViewModelFactory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlin.reflect.KProperty
 
 interface Stored<out T> {
@@ -45,4 +47,22 @@ inline fun <reified T : ViewModel> SavedStateViewModelFactory(
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
+}
+
+class MutableSaveStateFlow<T>(
+    private val savedStateHandle: SavedStateHandle,
+    private val key: String,
+    defaultValue: T
+) {
+    private val _state: MutableStateFlow<T> =
+        MutableStateFlow(savedStateHandle.get<T>(key) ?: defaultValue)
+
+    var value: T
+        get() = _state.value
+        set(value) {
+            _state.value = value
+            savedStateHandle[key] = value
+        }
+
+    fun asStateFlow(): StateFlow<T> = _state
 }

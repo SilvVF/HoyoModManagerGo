@@ -74,14 +74,24 @@ func (s *Server) run() error {
 	return nil
 }
 
+type DataResponse struct {
+	Game int                              `json:"game"`
+	Data []types.CharacterWithModsAndTags `json:"data"`
+}
+
 func (s *Server) registerHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("GET /data", func(w http.ResponseWriter, r *http.Request) {
 
-		results := make([][]types.CharacterWithModsAndTags, 0, 4)
+		results := make([]DataResponse, 0, 4)
 
 		for _, game := range validGame {
-			cwmt := s.db.SelectCharacterWithModsAndTags(types.Game(game), "", "", "")
-			results = append(results, cwmt)
+
+			data := DataResponse{
+				Game: game,
+				Data: s.db.SelectCharacterWithModsAndTags(types.Game(game), "", "", ""),
+			}
+
+			results = append(results, data)
 		}
 
 		bytes, err := json.Marshal(results)
