@@ -51,12 +51,12 @@ func (s *Stats) GetStats() (*types.DownloadStats, error) {
 		infos := []types.FileInfo{}
 		total := int64(0)
 
-		err := filepath.Walk(gameDir, func(path string, info fs.FileInfo, err error) error {
+		err := filepath.WalkDir(gameDir, func(path string, d fs.DirEntry, err error) error {
 
 			relPath := strings.TrimPrefix(path, gameDir)
 			segs := strings.Split(relPath, string(filepath.Separator))
 
-			if !info.IsDir() || len(segs) > 2 {
+			if !d.IsDir() || len(segs) > 2 {
 				return nil
 			}
 

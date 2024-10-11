@@ -18,6 +18,7 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/robfig/cron/v3 v3.0.0 // indirect
 	github.com/rosedblabs/wal v1.3.8 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 
 require (
