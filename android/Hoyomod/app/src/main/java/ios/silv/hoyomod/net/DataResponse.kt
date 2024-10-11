@@ -1,4 +1,4 @@
-package ios.silv.hoyomod.response
+package ios.silv.hoyomod.net
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName

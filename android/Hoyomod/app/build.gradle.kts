@@ -61,4 +61,7 @@ dependencies {
     implementation("com.squareup.okio:okio:3.9.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(libs.kotlinx.serialization.json)
+
+    implementation("io.coil-kt.coil3:coil:3.0.0-rc01")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.0-rc01")
 }
