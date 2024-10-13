@@ -8,6 +8,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/nwaples/rardecode v1.1.3
 	github.com/wailsapp/wails/v2 v2.9.1
+	gopkg.in/ini.v1 v1.67.0
 )
 
 require (
@@ -18,7 +19,6 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/robfig/cron/v3 v3.0.0 // indirect
 	github.com/rosedblabs/wal v1.3.8 // indirect
-	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 
 require (

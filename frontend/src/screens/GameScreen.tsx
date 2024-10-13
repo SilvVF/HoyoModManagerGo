@@ -120,7 +120,7 @@ function GameScreen(props: { dataApi: DataApi, game: number }) {
        title: "Rename tag",
        description: "Rename the current tag",
        onSuccess: () => {}
-      }
+      },
     }
   }, [])
 
@@ -182,6 +182,7 @@ function GameScreen(props: { dataApi: DataApi, game: number }) {
               deleteMod={deleteMod}
               viewMod={(gbId) => navigate(`/mods/${gbId}`)}
               setDialog={(d) => setDialog(d)}
+              onEditKeymap={(modId) => navigate(`/keymap/${modId}`)}
             />
           </div>
         ))}
@@ -310,6 +311,7 @@ export function ModActionsDropDown(props: {
   onRename: () => void;
   onView: () => void;
   onEnable: () => void;
+  onKeymapEdit: () => void;
 }) {
   return (
     <DropdownMenu>
@@ -349,7 +351,12 @@ export function ModActionsDropDown(props: {
         </DropdownMenuItem>
         <DropdownMenuItem onClick={props.onEnable}>
           <CheckCheckIcon className="mr-2 h-4 w-4" />
-          <span className="w-full">Enable</span>
+          <span className="w-full">Toggle</span>
+          <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onKeymapEdit}>
+          <CheckCheckIcon className="mr-2 h-4 w-4" />
+          <span className="w-full">Edit</span>
           <DropdownMenuShortcut>⇧e</DropdownMenuShortcut>
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -362,13 +369,15 @@ function CharacterBox({
   enableMod,
   deleteMod,
   viewMod,
-  setDialog
+  setDialog,
+  onEditKeymap
 }: {
   cmt: types.CharacterWithModsAndTags;
   enableMod: (id: number, enabled: boolean) => void;
   deleteMod: (id: number) => void;
   viewMod: (gbId: number) => void;
   setDialog: (d: GameDialog) => void;
+  onEditKeymap: (modId: number) => void;
 }) {
   const character: types.Character = cmt.characters;
 
@@ -405,6 +414,7 @@ function CharacterBox({
                       viewMod(mwt.mod.gbId);
                     }
                   }}
+                  onKeymapEdit={() => onEditKeymap(mwt.mod.id)}
                 />
               </div>
             );

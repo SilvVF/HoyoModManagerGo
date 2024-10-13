@@ -12,6 +12,7 @@ import { ModIndexPage } from './screens/mod/ModIndexPage.tsx';
 import SettingsScreen from './screens/SettingsScreen.tsx';
 import { PlaylistScreen } from './screens/PlaylistScreen.tsx';
 import { SearchScreen } from './screens/SearchScreen.tsx';
+import { KeymappingScreen } from './screens/KeyMappingScreen.tsx';
 
 const router = createHashRouter([
   {
@@ -45,6 +46,10 @@ const router = createHashRouter([
       {
         path: "search",
         element: <SearchScreen />
+      },
+      {
+        path: "keymap/:modId",
+        element: <KeymappingScreen />,
       },
       {
         path: "mods",

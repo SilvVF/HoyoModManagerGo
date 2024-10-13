@@ -476,6 +476,25 @@ export namespace api {
 
 }
 
+export namespace core {
+	
+	export class KeyBind {
+	    name: string;
+	    key: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new KeyBind(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.key = source["key"];
+	    }
+	}
+
+}
+
 export namespace types {
 	
 	export class Character {

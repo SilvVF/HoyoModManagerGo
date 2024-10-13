@@ -102,7 +102,11 @@ func (g *Generator) Reload(game types.Game) error {
 	}
 
 	for _, mod := range selected {
-		err := util.CopyRecursivley(util.GetModDir(mod), path.Join(outputDir, fmt.Sprintf("%d_%s", mod.Id, mod.Filename)), false)
+		err := util.CopyRecursivley(
+			util.GetModDir(mod),
+			path.Join(outputDir, fmt.Sprintf("%d_%s", mod.Id, mod.Filename)),
+			false,
+		)
 		if err != nil {
 			log.LogError(err.Error())
 		}

@@ -82,6 +82,7 @@ func main() {
 	downloader := core.NewDownloader(dbHelper, appPrefs.MaxDownloadWorkersPref.Preference)
 	sync := core.NewSyncHelper(dbHelper)
 	stats := core.NewStats(preferenceDirs)
+	keymapper := core.NewKeymapper(dbHelper)
 
 	serverManager := server.NewServerManager(appPrefs.ServerPortPref.Preference, dbHelper)
 
@@ -123,18 +124,22 @@ func main() {
 		WindowStartState: options.Normal,
 		Bind: []interface{}{
 			app,
+			// API
 			genshinApi,
 			starRailApi,
 			zenlessApi,
 			wuwaApi,
 			gbApi,
+			// CORE
 			sync,
 			dbHelper,
 			downloader,
 			generator,
 			stats,
+			keymapper,
+			// SERVER
 			serverManager,
-
+			// PREFRENCES - LocalStorage replacement to acces from go
 			appPrefs.DarkTheme,
 			appPrefs.StartScreen,
 			appPrefs.HonkaiDirPref,
