@@ -11,6 +11,7 @@ export function KeymappingScreen() {
     const load = useKeyMapperStore(state => state.load)
     const unload = useKeyMapperStore(state => state.unload)
     const save = useKeyMapperStore(state => state.save)
+    const write = useKeyMapperStore(state => state.write)
 
     const saved = useKeyMapperStore(useShallow(state => state.backups))
 
@@ -41,9 +42,14 @@ export function KeymappingScreen() {
             {
                 keymap.map((bind) => {
                     return (
-                        <div className="flex flex-row items-center justify-start space-x-2">
-                            <div>{bind.name + " - " + bind.key}</div>
-                            <Input defaultValue={bind.key} className="w-32">
+                        <div className="flex flex-row items-center justify-start space-x-2 m-4">
+                            <div>{bind.name}</div>
+                            <Input 
+                            value={bind.key} 
+                            className="w-32"
+                            onKeyDown={(event) => write(bind.name, event.keyCode)}
+                            readOnly
+                            >
                             </Input>
                         </div>
                     )

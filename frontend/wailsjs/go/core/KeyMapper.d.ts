@@ -12,4 +12,4 @@ export function SaveConfig():Promise<void>;
 
 export function Unload():Promise<void>;
 
-export function Write(arg1:string,arg2:string):Promise<void>;
+export function Write(arg1:string,arg2:number):Promise<void>;

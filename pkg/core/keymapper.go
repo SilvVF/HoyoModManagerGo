@@ -165,7 +165,7 @@ func (k *KeyMapper) SaveConfig() error {
 	return err
 }
 
-func (k *KeyMapper) Write(section string, keypress string) error {
+func (k *KeyMapper) Write(section string, keycode int) error {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
@@ -181,9 +181,28 @@ func (k *KeyMapper) Write(section string, keypress string) error {
 		return err
 	}
 
-	key.SetValue(keypress)
+	var bind *string
+	vkcode, ok := virtualKeyCodeMap[keycode]
+	if ok {
+		str, ok := virtualKeysReversed[vkcode]
+		if ok {
+			bind = &str
+		}
+	}
+	if bind == nil {
+		keyname, ok := alphanumericKeyCodeMap[keycode]
+		if ok {
+			bind = &keyname
+		}
+	}
 
-	return err
+	if bind == nil {
+		return errors.New("invalid keycode " + string(keycode))
+	}
+
+	key.SetValue(*bind)
+
+	return nil
 }
 
 func (k *KeyMapper) Load(modId int) error {
@@ -252,7 +271,7 @@ func (k *KeyMapper) Load(modId int) error {
 	}
 	defer inputFile.Close()
 
-	var constantsSection strings.Builder
+	var targetSection strings.Builder
 	inConstantsSection := false
 	inTargetSection := false
 
@@ -277,12 +296,12 @@ func (k *KeyMapper) Load(modId int) error {
 		}
 
 		if inTargetSection {
-			constantsSection.WriteString(str + "\n")
+			targetSection.WriteString(str + "\n")
 		}
 	}
 
-	log.LogDebug(constantsSection.String())
-	cfg, err = ini.Load([]byte(constantsSection.String()))
+	log.LogDebug(targetSection.String())
+	cfg, err = ini.Load([]byte(targetSection.String()))
 	if err != nil {
 		return err
 	}
@@ -351,42 +370,6 @@ var virtualKeys = map[string]int{
 	"VK_INSERT":    0x2D, // Insert key
 	"VK_DELETE":    0x2E, // Delete key
 	"VK_HELP":      0x2F, // Help key
-	"VK_0":         0x30, // 0 key
-	"VK_1":         0x31, // 1 key
-	"VK_2":         0x32, // 2 key
-	"VK_3":         0x33, // 3 key
-	"VK_4":         0x34, // 4 key
-	"VK_5":         0x35, // 5 key
-	"VK_6":         0x36, // 6 key
-	"VK_7":         0x37, // 7 key
-	"VK_8":         0x38, // 8 key
-	"VK_9":         0x39, // 9 key
-	"VK_A":         0x41, // A key
-	"VK_B":         0x42, // B key
-	"VK_C":         0x43, // C key
-	"VK_D":         0x44, // D key
-	"VK_E":         0x45, // E key
-	"VK_F":         0x46, // F key
-	"VK_G":         0x47, // G key
-	"VK_H":         0x48, // H key
-	"VK_I":         0x49, // I key
-	"VK_J":         0x4A, // J key
-	"VK_K":         0x4B, // K key
-	"VK_L":         0x4C, // L key
-	"VK_M":         0x4D, // M key
-	"VK_N":         0x4E, // N key
-	"VK_O":         0x4F, // O key
-	"VK_P":         0x50, // P key
-	"VK_Q":         0x51, // Q key
-	"VK_R":         0x52, // R key
-	"VK_S":         0x53, // S key
-	"VK_T":         0x54, // T key
-	"VK_U":         0x55, // U key
-	"VK_V":         0x56, // V key
-	"VK_W":         0x57, // W key
-	"VK_X":         0x58, // X key
-	"VK_Y":         0x59, // Y key
-	"VK_Z":         0x5A, // Z key
 	"VK_LWIN":      0x5B, // Left Windows key
 	"VK_RWIN":      0x5C, // Right Windows key
 	"VK_APPS":      0x5D, // Applications key
@@ -421,4 +404,179 @@ var virtualKeys = map[string]int{
 	"VK_F12":       0x7B, // F12 key
 	"VK_NUMLOCK":   0x90, // Num Lock key
 	"VK_SCROLL":    0x91, // Scroll Lock key
+}
+
+var virtualKeyCodeMap = map[int]int{
+
+	37: 0x25, // Arrow Left
+	38: 0x26, // Arrow Up
+	39: 0x27, // Arrow Right
+	40: 0x28, // Arrow Down
+
+	8:   0x08, // Backspace
+	9:   0x09, // Tab
+	13:  0x0D, // Enter
+	16:  0x10, // Shift
+	17:  0x11, // Control
+	18:  0x12, // Alt
+	20:  0x14, // Caps Lock
+	27:  0x1B, // Escape
+	32:  0x20, // Spacebar
+	33:  0x22, // Page Up
+	34:  0x22, // Page Down
+	35:  0x23, // End
+	36:  0x24, // Home
+	45:  0x2D, // Insert
+	46:  0x2E, // Delete
+	144: 0x90, // Num Lock
+
+	96:  0x60, // Numpad 0
+	97:  0x61, // Numpad 1
+	98:  0x62, // Numpad 2
+	99:  0x63, // Numpad 3
+	100: 0x64, // Numpad 4
+	101: 0x65, // Numpad 5
+	102: 0x66, // Numpad 6
+	103: 0x67, // Numpad 7
+	104: 0x68, // Numpad 8
+	105: 0x69, // Numpad 9
+	106: 0x6A, // Numpad *
+	107: 0x6B, // Numpad +
+	109: 0x6D, // Numpad -
+	110: 0x6E, // Numpad .
+	111: 0x6F, // Numpad /
+}
+
+var virtualKeysReversed = map[int]string{
+	0x01: "VK_LBUTTON",   // Left mouse button
+	0x02: "VK_RBUTTON",   // Right mouse button
+	0x03: "VK_CANCEL",    // Control-break processing
+	0x04: "VK_MBUTTON",   // Middle mouse button
+	0x05: "VK_XBUTTON1",  // X1 mouse button
+	0x06: "VK_XBUTTON2",  // X2 mouse button
+	0x08: "VK_BACK",      // Backspace key
+	0x09: "VK_TAB",       // Tab key
+	0x0C: "VK_CLEAR",     // Clear key
+	0x0D: "VK_RETURN",    // Enter key
+	0x10: "VK_SHIFT",     // Shift key
+	0x11: "VK_CONTROL",   // Ctrl key
+	0x12: "VK_MENU",      // Alt key
+	0x13: "VK_PAUSE",     // Pause key
+	0x14: "VK_CAPITAL",   // Caps Lock key
+	0x1B: "VK_ESCAPE",    // Esc key
+	0x20: "VK_SPACE",     // Spacebar
+	0x21: "VK_PRIOR",     // Page Up key
+	0x22: "VK_NEXT",      // Page Down key
+	0x23: "VK_END",       // End key
+	0x24: "VK_HOME",      // Home key
+	0x25: "VK_LEFT",      // Left arrow key
+	0x26: "VK_UP",        // Up arrow key
+	0x27: "VK_RIGHT",     // Right arrow key
+	0x28: "VK_DOWN",      // Down arrow key
+	0x29: "VK_SELECT",    // Select key
+	0x2A: "VK_PRINT",     // Print key
+	0x2B: "VK_EXECUTE",   // Execute key
+	0x2C: "VK_SNAPSHOT",  // Print Screen key
+	0x2D: "VK_INSERT",    // Insert key
+	0x2E: "VK_DELETE",    // Delete key
+	0x2F: "VK_HELP",      // Help key
+	0x5B: "VK_LWIN",      // Left Windows key
+	0x5C: "VK_RWIN",      // Right Windows key
+	0x5D: "VK_APPS",      // Applications key
+	0x5F: "VK_SLEEP",     // Sleep key
+	0x60: "VK_NUMPAD0",   // Numpad 0 key
+	0x61: "VK_NUMPAD1",   // Numpad 1 key
+	0x62: "VK_NUMPAD2",   // Numpad 2 key
+	0x63: "VK_NUMPAD3",   // Numpad 3 key
+	0x64: "VK_NUMPAD4",   // Numpad 4 key
+	0x65: "VK_NUMPAD5",   // Numpad 5 key
+	0x66: "VK_NUMPAD6",   // Numpad 6 key
+	0x67: "VK_NUMPAD7",   // Numpad 7 key
+	0x68: "VK_NUMPAD8",   // Numpad 8 key
+	0x69: "VK_NUMPAD9",   // Numpad 9 key
+	0x6A: "VK_MULTIPLY",  // Numpad Multiply key
+	0x6B: "VK_ADD",       // Numpad Add key
+	0x6C: "VK_SEPARATOR", // Numpad Separator key
+	0x6D: "VK_SUBTRACT",  // Numpad Subtract key
+	0x6E: "VK_DECIMAL",   // Numpad Decimal key
+	0x6F: "VK_DIVIDE",    // Numpad Divide key
+	0x70: "VK_F1",        // F1 key
+	0x71: "VK_F2",        // F2 key
+	0x72: "VK_F3",        // F3 key
+	0x73: "VK_F4",        // F4 key
+	0x74: "VK_F5",        // F5 key
+	0x75: "VK_F6",        // F6 key
+	0x76: "VK_F7",        // F7 key
+	0x77: "VK_F8",        // F8 key
+	0x78: "VK_F9",        // F9 key
+	0x79: "VK_F10",       // F10 key
+	0x7A: "VK_F11",       // F11 key
+	0x7B: "VK_F12",       // F12 key
+	0x90: "VK_NUMLOCK",   // Num Lock key
+	0x91: "VK_SCROLL",    // Scroll Lock key
+}
+
+var alphanumericKeyCodeMap = map[int]string{
+	48:  "0", // Key code for 0
+	49:  "1", // Key code for 1
+	50:  "2", // Key code for 2
+	51:  "3", // Key code for 3
+	52:  "4", // Key code for 4
+	53:  "5", // Key code for 5
+	54:  "6", // Key code for 6
+	55:  "7", // Key code for 7
+	56:  "8", // Key code for 8
+	57:  "9", // Key code for 9
+	65:  "A", // Key code for A
+	66:  "B", // Key code for B
+	67:  "C", // Key code for C
+	68:  "D", // Key code for D
+	69:  "E", // Key code for E
+	70:  "F", // Key code for F
+	71:  "G", // Key code for G
+	72:  "H", // Key code for H
+	73:  "I", // Key code for I
+	74:  "J", // Key code for J
+	75:  "K", // Key code for K
+	76:  "L", // Key code for L
+	77:  "M", // Key code for M
+	78:  "N", // Key code for N
+	79:  "O", // Key code for O
+	80:  "P", // Key code for P
+	81:  "Q", // Key code for Q
+	82:  "R", // Key code for R
+	83:  "S", // Key code for S
+	84:  "T", // Key code for T
+	85:  "U", // Key code for U
+	86:  "V", // Key code for V
+	87:  "W", // Key code for W
+	88:  "X", // Key code for X
+	89:  "Y", // Key code for Y
+	90:  "Z", // Key code for Z
+	97:  "a", // Key code for a
+	98:  "b", // Key code for b
+	99:  "c", // Key code for c
+	100: "d", // Key code for d
+	101: "e", // Key code for e
+	102: "f", // Key code for f
+	103: "g", // Key code for g
+	104: "h", // Key code for h
+	105: "i", // Key code for i
+	106: "j", // Key code for j
+	107: "k", // Key code for k
+	108: "l", // Key code for l
+	109: "m", // Key code for m
+	110: "n", // Key code for n
+	111: "o", // Key code for o
+	112: "p", // Key code for p
+	113: "q", // Key code for q
+	114: "r", // Key code for r
+	115: "s", // Key code for s
+	116: "t", // Key code for t
+	117: "u", // Key code for u
+	118: "v", // Key code for v
+	119: "w", // Key code for w
+	120: "x", // Key code for x
+	121: "y", // Key code for y
+	122: "z", // Key code for z
 }
