@@ -8,19 +8,16 @@ export interface KeymapperState {
   load: (modId: number) => Promise<void>;
   unload: () => void;
   write: (section: string, key: string) => Promise<void>;
+  save: () => Promise<void>;
 }
 
 export const useKeyMapperStore = create<KeymapperState>((set) => ({
   keymappings: [],
   backups: [],
   load: async (modId) => {
-    return KeyMapper.Load(modId).then(async () => {
-      const backups = await KeyMapper.GetBackups();
-      const mappings = await KeyMapper.GetKeyMap();
-      set({
-        keymappings: mappings,
-        backups: backups,
-      });
+    return KeyMapper.Load(modId).then(() => {
+      KeyMapper.GetKeymaps().then((keymaps) => set({backups: keymaps}));
+      KeyMapper.GetKeyMap().then((keymap) => set({keymappings: keymap}));
     });
   },
   unload: async () => {
@@ -40,4 +37,8 @@ export const useKeyMapperStore = create<KeymapperState>((set) => ({
         })
     });
   },
+  save: async () => KeyMapper.SaveConfig().then(async () => {
+    KeyMapper.GetKeymaps().then((keymaps) => set({backups: keymaps}));
+    KeyMapper.GetKeyMap().then((keymap) => set({keymappings: keymap}));
+  })
 }));

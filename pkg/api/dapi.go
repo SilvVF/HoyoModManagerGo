@@ -4,7 +4,7 @@ import (
 	"hmm/pkg/types"
 	"hmm/pkg/util"
 	"net/http"
-	"path"
+	"path/filepath"
 
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
@@ -25,5 +25,5 @@ var ApiList map[types.Game]DataApi = map[types.Game]DataApi{
 }
 
 var client = http.Client{
-	Transport: httpcache.NewTransport(diskcache.New(path.Join(util.GetCacheDir(), "http"))),
+	Transport: httpcache.NewTransport(diskcache.New(filepath.Join(util.GetCacheDir(), "http"))),
 }

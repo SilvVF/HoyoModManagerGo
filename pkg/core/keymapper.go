@@ -9,7 +9,6 @@ import (
 	"hmm/pkg/util"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -77,7 +76,7 @@ func (k *KeyMapper) GetKeyMap() ([]KeyBind, error) {
 	return generateKeyBinds(k.cfg), nil
 }
 
-func (k *KeyMapper) GetBackups() ([]string, error) {
+func (k *KeyMapper) GetKeymaps() ([]string, error) {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
@@ -85,7 +84,7 @@ func (k *KeyMapper) GetBackups() ([]string, error) {
 		return nil, ErrNotLoaded
 	}
 
-	files, err := os.ReadDir(util.GetModDir(*k.mod))
+	files, err := os.ReadDir(filepath.Join(util.GetModDir(*k.mod), "keymaps"))
 	if err != nil {
 		return nil, err
 	}
@@ -101,18 +100,66 @@ func (k *KeyMapper) SaveConfig() error {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
-	if k.mod == nil || k.cfg == nil {
+	if k.mod == nil || k.cfg == nil || k.path == "" {
 		return ErrNotLoaded
 	}
-
-	time := time.Now().Format(dateFormat)
-	backupFile := path.Join(util.GetModDir(*k.mod), "backups", fmt.Sprintf("backup_%s.ini", time))
-	err := util.CopyFile(k.path, backupFile, true)
+	merged, err := os.Open(k.path)
 	if err != nil {
 		return err
 	}
+	defer merged.Close()
 
-	return k.cfg.SaveTo(k.path)
+	scanner := bufio.NewScanner(merged)
+	var iniString strings.Builder
+	inConstantsSection := false
+	inTargetSection := false
+
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		str := string(line)
+
+		if inTargetSection {
+			if str == "[Present]" {
+				k.cfg.WriteTo(&iniString)
+				inTargetSection = false
+			}
+			continue
+		}
+
+		if str == "[Constants]" {
+			inConstantsSection = true
+		}
+		if inConstantsSection && len(str) > 0 && str[0] == '[' {
+			inTargetSection = true
+			inConstantsSection = false
+		}
+
+		iniString.WriteString(str)
+		iniString.WriteString("\n")
+	}
+
+	time := time.Now().Format(dateFormat)
+	keymapFile := filepath.Join(
+		util.GetModDir(*k.mod),
+		"keymaps",
+		fmt.Sprintf("keymap_%s.ini", time),
+	)
+	log.LogDebug(keymapFile)
+
+	err = os.MkdirAll(filepath.Dir(keymapFile), os.ModePerm)
+	if err != nil {
+		log.LogError("Error creating directories:" + err.Error())
+		return err
+	}
+
+	output, err := os.Create(keymapFile)
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+
+	_, err = output.WriteString(iniString.String())
+	return err
 }
 
 func (k *KeyMapper) Write(section string, keypress string) error {
@@ -175,7 +222,7 @@ func (k *KeyMapper) Load(modId int) error {
 	}
 	defer inputFile.Close()
 
-	var constantsSection string
+	var constantsSection strings.Builder
 	inConstantsSection := false
 	inTargetSection := false
 
@@ -184,14 +231,12 @@ func (k *KeyMapper) Load(modId int) error {
 	for scanner.Scan() {
 		line := scanner.Bytes() // Read line as bytes
 		str := string(line)
-		// Check for the start of the [Constants] section
+
 		if str == "[Constants]" {
 			inConstantsSection = true
-			constantsSection += string(line) + "\n" // Add section header to the string
 			continue
 		}
 
-		// Stop if we hit the [Present] section
 		if str == "[Present]" {
 			break // Stop reading further lines
 		}
@@ -202,12 +247,12 @@ func (k *KeyMapper) Load(modId int) error {
 		}
 
 		if inTargetSection {
-			constantsSection += str + "\n" // Add each line to the string
+			constantsSection.WriteString(str + "\n")
 		}
 	}
 
-	log.LogDebug(constantsSection)
-	cfg, err := ini.Load([]byte(constantsSection))
+	log.LogDebug(constantsSection.String())
+	cfg, err := ini.Load([]byte(constantsSection.String()))
 
 	if err != nil {
 		log.LogDebug("Error loading ini file " + k.path)

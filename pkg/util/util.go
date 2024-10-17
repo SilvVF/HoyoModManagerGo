@@ -52,6 +52,42 @@ func CreateFileIfNotExists(path string) {
 	}
 }
 
+func CopyModWithoutKeymaps(src string, dst string, overwrite bool) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("cannot stat source dir: %w", err)
+	}
+	err = os.MkdirAll(dst, srcInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("cannot create destination dir: %w", err)
+	}
+	err = filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			if info.Name() == "keymaps" {
+				return nil
+			}
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+
+		if filepath.Dir(path) == filepath.Join(src, "keymaps") {
+			return nil
+		}
+
+		return CopyFile(path, dstPath, overwrite)
+	})
+
+	return err
+}
+
 func CopyRecursivley(src string, dst string, overwrite bool) error {
 	srcInfo, err := os.Stat(src)
 	if err != nil {

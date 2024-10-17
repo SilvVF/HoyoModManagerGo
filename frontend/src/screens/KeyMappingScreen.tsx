@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { useKeyMapperStore } from "@/state/keymapperStore";
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
@@ -7,7 +8,7 @@ export function KeymappingScreen() {
     const { modId } = useParams();
     const load = useKeyMapperStore(state => state.load)
     const unload = useKeyMapperStore(state => state.unload)
-    // const write = useKeyMapperStore(state => state.write)
+    const save = useKeyMapperStore(state => state.save)
 
     const keymap = useKeyMapperStore(useShallow(state => state.keymappings))
 
@@ -24,6 +25,9 @@ export function KeymappingScreen() {
     return (
         <div>
             {modId}
+            <Button onClick={save}>
+                Save
+            </Button>
             <div className="flex flex-col">
                 {
                     keymap.map((bind) => {
