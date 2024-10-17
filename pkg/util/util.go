@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 const (
@@ -50,6 +52,25 @@ func CreateFileIfNotExists(path string) {
 	if exists, _ := FileExists(path); !exists {
 		os.Create(path)
 	}
+}
+
+func ExtractDateFromFilename(filename string) (time.Time, error) {
+	// Split the filename by the underscore
+	parts := strings.Split(filename, "_")
+	if len(parts) < 3 {
+		return time.Time{}, fmt.Errorf("invalid filename format: %s", filename)
+	}
+
+	// Extract the date and time part
+	dateStr := parts[1] + "_" + parts[2] // e.g., "2024-10-17_01-43-33"
+
+	// Parse the date in the expected format
+	parsedTime, err := time.Parse("2006-01-02_15-04-05", dateStr)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse date from filename: %w", err)
+	}
+
+	return parsedTime, nil
 }
 
 func CopyModWithoutKeymaps(src string, dst string, overwrite bool) error {

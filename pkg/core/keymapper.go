@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -122,6 +123,8 @@ func (k *KeyMapper) SaveConfig() error {
 			if str == "[Present]" {
 				k.cfg.WriteTo(&iniString)
 				inTargetSection = false
+				iniString.WriteString(str)
+				iniString.WriteString("\n")
 			}
 			continue
 		}
@@ -198,7 +201,6 @@ func (k *KeyMapper) Load(modId int) error {
 		return ErrModNotFound
 	}
 	modDir := util.GetModDir(mod)
-
 	filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
 
 		if d.IsDir() || err != nil {
@@ -216,7 +218,35 @@ func (k *KeyMapper) Load(modId int) error {
 		return ErrConfigNotFound
 	}
 
-	inputFile, err := os.Open(k.path) // Replace with your source INI file path
+	files, _ := os.ReadDir(filepath.Join(modDir, "keymaps"))
+	paths := make([]string, 0, len(files))
+	for _, file := range files {
+		paths = append(paths, file.Name())
+	}
+	slices.SortFunc(paths, func(a, b string) int {
+		dateA, errA := util.ExtractDateFromFilename(a)
+		dateB, errB := util.ExtractDateFromFilename(b)
+
+		if errA != nil || errB != nil {
+			return 0
+		}
+		switch {
+		case dateA.Before(dateB):
+			return 1
+		case dateA.After(dateB):
+			return -1
+		default:
+			return 0
+		}
+	})
+
+	var cfg *ini.File
+	configPath := k.path
+
+	if len(paths) > 0 {
+		configPath = filepath.Join(modDir, "keymaps", paths[0])
+	}
+	inputFile, err := os.Open(configPath)
 	if err != nil {
 		return err
 	}
@@ -252,9 +282,12 @@ func (k *KeyMapper) Load(modId int) error {
 	}
 
 	log.LogDebug(constantsSection.String())
-	cfg, err := ini.Load([]byte(constantsSection.String()))
-
+	cfg, err = ini.Load([]byte(constantsSection.String()))
 	if err != nil {
+		return err
+	}
+
+	if err != nil || cfg == nil {
 		log.LogDebug("Error loading ini file " + k.path)
 		return err
 	}
