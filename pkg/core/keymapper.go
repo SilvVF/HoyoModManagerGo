@@ -7,9 +7,11 @@ import (
 	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -104,42 +106,6 @@ func (k *KeyMapper) SaveConfig() error {
 	if k.mod == nil || k.cfg == nil || k.path == "" {
 		return ErrNotLoaded
 	}
-	merged, err := os.Open(k.path)
-	if err != nil {
-		return err
-	}
-	defer merged.Close()
-
-	scanner := bufio.NewScanner(merged)
-	var iniString strings.Builder
-	inConstantsSection := false
-	inTargetSection := false
-
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		str := string(line)
-
-		if inTargetSection {
-			if str == "[Present]" {
-				k.cfg.WriteTo(&iniString)
-				inTargetSection = false
-				iniString.WriteString(str)
-				iniString.WriteString("\n")
-			}
-			continue
-		}
-
-		if str == "[Constants]" {
-			inConstantsSection = true
-		}
-		if inConstantsSection && len(str) > 0 && str[0] == '[' {
-			inTargetSection = true
-			inConstantsSection = false
-		}
-
-		iniString.WriteString(str)
-		iniString.WriteString("\n")
-	}
 
 	time := time.Now().Format(dateFormat)
 	keymapFile := filepath.Join(
@@ -149,7 +115,7 @@ func (k *KeyMapper) SaveConfig() error {
 	)
 	log.LogDebug(keymapFile)
 
-	err = os.MkdirAll(filepath.Dir(keymapFile), os.ModePerm)
+	err := os.MkdirAll(filepath.Dir(keymapFile), os.ModePerm)
 	if err != nil {
 		log.LogError("Error creating directories:" + err.Error())
 		return err
@@ -161,7 +127,9 @@ func (k *KeyMapper) SaveConfig() error {
 	}
 	defer output.Close()
 
-	_, err = output.WriteString(iniString.String())
+	iniString := appendKeybindsToOriginal(k.path, k.cfg)
+
+	_, err = output.WriteString(iniString)
 	return err
 }
 
@@ -197,7 +165,7 @@ func (k *KeyMapper) Write(section string, keycode int) error {
 	}
 
 	if bind == nil {
-		return errors.New("invalid keycode " + string(keycode))
+		return errors.New("invalid keycode " + fmt.Sprint(keycode))
 	}
 
 	key.SetValue(*bind)
@@ -216,7 +184,7 @@ func (k *KeyMapper) Load(modId int) error {
 
 	mod, err := k.db.SelectModById(modId)
 	if err != nil {
-		log.LogDebug("ERR finding mod" + string(modId) + "in database")
+		log.LogDebug("ERR finding mod" + fmt.Sprint(modId) + "in database")
 		return ErrModNotFound
 	}
 	modDir := util.GetModDir(mod)
@@ -271,12 +239,98 @@ func (k *KeyMapper) Load(modId int) error {
 	}
 	defer inputFile.Close()
 
+	targetSection := getKeybindSection(inputFile)
+
+	log.LogDebug(targetSection)
+	cfg, err = ini.Load([]byte(targetSection))
+	if err != nil || cfg == nil {
+		return err
+	}
+
+	keybinds := generateKeyBinds(cfg)
+
+	k.mod = &mod
+	k.cfg = cfg
+	k.keymap = keybinds
+
+	return nil
+}
+
+func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
+
+	// Open the file
+	file, err := os.Open(mergedPath)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return ""
+	}
+	defer file.Close()
+
+	// Check the file size
+	fileInfo, err := file.Stat()
+	if err != nil {
+		fmt.Println("Error getting file size:", err)
+		return ""
+	}
+	fmt.Println("File size:", fileInfo.Size())
+
+	// Check the starting position
+	position, err := file.Seek(0, 1) // Get the current file position
+	if err != nil {
+		fmt.Println("Error getting file position:", err)
+		return ""
+	}
+	fmt.Println("File starting position:", position)
+	reader := bufio.NewReader(file)
+
+	var iniString strings.Builder
+
+	inConstantsSection := false
+	targetAdded := false
+
+	regex := regexp.MustCompile(`\[(\w+)\]`)
+
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err.Error() != "EOF" {
+				fmt.Println("Error reading file:", err)
+			}
+			iniString.WriteString(line)
+			break // Stop at the end of the file (EOF)
+		}
+
+		if line == "[Constants]" {
+			inConstantsSection = true
+		}
+
+		if inConstantsSection && !targetAdded {
+			sections := regex.FindAllStringSubmatch(line, -1)
+			if len(sections) > 0 && cfg.HasSection(sections[0][0]) {
+
+				targetAdded = true
+				inConstantsSection = false
+
+				iniString.WriteString("\n")
+				var str strings.Builder
+				cfg.WriteTo(&str)
+				iniString.WriteString(str.String())
+				continue
+			}
+		}
+		iniString.WriteString(line)
+	}
+	return iniString.String()
+}
+
+func getKeybindSection(r io.Reader) string {
 	var targetSection strings.Builder
 	inConstantsSection := false
 	inTargetSection := false
 
 	// Iterate through the lines of the INI file
-	scanner := bufio.NewScanner(inputFile)
+	scanner := bufio.NewScanner(r)
+
 	for scanner.Scan() {
 		line := scanner.Bytes() // Read line as bytes
 		str := string(line)
@@ -287,7 +341,7 @@ func (k *KeyMapper) Load(modId int) error {
 		}
 
 		if str == "[Present]" {
-			break // Stop reading further lines
+			break
 		}
 
 		// Concatenate the line to the section string if we're in the [Constants] section
@@ -300,23 +354,7 @@ func (k *KeyMapper) Load(modId int) error {
 		}
 	}
 
-	log.LogDebug(targetSection.String())
-	cfg, err = ini.Load([]byte(targetSection.String()))
-	if err != nil {
-		return err
-	}
-
-	if err != nil || cfg == nil {
-		log.LogDebug("Error loading ini file " + k.path)
-		return err
-	}
-	keybinds := generateKeyBinds(cfg)
-
-	k.mod = &mod
-	k.cfg = cfg
-	k.keymap = keybinds
-
-	return nil
+	return targetSection.String()
 }
 
 func generateKeyBinds(cfg *ini.File) []KeyBind {
