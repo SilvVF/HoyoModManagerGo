@@ -55,7 +55,7 @@ func (q *Queries) DeleteUnusedMods(ctx context.Context, arg DeleteUnusedModsPara
 }
 
 const insertMod = `-- name: InsertMod :one
-INSERT OR IGNORE INTO mod (
+INSERT INTO mod (
     fname,
     game, 
     char_name, 
@@ -77,6 +77,7 @@ INSERT OR IGNORE INTO mod (
     ?9,
     ?10
 )
+ON CONFLICT(fname, char_id, char_name) DO NOTHING
 RETURNING id
 `
 
@@ -155,12 +156,13 @@ func (q *Queries) InsertPlaylist(ctx context.Context, arg InsertPlaylistParams) 
 }
 
 const insertTexture = `-- name: InsertTexture :one
-INSERT OR IGNORE INTO texture (
+INSERT INTO texture (
     mod_id,
     fname,
     selected, 
     preview_images, 
-    gb_id, mod_link, 
+    gb_id, 
+    mod_link, 
     gb_file_name, 
     gb_download_link
 ) VALUES(
@@ -173,6 +175,7 @@ INSERT OR IGNORE INTO texture (
     ?7,
     ?8
 )
+ON CONFLICT(fname, mod_id) DO NOTHING
 RETURNING id
 `
 
@@ -201,6 +204,53 @@ func (q *Queries) InsertTexture(ctx context.Context, arg InsertTextureParams) (i
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const selectAllTexturesByModIds = `-- name: SelectAllTexturesByModIds :many
+SELECT id, mod_id, fname, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM texture WHERE mod_id IN /*SLICE:ids*/?
+`
+
+func (q *Queries) SelectAllTexturesByModIds(ctx context.Context, ids []int64) ([]Texture, error) {
+	query := selectAllTexturesByModIds
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Texture
+	for rows.Next() {
+		var i Texture
+		if err := rows.Scan(
+			&i.ID,
+			&i.ModID,
+			&i.Fname,
+			&i.Selected,
+			&i.PreviewImages,
+			&i.GbID,
+			&i.ModLink,
+			&i.GbFileName,
+			&i.GbDownloadLink,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const selectCharacterById = `-- name: SelectCharacterById :one

@@ -343,7 +343,7 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 	}
 
 	if meta.texture {
-		_, err = d.db.InsertTexture(types.Texture{
+		d.db.InsertTexture(types.Texture{
 			Filename:       filename[:dotIdx],
 			Enabled:        false,
 			PreviewImages:  []string{},
@@ -355,7 +355,7 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 			Id:             dotIdx,
 		})
 	} else {
-		_, err = d.db.InsertMod(types.Mod{
+		d.db.InsertMod(types.Mod{
 			Filename:       filename[:dotIdx],
 			Game:           meta.game,
 			Character:      meta.character,

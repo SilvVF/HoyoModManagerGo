@@ -127,8 +127,13 @@ export function ModViewScreen() {
 
   useEffect(() => {
     (async () => {
-      const cName = content?._aCategory?._sName;
+      let cName = content?._aCategory?._sName;
       if (cName !== undefined && dataApi !== undefined) {
+
+        if (await dataApi.game() === 3) {
+          cName = cName.split(" ")[0]
+        }
+
         SelectClosestCharacter(cName, await dataApi?.game()).then((character) =>
           setCharacter(character)
         );

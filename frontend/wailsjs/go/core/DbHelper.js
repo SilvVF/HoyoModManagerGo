@@ -38,6 +38,10 @@ export function RenameMod(arg1, arg2) {
   return window['go']['core']['DbHelper']['RenameMod'](arg1, arg2);
 }
 
+export function RenameTexture(arg1, arg2) {
+  return window['go']['core']['DbHelper']['RenameTexture'](arg1, arg2);
+}
+
 export function SelectCharacterWithModsTagsAndTextures(arg1, arg2, arg3, arg4) {
   return window['go']['core']['DbHelper']['SelectCharacterWithModsTagsAndTextures'](arg1, arg2, arg3, arg4);
 }

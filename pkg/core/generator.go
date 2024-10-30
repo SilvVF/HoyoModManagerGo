@@ -269,7 +269,6 @@ func copyModWithTextures(
 		}
 		return nil
 	})
-
 	return err
 }
 

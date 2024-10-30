@@ -12,6 +12,7 @@ import (
 	"hmm/pkg/util"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -156,7 +157,7 @@ func (h *DbHelper) UpsertCharacter(c types.Character) error {
 func deleteUnusedModsQuery(fnames []string, game types.Game) string {
 
 	for i, name := range fnames {
-		fnames[i] = fmt.Sprintf("\"%s\"", name)
+		fnames[i] = fmt.Sprintf("'%s'", name)
 	}
 
 	var fileArg string
@@ -174,27 +175,26 @@ func deleteUnusedModsQuery(fnames []string, game types.Game) string {
 }
 
 func (h *DbHelper) deleteUnusedTextures(textures []Pair[int, string]) error {
-	if len(textures) == 0 {
-		// No textures provided, delete all records
-		log.LogPrint("DELETING ALL")
-		_, err := h.db.ExecContext(h.ctx, "DELETE FROM texture")
+	modIds := []int64{}
+
+	for _, v := range textures {
+		modIds = append(modIds, int64(v.x))
+	}
+
+	arr, err := h.queries.SelectAllTexturesByModIds(h.ctx, modIds)
+	if err != nil {
 		return err
 	}
 
-	// Building the WHERE clause for textures to keep
-	keepClauses := ""
-	for i, texture := range textures {
-		if i > 0 {
-			keepClauses += " OR "
+	for _, t := range arr {
+		keep := slices.ContainsFunc(textures, func(e Pair[int, string]) bool {
+			return e.x == int(t.ModID) && e.y == t.Fname
+		})
+		if !keep {
+			h.queries.DeleteTextureById(h.ctx, t.ID)
 		}
-		keepClauses += fmt.Sprintf("(mod_id = %d AND fname = %s)", texture.x, texture.y)
 	}
-
-	// Create the final query to delete textures not in the keepClauses
-	query := fmt.Sprintf("DELETE FROM texture WHERE NOT %s", keepClauses)
-	log.LogPrint(query)
-	_, err := h.db.ExecContext(h.ctx, query)
-	return err
+	return nil
 }
 
 func (h *DbHelper) deleteUnusedMods(fileNames []string, game types.Game) error {
@@ -410,6 +410,10 @@ func (h *DbHelper) SelectCharacterWithModsTagsAndTextures(game types.Game, modFi
 			arr = append(arr, *mwt)
 		}
 
+		slices.SortFunc(arr, func(a types.ModWithTags, b types.ModWithTags) int {
+			return strings.Compare(a.Mod.Filename, b.Mod.Filename)
+		})
+
 		cwmt := types.CharacterWithModsAndTags{
 			Character:   key,
 			ModWithTags: arr,
@@ -522,6 +526,28 @@ func (h *DbHelper) DeletePlaylistById(id int64) error {
 	return err
 }
 
+func (h *DbHelper) RenameTexture(id int64, name string) error {
+	dbTexture, err := h.queries.SelectTextureById(h.ctx, id)
+	if err != nil {
+		return err
+	}
+	dbmod, err := h.queries.SelectModById(h.ctx, dbTexture.ModID)
+	if err != nil {
+		return err
+	}
+	texture := textureFromDb(dbTexture)
+	currDir := filepath.Join(util.GetModDir(modFromDb(dbmod)), "textures", texture.Filename)
+	newDir := filepath.Join(filepath.Dir(currDir), name)
+	err = os.Rename(currDir, newDir)
+	if err != nil {
+		return err
+	}
+	query := fmt.Sprintf("UPDATE texture SET fname = '%s' WHERE id = %d;", name, id)
+	log.LogDebug(query)
+	_, err = h.db.ExecContext(h.ctx, query)
+	return err
+}
+
 func (h *DbHelper) RenameMod(id int64, name string) error {
 	dbmod, err := h.queries.SelectModById(h.ctx, id)
 	if err != nil {
@@ -534,7 +560,7 @@ func (h *DbHelper) RenameMod(id int64, name string) error {
 	if err != nil {
 		return err
 	}
-	query := fmt.Sprintf("UPDATE mod SET fname = \"%s\" WHERE id = %d;", name, id)
+	query := fmt.Sprintf("UPDATE mod SET fname = '%s' WHERE id = %d;", name, id)
 	log.LogDebug(query)
 	_, err = h.db.ExecContext(h.ctx, query)
 	return err

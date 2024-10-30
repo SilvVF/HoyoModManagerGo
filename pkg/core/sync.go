@@ -158,7 +158,6 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 						continue
 					}
 					for _, textureFilename := range tDirs {
-						log.LogPrint(textureFilename + " " + string(mod.Id))
 						seenTextures = append(seenTextures, Pair[int, string]{mod.Id, textureFilename})
 						texture := types.Texture{
 							Filename: textureFilename,

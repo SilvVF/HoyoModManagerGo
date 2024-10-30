@@ -5,7 +5,12 @@ import { cn, useStateProducer } from "../lib/utils";
 import { types } from "wailsjs/go/models";
 import { Reload } from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
-import { EnableModById, EnableTextureById, RenameMod } from "../../wailsjs/go/core/DbHelper";
+import {
+  EnableModById,
+  EnableTextureById,
+  RenameMod,
+  RenameTexture,
+} from "../../wailsjs/go/core/DbHelper";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,38 +22,70 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CheckCheckIcon, PencilIcon, Trash, ViewIcon } from "lucide-react";
+import { CheckCheckIcon, ChevronDown, PencilIcon, Trash, ViewIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { genshinElementPref, GoPref, honkaiElementPref, modsAvailablePref, usePrefrenceAsState, wuwaElementPref, zzzElementPref } from "@/data/prefs";
+import {
+  genshinElementPref,
+  GoPref,
+  honkaiElementPref,
+  modsAvailablePref,
+  usePrefrenceAsState,
+  wuwaElementPref,
+  zzzElementPref,
+} from "@/data/prefs";
+import { useDownloadStore } from "@/state/downloadStore";
+import { useShallow } from "zustand/shallow";
+import { Separator } from "@/components/ui/separator";
 
-type DialogType = "rename_mod" | "create_tag" | "rename_tag"
-type GameDialog = Pair<DialogType, number>
-type Pair<T, V> = { x: T, y: V }
+type DialogType = "rename_mod" | "create_tag" | "rename_tag" | "rename_texture";
+type GameDialog = Pair<DialogType, number>;
+type Pair<T, V> = { x: T; y: V };
 
-function GameScreen(props: { dataApi: DataApi, game: number }) {
-
+function GameScreen(props: { dataApi: DataApi; game: number }) {
   const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [available, setAvailableOnly] = usePrefrenceAsState(modsAvailablePref);
 
-  const [dialog, setDialog] = useState<GameDialog | undefined>(undefined)
-  
+  const [dialog, setDialog] = useState<GameDialog | undefined>(undefined);
+
   const getElementPref = (): GoPref<string[]> => {
-    switch(props.game) {
-      case 1: return genshinElementPref;
-      case 2: return honkaiElementPref;
-      case 3: return zzzElementPref;
-      case 4: return wuwaElementPref;
-      default: return genshinElementPref;
+    switch (props.game) {
+      case 1:
+        return genshinElementPref;
+      case 2:
+        return honkaiElementPref;
+      case 3:
+        return zzzElementPref;
+      case 4:
+        return wuwaElementPref;
+      default:
+        return genshinElementPref;
     }
-  }
-  const [selectedElements, setSelectedElements] = usePrefrenceAsState(getElementPref())
+  };
+  const [selectedElements, setSelectedElements] = usePrefrenceAsState(
+    getElementPref()
+  );
+  const running = useDownloadStore(useShallow((state) => state.running));
+
+  const refreshCharacters = () => setRefreshTrigger((prev) => prev + 1);
 
   useEffect(() => {
     syncCharacters(props.dataApi, 0);
   }, [props.dataApi]);
+
+  useEffect(() => {
+    refreshCharacters();
+  }, [running]);
 
   const elements = useStateProducer<string[]>(
     [],
@@ -69,19 +106,16 @@ function GameScreen(props: { dataApi: DataApi, game: number }) {
   const filteredCharacters = useMemo(() => {
     if (selectedElements !== undefined && available !== undefined) {
       return characters
-      .filter(
-        (cwmt) =>
-          selectedElements.includes(cwmt.characters.element.toLowerCase()) ||
-          selectedElements.isEmpty()
-      )
-      .filter((cwmt) => (available ? !cwmt.modWithTags.isEmpty() : true));
+        .filter(
+          (cwmt) =>
+            selectedElements.includes(cwmt.characters.element.toLowerCase()) ||
+            selectedElements.isEmpty()
+        )
+        .filter((cwmt) => (available ? !cwmt.modWithTags.isEmpty() : true));
     } else {
-      return []
+      return [];
     }
   }, [characters, selectedElements, available]);
-
-
-  const refreshCharacters = () => setRefreshTrigger((prev) => prev + 1);
 
   const onElementSelected = (element: string) => {
     setSelectedElements((prev) => {
@@ -95,101 +129,115 @@ function GameScreen(props: { dataApi: DataApi, game: number }) {
   };
 
   const deleteMod = async (id: number) => {
-    Downloader.Delete(id).then(() => setRefreshTrigger((prev) => prev + 1));
+    Downloader.Delete(id).then(refreshCharacters);
   };
 
   const enableMod = async (id: number, enabled: boolean) => {
     EnableModById(enabled, id).then(refreshCharacters);
   };
 
+  const deleteTexture = async (id: number) => {
+    Downloader.DeleteTexture(id).then(refreshCharacters);
+  };
+
   const enableTexture = async (id: number, enabled: boolean) => {
     EnableTextureById(enabled, id).then(refreshCharacters);
   };
 
-
   const dialogSettings = useMemo(() => {
     return {
-      "rename_mod": {
+      rename_mod: {
         title: "Rename mod",
-        description: "rename the current mod (this will change the folder name in files)",
+        description:
+          "rename the current mod (this will change the folder name in files)",
         onSuccess: (id: number, name: string) => {
-            RenameMod(id, name).then(refreshCharacters)
-        }
+          RenameMod(id, name).then(refreshCharacters);
+        },
       },
-      "create_tag": {
+      create_tag: {
         title: "Create tag",
         description: "create a tag for the mod",
-        onSuccess: () => {}
+        onSuccess: () => {},
       },
-      "rename_tag": {
-       title: "Rename tag",
-       description: "Rename the current tag",
-       onSuccess: () => {}
+      rename_tag: {
+        title: "Rename tag",
+        description: "Rename the current tag",
+        onSuccess: () => {},
       },
-    }
-  }, [])
+      rename_texture: {
+        title: "Rename Texture",
+        description:
+          "rename the current texture (this will change the folder name in files)",
+        onSuccess: (id: number, name: string) => {
+          RenameTexture(id, name).then(refreshCharacters);
+        },
+      },
+    };
+  }, []);
 
-  const settings = dialog !== undefined ? dialogSettings[dialog.x] : undefined
+  const settings = dialog !== undefined ? dialogSettings[dialog.x] : undefined;
 
   return (
     <div className="flex flex-col w-full" key={props.game}>
-        <div className="sticky top-0 z-10 backdrop-blur-md">
-            <CharacterFilters
-                className={`relative w-full`} 
-                elements={elements}
-                selectedElements={selectedElements ?? []}
-                available={available ?? false}
-                toggleElement={onElementSelected}
-                toggleAvailable={setAvailableOnly}
-            />
-        </div>
+      <div className="sticky top-0 z-10 backdrop-blur-md">
+        <CharacterFilters
+          className={`relative w-full`}
+          elements={elements}
+          selectedElements={selectedElements ?? []}
+          available={available ?? false}
+          toggleElement={onElementSelected}
+          toggleAvailable={setAvailableOnly}
+        />
+      </div>
       <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10">
         <NameDialog
-            title={settings?.title ?? ""}
-            description={settings?.description ?? ""}
-            open={dialog !== undefined} 
-            onOpenChange={() => setDialog(undefined)} 
-            onSuccess={(n) => settings!!.onSuccess(dialog!!.y, n) } 
-          />
+          title={settings?.title ?? ""}
+          description={settings?.description ?? ""}
+          open={dialog !== undefined}
+          onOpenChange={() => setDialog(undefined)}
+          onSuccess={(n) => settings!!.onSuccess(dialog!!.y, n)}
+        />
         <Button
-            className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
-            variant={'ghost'}
-            onClick={() => (async() => Reload(await props.dataApi.game()).catch())()}
-          >
-            Generate
-          </Button>
-          <Button
-            className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
-            variant={'ghost'}
-            onClick={() =>
-              syncCharacters(props.dataApi, 1).then(refreshCharacters)
-            }
-          >
-            Refresh Local
-          </Button>
-          <Button
-            className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
-            variant={'ghost'}
-            onClick={() =>
-              syncCharacters(props.dataApi, 2).then(refreshCharacters)
-            }
-          >
-            Refresh
-          </Button>
+          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+          variant={"ghost"}
+          onClick={() =>
+            (async () => Reload(await props.dataApi.game()).catch())()
+          }
+        >
+          Generate
+        </Button>
+        <Button
+          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+          variant={"ghost"}
+          onClick={() =>
+            syncCharacters(props.dataApi, 1).then(refreshCharacters)
+          }
+        >
+          Refresh Local
+        </Button>
+        <Button
+          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+          variant={"ghost"}
+          onClick={() =>
+            syncCharacters(props.dataApi, 2).then(refreshCharacters)
+          }
+        >
+          Refresh
+        </Button>
       </div>
       <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
         {filteredCharacters.map((c) => (
           <div className="col-span-1">
-            <CharacterBox
+            <CharacterInfoCard
               key={c.characters.id}
               enableMod={enableMod}
               cmt={c}
               deleteMod={deleteMod}
               viewMod={(gbId) => navigate(`/mods/${gbId}`)}
               setDialog={(d) => setDialog(d)}
-              onEditKeymap={(modId) => navigate(`/keymap/${modId}`)} 
-              enableTexture={enableTexture} 
-              deleteTexture={() => {}}           
+              onEditKeymap={(modId) => navigate(`/keymap/${modId}`)}
+              enableTexture={enableTexture}
+              deleteTexture={deleteTexture}
             />
           </div>
         ))}
@@ -259,15 +307,13 @@ function CharacterFilters({
   );
 }
 
-export function NameDialog(
-  props: { 
-    title: string
-    description: string
-    onSuccess: (name: string) => void,
-    open: boolean
-    onOpenChange: (open: boolean) => void
-  }
-) {
+export function NameDialog(props: {
+  title: string;
+  description: string;
+  onSuccess: (name: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [inputValue, setInputValue] = useState("");
   const handleChange = (event: any) => {
     setInputValue(event.target.value);
@@ -278,9 +324,7 @@ export function NameDialog(
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{props.title}</DialogTitle>
-          <DialogDescription>
-            {props.description}
-          </DialogDescription>
+          <DialogDescription>{props.description}</DialogDescription>
         </DialogHeader>
         <div className="flex items-center space-x-2">
           <div className="grid flex-1 gap-2">
@@ -312,6 +356,57 @@ export function NameDialog(
   );
 }
 
+export function TextureActionDropDown(props: {
+  onDelete: () => void;
+  onRename: () => void;
+  onView: () => void;
+  onEnable: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button className="col-span-1" variant={"ghost"} size="icon">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="12" cy="5" r="1" />
+            <circle cx="12" cy="19" r="1" />
+          </svg>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItem onClick={props.onDelete}>
+          <Trash className="mr-2 h-4 w-4" />
+          <span className="w-full">Delete</span>
+          <DropdownMenuShortcut>⇧d</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onRename}>
+          <PencilIcon className="mr-2 h-4 w-4" />
+          <span className="w-full">Rename</span>
+          <DropdownMenuShortcut>⇧r</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onView}>
+          <ViewIcon className="mr-2 h-4 w-4" />
+          <span className="w-full">View</span>
+          <DropdownMenuShortcut>⇧v</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onEnable}>
+          <CheckCheckIcon className="mr-2 h-4 w-4" />
+          <span className="w-full">Toggle</span>
+          <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export function ModActionsDropDown(props: {
   onDelete: () => void;
@@ -371,7 +466,19 @@ export function ModActionsDropDown(props: {
   );
 }
 
-function CharacterBox({
+interface CharacterInfoCardProps {
+  cmt: types.CharacterWithModsAndTags;
+  enableMod: (id: number, enabled: boolean) => void;
+  deleteMod: (id: number) => void;
+  viewMod: (gbId: number) => void;
+  setDialog: (d: GameDialog) => void;
+  onEditKeymap: (modId: number) => void;
+
+  enableTexture: (id: number, enabled: boolean) => void;
+  deleteTexture: (id: number) => void;
+}
+
+function CharacterInfoCard({
   cmt,
 
   enableMod,
@@ -382,18 +489,9 @@ function CharacterBox({
 
   enableTexture,
   deleteTexture,
-}: {
-  cmt: types.CharacterWithModsAndTags;
-  enableMod: (id: number, enabled: boolean) => void;
-  deleteMod: (id: number) => void;
-  viewMod: (gbId: number) => void;
-  setDialog: (d: GameDialog) => void;
-  onEditKeymap: (modId: number) => void;
-
-  enableTexture: (id: number, enabled: boolean) => void;
-  deleteTexture: (id: number) => void;
-}) {
+}: CharacterInfoCardProps) {
   const character: types.Character = cmt.characters;
+  const [showT, setShowT] = useState(true);
 
   return (
     <Card className="m-2">
@@ -412,43 +510,65 @@ function CharacterBox({
                 <Switch
                   className="col-span-1 my-1"
                   checked={mwt.mod.enabled}
-                  onCheckedChange={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
+                  onCheckedChange={() =>
+                    enableMod(mwt.mod.id, !mwt.mod.enabled)
+                  }
                 />
-                <ModActionsDropDown
-                  onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
-                  onDelete={() => deleteMod(mwt.mod.id)}
-                  onRename={() => setDialog({ x: "rename_mod", y: mwt.mod.id })}
-                  onView={() => {
-                    if (mwt.mod.gbId !== 0) {
-                      viewMod(mwt.mod.gbId);
+                <div className="flex flex-row">
+                  <ModActionsDropDown
+                    onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
+                    onDelete={() => deleteMod(mwt.mod.id)}
+                    onRename={() =>
+                      setDialog({ x: "rename_mod", y: mwt.mod.id })
                     }
-                  }}
-                  onKeymapEdit={() => onEditKeymap(mwt.mod.id)}
-                />
+                    onView={() => {
+                      if (mwt.mod.gbId !== 0) {
+                        viewMod(mwt.mod.gbId);
+                      }
+                    }}
+                    onKeymapEdit={() => onEditKeymap(mwt.mod.id)}
+                  />
+                  {mwt.textures.length > 0 ? (
+                    <Button variant='ghost' size='icon' onClick={() => setShowT((p) => !p)} className={showT ? "rotate-180" : "rotate-0"}>
+                      <ChevronDown />
+                    </Button>
+                  ) : undefined}
+                </div>
               </div>
-              {
-                mwt.textures.map((t) => {
-                  return (
-                    <div className="grid grid-cols-5 overflow-hidden items-center">
-                    <b className="col-span-3 w-full text-sm my-1 overflow-ellipsis overflow-x-hidden pe-1">
-                      {t.filename}
-                    </b>
-                    <Switch
-                      className="col-span-1 my-1"
-                      checked={t.enabled}
-                      onCheckedChange={() => enableTexture(t.id, !t.enabled)}
-                    />
-                    <ModActionsDropDown
-                      onEnable={() => enableTexture(t.id, !t.enabled)}
-                      onDelete={() => deleteTexture(t.id)}
-                      onRename={() => {}}
-                      onView={() => {}}
-                      onKeymapEdit={() => {}}
-                    />
-                  </div>
-                  )
-                })
-              }
+              {showT && mwt.textures.length > 0 ? (
+                <div className="slide-in fade-out flex flex-col">
+                  <div className="text-sm">{`Textures for ${mwt.mod.filename}`}</div>
+                  {mwt.textures.map((t) => {
+                    return (
+                      <div className="grid grid-cols-5 overflow-hidden items-center">
+                        <b className="text-sm col-span-3 w-full my-1 overflow-ellipsis overflow-x-hidden pe-1">
+                          {t.filename}
+                        </b>
+                        <Switch
+                          className="col-span-1 my-1"
+                          checked={t.enabled}
+                          onCheckedChange={() =>
+                            enableTexture(t.id, !t.enabled)
+                          }
+                        />
+                        <TextureActionDropDown
+                          onEnable={() => enableTexture(t.id, !t.enabled)}
+                          onDelete={() => deleteTexture(t.id)}
+                          onRename={() =>
+                            setDialog({ x: "rename_texture", y: t.id })
+                          }
+                          onView={() => {
+                            if (t.gbId !== 0) {
+                              viewMod(t.gbId);
+                            }
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                    <Separator className="my-1"/>
+                </div>
+              ) : undefined}
             </div>
           ))}
         </ScrollArea>

@@ -8,7 +8,7 @@ SELECT * FROM character WHERE LOWER(name) LIKE '%' || LOWER(:name) || '%' AND ga
 SELECT * FROM character WHERE game = :game;
 
 -- name: InsertMod :one
-INSERT OR IGNORE INTO mod (
+INSERT INTO mod (
     fname,
     game, 
     char_name, 
@@ -30,15 +30,20 @@ INSERT OR IGNORE INTO mod (
     :gbFilename,
     :gbDownloadLink
 )
+ON CONFLICT(fname, char_id, char_name) DO NOTHING
 RETURNING id;
 
+-- name: SelectAllTexturesByModIds :many
+SELECT * FROM texture WHERE mod_id IN sqlc.slice('ids');
+
 -- name: InsertTexture :one
-INSERT OR IGNORE INTO texture (
+INSERT INTO texture (
     mod_id,
     fname,
     selected, 
     preview_images, 
-    gb_id, mod_link, 
+    gb_id, 
+    mod_link, 
     gb_file_name, 
     gb_download_link
 ) VALUES(
@@ -51,6 +56,7 @@ INSERT OR IGNORE INTO texture (
     :gbFilename,
     :gbDownloadLink
 )
+ON CONFLICT(fname, mod_id) DO NOTHING
 RETURNING id;
 
 -- name: DeleteUnusedMods :exec
@@ -85,6 +91,7 @@ WHERE
     )
 ORDER BY 
     c.name, m.fname, t.tag_name, tex.id;
+    
 -- name: SelectClosestCharacterMatch :one
 SELECT * FROM character WHERE LOWER(name) LIKE '%' || LOWER(:name) || '%' AND game = :game LIMIT 1;
 

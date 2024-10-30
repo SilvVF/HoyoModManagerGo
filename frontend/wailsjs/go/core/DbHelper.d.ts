@@ -20,6 +20,8 @@ export function InsertTexture(arg1:types.Texture):Promise<number>;
 
 export function RenameMod(arg1:number,arg2:string):Promise<void>;
 
+export function RenameTexture(arg1:number,arg2:string):Promise<void>;
+
 export function SelectCharacterWithModsTagsAndTextures(arg1:types.Game,arg2:string,arg3:string,arg4:string):Promise<Array<types.CharacterWithModsAndTags>>;
 
 export function SelectCharactersByGame(arg1:types.Game):Promise<Array<types.Character>>;
