@@ -156,6 +156,7 @@ func (q *Queries) InsertPlaylist(ctx context.Context, arg InsertPlaylistParams) 
 
 const insertTexture = `-- name: InsertTexture :one
 INSERT OR IGNORE INTO texture (
+    mod_id,
     fname,
     selected, 
     preview_images, 
@@ -169,12 +170,14 @@ INSERT OR IGNORE INTO texture (
     ?4,
     ?5,
     ?6,
-    ?7
+    ?7,
+    ?8
 )
 RETURNING id
 `
 
 type InsertTextureParams struct {
+	ModId          int64
 	ModFilename    string
 	Selected       bool
 	PreviewImages  string
@@ -186,6 +189,7 @@ type InsertTextureParams struct {
 
 func (q *Queries) InsertTexture(ctx context.Context, arg InsertTextureParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, insertTexture,
+		arg.ModId,
 		arg.ModFilename,
 		arg.Selected,
 		arg.PreviewImages,
@@ -461,6 +465,72 @@ func (q *Queries) SelectEnabledModsForGame(ctx context.Context, game int64) ([]M
 	return items, nil
 }
 
+const selectEnabledTexturesByModId = `-- name: SelectEnabledTexturesByModId :many
+SELECT id, mod_id, fname, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM texture WHERE mod_id = ?1 AND selected
+`
+
+func (q *Queries) SelectEnabledTexturesByModId(ctx context.Context, modid int64) ([]Texture, error) {
+	rows, err := q.db.QueryContext(ctx, selectEnabledTexturesByModId, modid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Texture
+	for rows.Next() {
+		var i Texture
+		if err := rows.Scan(
+			&i.ID,
+			&i.ModID,
+			&i.Fname,
+			&i.Selected,
+			&i.PreviewImages,
+			&i.GbID,
+			&i.ModLink,
+			&i.GbFileName,
+			&i.GbDownloadLink,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectModByCharAndGame = `-- name: SelectModByCharAndGame :one
+SELECT id, fname, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.fname = ?1 AND mod.game = ?2 AND mod.char_name = ?3
+`
+
+type SelectModByCharAndGameParams struct {
+	Fname         string
+	Game          int64
+	CharacterName string
+}
+
+func (q *Queries) SelectModByCharAndGame(ctx context.Context, arg SelectModByCharAndGameParams) (Mod, error) {
+	row := q.db.QueryRowContext(ctx, selectModByCharAndGame, arg.Fname, arg.Game, arg.CharacterName)
+	var i Mod
+	err := row.Scan(
+		&i.ID,
+		&i.Fname,
+		&i.Game,
+		&i.CharName,
+		&i.CharID,
+		&i.Selected,
+		&i.PreviewImages,
+		&i.GbID,
+		&i.ModLink,
+		&i.GbFileName,
+		&i.GbDownloadLink,
+	)
+	return i, err
+}
+
 const selectModById = `-- name: SelectModById :one
 SELECT id, fname, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.id = ?1 LIMIT 1
 `
@@ -629,7 +699,7 @@ const selectTexturesByModId = `-- name: SelectTexturesByModId :many
 SELECT id, mod_id, fname, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM texture WHERE mod_id = ?1
 `
 
-func (q *Queries) SelectTexturesByModId(ctx context.Context, modid sql.NullInt64) ([]Texture, error) {
+func (q *Queries) SelectTexturesByModId(ctx context.Context, modid int64) ([]Texture, error) {
 	rows, err := q.db.QueryContext(ctx, selectTexturesByModId, modid)
 	if err != nil {
 		return nil, err
@@ -721,5 +791,21 @@ type UpdatePlayistParams struct {
 
 func (q *Queries) UpdatePlayist(ctx context.Context, arg UpdatePlayistParams) error {
 	_, err := q.db.ExecContext(ctx, updatePlayist, arg.PlaylistName, arg.ID)
+	return err
+}
+
+const updateTextureEnabledById = `-- name: UpdateTextureEnabledById :exec
+UPDATE texture SET
+    selected = ?1
+WHERE texture.id = ?2
+`
+
+type UpdateTextureEnabledByIdParams struct {
+	Selected bool
+	ID       int64
+}
+
+func (q *Queries) UpdateTextureEnabledById(ctx context.Context, arg UpdateTextureEnabledByIdParams) error {
+	_, err := q.db.ExecContext(ctx, updateTextureEnabledById, arg.Selected, arg.ID)
 	return err
 }

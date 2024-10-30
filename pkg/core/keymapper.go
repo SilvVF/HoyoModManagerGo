@@ -375,74 +375,74 @@ func generateKeyBinds(cfg *ini.File) []KeyBind {
 }
 
 // GPT Generated
-var virtualKeys = map[string]int{
-	"VK_LBUTTON":   0x01, // Left mouse button
-	"VK_RBUTTON":   0x02, // Right mouse button
-	"VK_CANCEL":    0x03, // Control-break processing
-	"VK_MBUTTON":   0x04, // Middle mouse button
-	"VK_XBUTTON1":  0x05, // X1 mouse button
-	"VK_XBUTTON2":  0x06, // X2 mouse button
-	"VK_BACK":      0x08, // Backspace key
-	"VK_TAB":       0x09, // Tab key
-	"VK_CLEAR":     0x0C, // Clear key
-	"VK_RETURN":    0x0D, // Enter key
-	"VK_SHIFT":     0x10, // Shift key
-	"VK_CONTROL":   0x11, // Ctrl key
-	"VK_MENU":      0x12, // Alt key
-	"VK_PAUSE":     0x13, // Pause key
-	"VK_CAPITAL":   0x14, // Caps Lock key
-	"VK_ESCAPE":    0x1B, // Esc key
-	"VK_SPACE":     0x20, // Spacebar
-	"VK_PRIOR":     0x21, // Page Up key
-	"VK_NEXT":      0x22, // Page Down key
-	"VK_END":       0x23, // End key
-	"VK_HOME":      0x24, // Home key
-	"VK_LEFT":      0x25, // Left arrow key
-	"VK_UP":        0x26, // Up arrow key
-	"VK_RIGHT":     0x27, // Right arrow key
-	"VK_DOWN":      0x28, // Down arrow key
-	"VK_SELECT":    0x29, // Select key
-	"VK_PRINT":     0x2A, // Print key
-	"VK_EXECUTE":   0x2B, // Execute key
-	"VK_SNAPSHOT":  0x2C, // Print Screen key
-	"VK_INSERT":    0x2D, // Insert key
-	"VK_DELETE":    0x2E, // Delete key
-	"VK_HELP":      0x2F, // Help key
-	"VK_LWIN":      0x5B, // Left Windows key
-	"VK_RWIN":      0x5C, // Right Windows key
-	"VK_APPS":      0x5D, // Applications key
-	"VK_SLEEP":     0x5F, // Sleep key
-	"VK_NUMPAD0":   0x60, // Numpad 0 key
-	"VK_NUMPAD1":   0x61, // Numpad 1 key
-	"VK_NUMPAD2":   0x62, // Numpad 2 key
-	"VK_NUMPAD3":   0x63, // Numpad 3 key
-	"VK_NUMPAD4":   0x64, // Numpad 4 key
-	"VK_NUMPAD5":   0x65, // Numpad 5 key
-	"VK_NUMPAD6":   0x66, // Numpad 6 key
-	"VK_NUMPAD7":   0x67, // Numpad 7 key
-	"VK_NUMPAD8":   0x68, // Numpad 8 key
-	"VK_NUMPAD9":   0x69, // Numpad 9 key
-	"VK_MULTIPLY":  0x6A, // Numpad Multiply key
-	"VK_ADD":       0x6B, // Numpad Add key
-	"VK_SEPARATOR": 0x6C, // Numpad Separator key
-	"VK_SUBTRACT":  0x6D, // Numpad Subtract key
-	"VK_DECIMAL":   0x6E, // Numpad Decimal key
-	"VK_DIVIDE":    0x6F, // Numpad Divide key
-	"VK_F1":        0x70, // F1 key
-	"VK_F2":        0x71, // F2 key
-	"VK_F3":        0x72, // F3 key
-	"VK_F4":        0x73, // F4 key
-	"VK_F5":        0x74, // F5 key
-	"VK_F6":        0x75, // F6 key
-	"VK_F7":        0x76, // F7 key
-	"VK_F8":        0x77, // F8 key
-	"VK_F9":        0x78, // F9 key
-	"VK_F10":       0x79, // F10 key
-	"VK_F11":       0x7A, // F11 key
-	"VK_F12":       0x7B, // F12 key
-	"VK_NUMLOCK":   0x90, // Num Lock key
-	"VK_SCROLL":    0x91, // Scroll Lock key
-}
+// var virtualKeys = map[string]int{
+// 	"VK_LBUTTON":   0x01, // Left mouse button
+// 	"VK_RBUTTON":   0x02, // Right mouse button
+// 	"VK_CANCEL":    0x03, // Control-break processing
+// 	"VK_MBUTTON":   0x04, // Middle mouse button
+// 	"VK_XBUTTON1":  0x05, // X1 mouse button
+// 	"VK_XBUTTON2":  0x06, // X2 mouse button
+// 	"VK_BACK":      0x08, // Backspace key
+// 	"VK_TAB":       0x09, // Tab key
+// 	"VK_CLEAR":     0x0C, // Clear key
+// 	"VK_RETURN":    0x0D, // Enter key
+// 	"VK_SHIFT":     0x10, // Shift key
+// 	"VK_CONTROL":   0x11, // Ctrl key
+// 	"VK_MENU":      0x12, // Alt key
+// 	"VK_PAUSE":     0x13, // Pause key
+// 	"VK_CAPITAL":   0x14, // Caps Lock key
+// 	"VK_ESCAPE":    0x1B, // Esc key
+// 	"VK_SPACE":     0x20, // Spacebar
+// 	"VK_PRIOR":     0x21, // Page Up key
+// 	"VK_NEXT":      0x22, // Page Down key
+// 	"VK_END":       0x23, // End key
+// 	"VK_HOME":      0x24, // Home key
+// 	"VK_LEFT":      0x25, // Left arrow key
+// 	"VK_UP":        0x26, // Up arrow key
+// 	"VK_RIGHT":     0x27, // Right arrow key
+// 	"VK_DOWN":      0x28, // Down arrow key
+// 	"VK_SELECT":    0x29, // Select key
+// 	"VK_PRINT":     0x2A, // Print key
+// 	"VK_EXECUTE":   0x2B, // Execute key
+// 	"VK_SNAPSHOT":  0x2C, // Print Screen key
+// 	"VK_INSERT":    0x2D, // Insert key
+// 	"VK_DELETE":    0x2E, // Delete key
+// 	"VK_HELP":      0x2F, // Help key
+// 	"VK_LWIN":      0x5B, // Left Windows key
+// 	"VK_RWIN":      0x5C, // Right Windows key
+// 	"VK_APPS":      0x5D, // Applications key
+// 	"VK_SLEEP":     0x5F, // Sleep key
+// 	"VK_NUMPAD0":   0x60, // Numpad 0 key
+// 	"VK_NUMPAD1":   0x61, // Numpad 1 key
+// 	"VK_NUMPAD2":   0x62, // Numpad 2 key
+// 	"VK_NUMPAD3":   0x63, // Numpad 3 key
+// 	"VK_NUMPAD4":   0x64, // Numpad 4 key
+// 	"VK_NUMPAD5":   0x65, // Numpad 5 key
+// 	"VK_NUMPAD6":   0x66, // Numpad 6 key
+// 	"VK_NUMPAD7":   0x67, // Numpad 7 key
+// 	"VK_NUMPAD8":   0x68, // Numpad 8 key
+// 	"VK_NUMPAD9":   0x69, // Numpad 9 key
+// 	"VK_MULTIPLY":  0x6A, // Numpad Multiply key
+// 	"VK_ADD":       0x6B, // Numpad Add key
+// 	"VK_SEPARATOR": 0x6C, // Numpad Separator key
+// 	"VK_SUBTRACT":  0x6D, // Numpad Subtract key
+// 	"VK_DECIMAL":   0x6E, // Numpad Decimal key
+// 	"VK_DIVIDE":    0x6F, // Numpad Divide key
+// 	"VK_F1":        0x70, // F1 key
+// 	"VK_F2":        0x71, // F2 key
+// 	"VK_F3":        0x72, // F3 key
+// 	"VK_F4":        0x73, // F4 key
+// 	"VK_F5":        0x74, // F5 key
+// 	"VK_F6":        0x75, // F6 key
+// 	"VK_F7":        0x76, // F7 key
+// 	"VK_F8":        0x77, // F8 key
+// 	"VK_F9":        0x78, // F9 key
+// 	"VK_F10":       0x79, // F10 key
+// 	"VK_F11":       0x7A, // F11 key
+// 	"VK_F12":       0x7B, // F12 key
+// 	"VK_NUMLOCK":   0x90, // Num Lock key
+// 	"VK_SCROLL":    0x91, // Scroll Lock key
+// }
 
 var virtualKeyCodeMap = map[int]int{
 

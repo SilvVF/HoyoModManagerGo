@@ -5,7 +5,7 @@ import { cn, useStateProducer } from "../lib/utils";
 import { types } from "wailsjs/go/models";
 import { Reload } from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
-import { EnableModById, RenameMod } from "../../wailsjs/go/core/DbHelper";
+import { EnableModById, EnableTextureById, RenameMod } from "../../wailsjs/go/core/DbHelper";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -102,6 +102,11 @@ function GameScreen(props: { dataApi: DataApi, game: number }) {
     EnableModById(enabled, id).then(refreshCharacters);
   };
 
+  const enableTexture = async (id: number, enabled: boolean) => {
+    EnableTextureById(enabled, id).then(refreshCharacters);
+  };
+
+
   const dialogSettings = useMemo(() => {
     return {
       "rename_mod": {
@@ -183,7 +188,7 @@ function GameScreen(props: { dataApi: DataApi, game: number }) {
               viewMod={(gbId) => navigate(`/mods/${gbId}`)}
               setDialog={(d) => setDialog(d)}
               onEditKeymap={(modId) => navigate(`/keymap/${modId}`)} 
-              enableTexture={() => {}} 
+              enableTexture={enableTexture} 
               deleteTexture={() => {}}           
             />
           </div>

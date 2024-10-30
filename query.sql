@@ -34,6 +34,7 @@ RETURNING id;
 
 -- name: InsertTexture :one
 INSERT OR IGNORE INTO texture (
+    mod_id,
     fname,
     selected, 
     preview_images, 
@@ -41,6 +42,7 @@ INSERT OR IGNORE INTO texture (
     gb_file_name, 
     gb_download_link
 ) VALUES(
+    :modId,
     :modFilename,
     :selected,
     :previewImages,
@@ -92,6 +94,9 @@ SELECT * FROM mod WHERE mod.char_name = :name AND mod.game = :game;
 -- name: SelectTexturesByModId :many
 SELECT * FROM texture WHERE mod_id = :modId;
 
+-- name: SelectEnabledTexturesByModId :many
+SELECT * FROM texture WHERE mod_id = :modId AND selected;
+
 -- name: SelectModById :one
 SELECT * FROM mod WHERE mod.id = :id LIMIT 1;
 
@@ -109,6 +114,14 @@ DELETE FROM texture WHERE texture.id = :id;
 UPDATE mod SET
     selected = :selected
 WHERE mod.id = :id;
+
+-- name: SelectModByCharAndGame :one
+SELECT * FROM mod WHERE mod.fname = :fname AND mod.game = :game AND mod.char_name = :characterName;
+
+-- name: UpdateTextureEnabledById :exec
+UPDATE texture SET
+    selected = :selected
+WHERE texture.id = :id;
 
 -- name: SelectEnabledModsForGame :many
 SELECT * FROM mod WHERE selected AND game = :game;

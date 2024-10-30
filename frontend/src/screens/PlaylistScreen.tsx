@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  SelectCharacterWithModsAndTags,
+  SelectCharacterWithModsTagsAndTextures,
   EnableModById,
 } from "../../wailsjs/go/core/DbHelper";
 import { useStateProducer } from "@/lib/utils";
@@ -71,7 +71,7 @@ function PlaylistScreenContent({game, setGame}: {
   const mods = useStateProducer<types.CharacterWithModsAndTags[]>(
     [],
     async (update) => {
-      SelectCharacterWithModsAndTags(game, "", "", "").then((it) => update(it));
+      SelectCharacterWithModsTagsAndTextures(game, "", "", "").then((it) => update(it));
     },
     [modRefreshTrigger, game]
   );

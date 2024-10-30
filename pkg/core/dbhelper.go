@@ -54,7 +54,7 @@ func textureFromDb(t db.Texture) types.Texture {
 		GbFileName:     t.GbFileName.String,
 		GbDownloadLink: t.GbDownloadLink.String,
 		Id:             int(t.ID),
-		ModId:          int(t.ModID.Int64),
+		ModId:          int(t.ModID),
 	}
 }
 
@@ -94,6 +94,18 @@ func (h *DbHelper) SelecteTextureById(id int) (types.Texture, error) {
 		return types.Texture{}, err
 	}
 	return textureFromDb(m), nil
+}
+
+func (h *DbHelper) SelectModByCNameAndGame(fname, c string, g int64) (types.Mod, error) {
+	m, err := h.queries.SelectModByCharAndGame(h.ctx, db.SelectModByCharAndGameParams{
+		Fname:         fname,
+		Game:          g,
+		CharacterName: c,
+	})
+	if err != nil {
+		return types.Mod{}, err
+	}
+	return modFromDb(m), nil
 }
 
 func (h *DbHelper) SelectModById(id int) (types.Mod, error) {
@@ -161,7 +173,30 @@ func deleteUnusedModsQuery(fnames []string, game types.Game) string {
 	)
 }
 
-func (h *DbHelper) DeleteUnusedMods(fileNames []string, game types.Game) error {
+func (h *DbHelper) deleteUnusedTextures(textures []Pair[int, string]) error {
+	if len(textures) == 0 {
+		// No textures provided, delete all records
+		_, err := h.db.ExecContext(h.ctx, "DELETE FROM texture")
+		return err
+	}
+
+	// Building the WHERE clause with placeholders
+	whereClauses := ""
+	args := []interface{}{}
+	for i, texture := range textures {
+		if i > 0 {
+			whereClauses += " AND "
+		}
+		whereClauses += "(mod_id = ? AND fname = ?)"
+		args = append(args, texture.x, texture.y)
+	}
+
+	query := fmt.Sprintf("DELETE FROM texture WHERE NOT (%s)", whereClauses)
+	_, err := h.db.ExecContext(h.ctx, query, args...)
+	return err
+}
+
+func (h *DbHelper) deleteUnusedMods(fileNames []string, game types.Game) error {
 	query := deleteUnusedModsQuery(fileNames, game)
 	log.LogDebug(query)
 	_, err := h.db.ExecContext(h.ctx, query)
@@ -176,6 +211,13 @@ func (h *DbHelper) DeleteTextureById(id int) error {
 	return h.queries.DeleteTextureById(h.ctx, int64(id))
 }
 
+func (h *DbHelper) EnableTextureById(enabled bool, id int) error {
+	return h.queries.UpdateTextureEnabledById(h.ctx, db.UpdateTextureEnabledByIdParams{
+		Selected: enabled,
+		ID:       int64(id),
+	})
+}
+
 func (h *DbHelper) EnableModById(enabled bool, id int) error {
 	return h.queries.UpdateModEnabledById(h.ctx, db.UpdateModEnabledByIdParams{
 		Selected: enabled,
@@ -186,6 +228,7 @@ func (h *DbHelper) EnableModById(enabled bool, id int) error {
 func (h *DbHelper) InsertTexture(t types.Texture) (int64, error) {
 	return h.queries.InsertTexture(h.ctx, db.InsertTextureParams{
 		ModFilename:    t.Filename,
+		ModId:          int64(t.ModId),
 		Selected:       t.Enabled,
 		PreviewImages:  "",
 		GbId:           sql.NullInt64{Valid: t.GbId != 0, Int64: int64(t.GbId)},
@@ -226,8 +269,23 @@ func (h *DbHelper) SelectCharactersByGame(game types.Game) []types.Character {
 	return result
 }
 
+func (h *DbHelper) SelectEnabledTexturesByModId(id int) ([]types.Texture, error) {
+	textures, err := h.queries.SelectEnabledTexturesByModId(h.ctx, int64(id))
+	if err != nil {
+		return make([]types.Texture, 0), err
+	}
+
+	result := make([]types.Texture, 0, len(textures))
+
+	for _, t := range textures {
+		result = append(result, textureFromDb(t))
+	}
+
+	return result, nil
+}
+
 func (h *DbHelper) SelectTexturesByModId(id int) ([]types.Texture, error) {
-	textures, err := h.queries.SelectTexturesByModId(h.ctx, sql.NullInt64{Valid: true, Int64: int64(id)})
+	textures, err := h.queries.SelectTexturesByModId(h.ctx, int64(id))
 	if err != nil {
 		return make([]types.Texture, 0), err
 	}
@@ -270,9 +328,9 @@ func (h *DbHelper) SelectCharacterWithModsTagsAndTextures(game types.Game, modFi
 		return make([]types.CharacterWithModsAndTags, 0)
 	}
 
-	var charMap = map[types.Character][]types.ModWithTags{}
-
+	var charMap = map[types.Character]map[int]*types.ModWithTags{}
 	for _, item := range res {
+
 		char := types.Character{
 			Id:        int(item.ID),
 			Game:      types.Game(item.Game),
@@ -282,10 +340,15 @@ func (h *DbHelper) SelectCharacterWithModsTagsAndTextures(game types.Game, modFi
 		}
 
 		if _, ok := charMap[char]; !ok {
-			charMap[char] = []types.ModWithTags{}
+			charMap[char] = map[int]*types.ModWithTags{}
 		}
 
-		if item.ID_2.Valid {
+		modId := item.ID_2
+		tagModId := item.ModID
+		textureModId := item.ModID_2
+		textureId := item.ID_3
+
+		if modId.Valid {
 			modWithTagsAndTextures := types.ModWithTags{
 				Mod: types.Mod{
 					Filename:       item.Fname.String,
@@ -303,36 +366,25 @@ func (h *DbHelper) SelectCharacterWithModsTagsAndTextures(game types.Game, modFi
 				Tags:     make([]types.Tag, 0),
 				Textures: make([]types.Texture, 0),
 			}
-			charMap[char] = append(charMap[char], modWithTagsAndTextures)
+			charMap[char][int(modId.Int64)] = &modWithTagsAndTextures
 		}
 
-		if item.TagName.Valid && item.ModID.Valid {
-			for i := range charMap[char] {
-				if charMap[char][i].Mod.Id == int(item.ModID.Int64) {
-					charMap[char][i].Tags = append(charMap[char][i].Tags, types.Tag{
-						Name:  item.TagName.String,
-						ModId: int(item.ModID.Int64),
-					})
-				}
-			}
+		if item.TagName.Valid && tagModId.Valid {
+			charMap[char][int(modId.Int64)].Tags = append(charMap[char][int(modId.Int64)].Tags, types.Tag{ModId: int(tagModId.Int64), Name: item.TagName.String})
 		}
 
-		if item.Fname_2.Valid && item.ID_3.Valid {
-			for i := range charMap[char] {
-				if charMap[char][i].Mod.Id == int(item.ModID.Int64) {
-					charMap[char][i].Textures = append(charMap[char][i].Textures, types.Texture{
-						Filename:       item.Fname_2.String,
-						Enabled:        item.Selected_2.Bool,
-						PreviewImages:  strings.Split(item.PreviewImages_2.String, ","),
-						GbId:           int(item.GbID_2.Int64),
-						ModLink:        item.ModLink_2.String,
-						GbFileName:     item.GbFileName_2.String,
-						GbDownloadLink: item.GbDownloadLink_2.String,
-						ModId:          int(item.ModID_2.Int64),
-						Id:             int(item.ID_3.Int64),
-					})
-				}
-			}
+		if textureId.Valid {
+			charMap[char][int(modId.Int64)].Textures = append(charMap[char][int(modId.Int64)].Textures, types.Texture{
+				Filename:       item.Fname_2.String,
+				Enabled:        item.Selected_2.Bool,
+				PreviewImages:  strings.Split(item.PreviewImages_2.String, ","),
+				GbId:           int(item.GbID_2.Int64),
+				ModLink:        item.ModLink_2.String,
+				GbFileName:     item.GbFileName_2.String,
+				GbDownloadLink: item.GbDownloadLink_2.String,
+				ModId:          int(textureModId.Int64),
+				Id:             int(textureId.Int64),
+			})
 		}
 	}
 
@@ -350,9 +402,16 @@ func (h *DbHelper) SelectCharacterWithModsTagsAndTextures(game types.Game, modFi
 
 	for _, key := range keys {
 		v := charMap[key]
+
+		arr := []types.ModWithTags{}
+
+		for _, mwt := range v {
+			arr = append(arr, *mwt)
+		}
+
 		cwmt := types.CharacterWithModsAndTags{
 			Character:   key,
-			ModWithTags: v,
+			ModWithTags: arr,
 		}
 
 		lst = append(lst, cwmt)

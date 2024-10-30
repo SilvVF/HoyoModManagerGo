@@ -18,12 +18,12 @@ export function DeleteTextureById(arg1) {
   return window['go']['core']['DbHelper']['DeleteTextureById'](arg1);
 }
 
-export function DeleteUnusedMods(arg1, arg2) {
-  return window['go']['core']['DbHelper']['DeleteUnusedMods'](arg1, arg2);
-}
-
 export function EnableModById(arg1, arg2) {
   return window['go']['core']['DbHelper']['EnableModById'](arg1, arg2);
+}
+
+export function EnableTextureById(arg1, arg2) {
+  return window['go']['core']['DbHelper']['EnableTextureById'](arg1, arg2);
 }
 
 export function InsertMod(arg1) {
@@ -52,6 +52,14 @@ export function SelectClosestCharacter(arg1, arg2) {
 
 export function SelectEnabledModsByGame(arg1) {
   return window['go']['core']['DbHelper']['SelectEnabledModsByGame'](arg1);
+}
+
+export function SelectEnabledTexturesByModId(arg1) {
+  return window['go']['core']['DbHelper']['SelectEnabledTexturesByModId'](arg1);
+}
+
+export function SelectModByCNameAndGame(arg1, arg2, arg3) {
+  return window['go']['core']['DbHelper']['SelectModByCNameAndGame'](arg1, arg2, arg3);
 }
 
 export function SelectModById(arg1) {

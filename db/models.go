@@ -48,7 +48,7 @@ type Tag struct {
 
 type Texture struct {
 	ID             int64
-	ModID          sql.NullInt64
+	ModID          int64
 	Fname          string
 	Selected       bool
 	PreviewImages  string

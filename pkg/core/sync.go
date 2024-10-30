@@ -8,6 +8,7 @@ import (
 	"hmm/pkg/util"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/alitto/pond"
@@ -68,6 +69,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 	pool.Submit(func() {
 
 		seenMods := []string{}
+		seenTextures := []Pair[int, string]{}
 		characters := s.db.SelectCharactersByGame(game)
 		log.LogPrint(fmt.Sprintf("characters size: %d synctype: %d game: %d", len(characters), request, game))
 
@@ -108,6 +110,8 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 			defer file.Close()
 
 			modDirs, err := file.Readdirnames(-1)
+			modDirs = slices.DeleteFunc(modDirs, func(e string) bool { return e == "textures" })
+
 			if err != nil {
 				continue
 			}
@@ -124,14 +128,17 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 				}
 
 				modId, err := s.db.InsertMod(mod)
+				mod.Id = int(modId)
 
 				if err != nil {
-					continue
+					mod, err = s.db.SelectModByCNameAndGame(mod.Filename, mod.Character, mod.Game.Int64())
+					if err != nil {
+						continue
+					}
 				}
 
 				modDir := util.GetModDir(mod)
 				texturesDir := filepath.Join(modDir, "textures")
-				os.MkdirAll(texturesDir, 0777)
 
 				if exists, _ := util.FileExists(texturesDir); exists {
 					tDir, err := os.Open(texturesDir)
@@ -143,9 +150,10 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 						continue
 					}
 					for _, textureFilename := range tDirs {
+						seenTextures = append(seenTextures, Pair[int, string]{mod.Id, textureFilename})
 						texture := types.Texture{
 							Filename: textureFilename,
-							ModId:    int(modId),
+							ModId:    mod.Id,
 						}
 						s.db.InsertTexture(texture)
 					}
@@ -154,7 +162,12 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 			}
 		}
 		log.LogPrint("Deleting mods not in: " + strings.Join(seenMods, "\n - "))
-		s.db.DeleteUnusedMods(seenMods, game)
+		log.LogPrint("Deleting textures not in: ")
+		for _, p := range seenTextures {
+			log.LogPrint("- " + p.y + "\n")
+		}
+		s.db.deleteUnusedMods(seenMods, game)
+		s.db.deleteUnusedTextures(seenTextures)
 		s.initialComplete[game] = true
 	})
 

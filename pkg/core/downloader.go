@@ -178,7 +178,7 @@ func (d *Downloader) DownloadTexture(link, filename string, modId, gbId int) err
 		game:        mod.Game,
 		gbId:        gbId,
 		texture:     true,
-		modId:       mod.Id,
+		modId:       modId,
 	}
 	d.Queue.Set(link, &DLItem{
 		Filename: filename,
@@ -308,7 +308,11 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 	dotIdx := strings.LastIndex(filename, ".")
 	var outputDir string
 	if meta.texture {
-		outputDir = filepath.Join(util.GetCharacterDir(meta.character, meta.game), "textures", filename[:dotIdx])
+		m, err := d.db.SelectModById(meta.modId)
+		if err != nil {
+			return err
+		}
+		outputDir = filepath.Join(util.GetModDir(m), "textures", filename[:dotIdx])
 	} else {
 		outputDir = filepath.Join(util.GetCharacterDir(meta.character, meta.game), filename[:dotIdx])
 	}

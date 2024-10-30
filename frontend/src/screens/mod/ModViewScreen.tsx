@@ -7,7 +7,6 @@ import {
   SelectModsByCharacterName,
   SelectClosestCharacter,
   SelectCharactersByGame,
-  SelectTexturesByModId,
 } from "../../../wailsjs/go/core/DbHelper";
 import * as Downloader from "../../../wailsjs/go/core/Downloader";
 import {
@@ -39,6 +38,13 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDownloadStore } from "@/state/downloadStore";
 import { useShallow } from "zustand/shallow";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const dlStates = ["download", "queued", "unzip"];
 const inDownloadState = (state: string | undefined) => {
@@ -60,13 +66,15 @@ export function ModViewScreen() {
   const downloads = useDownloadStore(useShallow((state) => state.downloads));
   const running = useDownloadStore(useShallow((state) => state.running));
 
-  const downloaded = useStateProducer<(types.Mod | types.Texture)[]>(
+  const downloaded = useStateProducer<types.Mod[]>(
     [],
     async (update) => {
       if (character !== undefined) {
-        SelectModsByCharacterName(character.name, character.game).then(async (mods) => {
-          update(mods);
-      });
+        SelectModsByCharacterName(character.name, character.game).then(
+          async (mods) => {
+            update(mods);
+          }
+        );
       }
     },
     [character, refreshTrigger, running]
@@ -85,22 +93,22 @@ export function ModViewScreen() {
   const deleteMod = async (id: number) => {
     Downloader.Delete(id).then(() => refresh());
   };
-  const deleteTexture = async (id: number) => {
-    Downloader.DeleteTexture(id).then(() => refresh());
-  };
+  // const deleteTexture = async (id: number) => {
+  //   Downloader.DeleteTexture(id).then(() => refresh());
+  // };
 
   const refresh = async () => {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  const downloadTexture = async (link: string, filename: string, modId: number) => {
+  const downloadTexture = async (
+    link: string,
+    filename: string,
+    modId: number
+  ) => {
     if (character !== undefined && content?._idRow !== undefined) {
-      Downloader.DownloadTexture(
-        link,
-        filename,
-        modId,
-        content?._idRow
-      );
+      LogPrint(modId.toString())
+      Downloader.DownloadTexture(link, filename, modId, content?._idRow);
     }
   };
 
@@ -199,6 +207,10 @@ export function ModViewScreen() {
                 </TableCell>
                 <TableCell className="text-right min-w-[64px] m-2">
                   <DownloadButton
+                    mods={downloaded}
+                    onDownloadAsTextureClick={(id) =>
+                      downloadTexture(f._sDownloadUrl ?? "", f._sFile ?? "", id)
+                    }
                     downloaded={downloaded
                       .map((it) => it.gbFileName.toLowerCase())
                       .includes(f._sFile?.toLowerCase() ?? "")}
@@ -208,10 +220,8 @@ export function ModViewScreen() {
                           it.gbFileName.toLowerCase() ===
                           (f._sFile?.toLowerCase() ?? "")
                       );
-                      if (mod && mod instanceof types.Mod) {
+                      if (mod) {
                         deleteMod(mod.id);
-                      } else if (mod && mod instanceof types.Texture) {
-                        deleteTexture(mod.id)
                       }
                     }}
                     downloading={inDownloadState(
@@ -233,9 +243,11 @@ export function ModViewScreen() {
 }
 
 function DownloadButton(props: {
+  mods: types.Mod[];
   downloading: boolean;
   downloaded: boolean;
   onDownloadClick: () => void;
+  onDownloadAsTextureClick: (modId: number) => void;
   onDeleteClick: () => void;
 }) {
   if (props.downloading) {
@@ -283,22 +295,44 @@ function DownloadButton(props: {
   }
 
   return (
-    <Button
-      onClick={props.onDownloadClick}
-      variant="outline"
-      size="icon"
-      className="fade-in fade-out"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        height="24px"
-        viewBox="0 -960 960 960"
-        width="24px"
-        fill="#e8eaed"
+    <div className="flex flex-row">
+      <Button
+        onClick={props.onDownloadClick}
+        variant="outline"
+        size="icon"
+        className="fade-in fade-out"
       >
-        <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
-      </svg>
-    </Button>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          height="24px"
+          viewBox="0 -960 960 960"
+          width="24px"
+          fill="#e8eaed"
+        >
+          <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
+        </svg>
+      </Button>
+      <Dialog>
+        <DialogTrigger>Open</DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select a mod to attach texture</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-300">
+            {props.mods.map((m) => {
+              return (
+                <Button
+                  variant="ghost"
+                  onClick={() => props.onDownloadAsTextureClick(m.id)}
+                >
+                  {m.filename}
+                </Button>
+              );
+            })}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
