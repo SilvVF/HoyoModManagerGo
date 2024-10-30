@@ -14,6 +14,10 @@ export function DeletePlaylistById(arg1) {
   return window['go']['core']['DbHelper']['DeletePlaylistById'](arg1);
 }
 
+export function DeleteTextureById(arg1) {
+  return window['go']['core']['DbHelper']['DeleteTextureById'](arg1);
+}
+
 export function DeleteUnusedMods(arg1, arg2) {
   return window['go']['core']['DbHelper']['DeleteUnusedMods'](arg1, arg2);
 }
@@ -26,12 +30,16 @@ export function InsertMod(arg1) {
   return window['go']['core']['DbHelper']['InsertMod'](arg1);
 }
 
+export function InsertTexture(arg1) {
+  return window['go']['core']['DbHelper']['InsertTexture'](arg1);
+}
+
 export function RenameMod(arg1, arg2) {
   return window['go']['core']['DbHelper']['RenameMod'](arg1, arg2);
 }
 
-export function SelectCharacterWithModsAndTags(arg1, arg2, arg3, arg4) {
-  return window['go']['core']['DbHelper']['SelectCharacterWithModsAndTags'](arg1, arg2, arg3, arg4);
+export function SelectCharacterWithModsTagsAndTextures(arg1, arg2, arg3, arg4) {
+  return window['go']['core']['DbHelper']['SelectCharacterWithModsTagsAndTextures'](arg1, arg2, arg3, arg4);
 }
 
 export function SelectCharactersByGame(arg1) {
@@ -56,6 +64,14 @@ export function SelectModsByCharacterName(arg1, arg2) {
 
 export function SelectPlaylistWithModsAndTags(arg1) {
   return window['go']['core']['DbHelper']['SelectPlaylistWithModsAndTags'](arg1);
+}
+
+export function SelectTexturesByModId(arg1) {
+  return window['go']['core']['DbHelper']['SelectTexturesByModId'](arg1);
+}
+
+export function SelecteTextureById(arg1) {
+  return window['go']['core']['DbHelper']['SelecteTextureById'](arg1);
 }
 
 export function UpdateModsEnabledFromSlice(arg1, arg2) {

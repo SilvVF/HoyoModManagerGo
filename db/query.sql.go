@@ -20,6 +20,15 @@ func (q *Queries) DeleteModById(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteTextureById = `-- name: DeleteTextureById :exec
+DELETE FROM texture WHERE texture.id = ?1
+`
+
+func (q *Queries) DeleteTextureById(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteTextureById, id)
+	return err
+}
+
 const deleteUnusedMods = `-- name: DeleteUnusedMods :exec
 DELETE FROM mod WHERE fname NOT IN /*SLICE:files*/? AND game = ?2
 `
@@ -45,7 +54,7 @@ func (q *Queries) DeleteUnusedMods(ctx context.Context, arg DeleteUnusedModsPara
 	return err
 }
 
-const insertMod = `-- name: InsertMod :exec
+const insertMod = `-- name: InsertMod :one
 INSERT OR IGNORE INTO mod (
     fname,
     game, 
@@ -68,6 +77,7 @@ INSERT OR IGNORE INTO mod (
     ?9,
     ?10
 )
+RETURNING id
 `
 
 type InsertModParams struct {
@@ -83,8 +93,8 @@ type InsertModParams struct {
 	GbDownloadLink sql.NullString
 }
 
-func (q *Queries) InsertMod(ctx context.Context, arg InsertModParams) error {
-	_, err := q.db.ExecContext(ctx, insertMod,
+func (q *Queries) InsertMod(ctx context.Context, arg InsertModParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertMod,
 		arg.ModFilename,
 		arg.Game,
 		arg.CharName,
@@ -96,7 +106,9 @@ func (q *Queries) InsertMod(ctx context.Context, arg InsertModParams) error {
 		arg.GbFilename,
 		arg.GbDownloadLink,
 	)
-	return err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const insertPlayListModCrossRef = `-- name: InsertPlayListModCrossRef :exec
@@ -137,6 +149,51 @@ type InsertPlaylistParams struct {
 
 func (q *Queries) InsertPlaylist(ctx context.Context, arg InsertPlaylistParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, insertPlaylist, arg.PlaylistName, arg.Game)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const insertTexture = `-- name: InsertTexture :one
+INSERT OR IGNORE INTO texture (
+    fname,
+    selected, 
+    preview_images, 
+    gb_id, mod_link, 
+    gb_file_name, 
+    gb_download_link
+) VALUES(
+    ?1,
+    ?2,
+    ?3,
+    ?4,
+    ?5,
+    ?6,
+    ?7
+)
+RETURNING id
+`
+
+type InsertTextureParams struct {
+	ModFilename    string
+	Selected       bool
+	PreviewImages  string
+	GbId           sql.NullInt64
+	ModLink        sql.NullString
+	GbFilename     sql.NullString
+	GbDownloadLink sql.NullString
+}
+
+func (q *Queries) InsertTexture(ctx context.Context, arg InsertTextureParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertTexture,
+		arg.ModFilename,
+		arg.Selected,
+		arg.PreviewImages,
+		arg.GbId,
+		arg.ModLink,
+		arg.GbFilename,
+		arg.GbDownloadLink,
+	)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
@@ -201,24 +258,31 @@ const selectCharactersWithModsAndTags = `-- name: SelectCharactersWithModsAndTag
 SELECT 
     c.id, c.game, c.name, c.avatar_url, c.element,
     m.id, m.fname, m.game, m.char_name, m.char_id, m.selected, m.preview_images, m.gb_id, m.mod_link, m.gb_file_name, m.gb_download_link,
-    t.mod_id, t.tag_name
+    t.mod_id, t.tag_name,
+    tex.id, tex.mod_id, tex.fname, tex.selected, tex.preview_images, tex.gb_id, tex.mod_link, tex.gb_file_name, tex.gb_download_link
 FROM 
     character c
-    LEFT JOIN  mod m 
-    ON m.char_id = c.id
+    LEFT JOIN mod m 
+        ON m.char_id = c.id
     LEFT JOIN tag t 
-    ON t.mod_id = m.id
-    WHERE c.game = ?1 
+        ON t.mod_id = m.id
+    LEFT JOIN texture tex 
+        ON tex.mod_id = m.id
+WHERE 
+    c.game = ?1 
     AND (
         (
             m.fname LIKE '%' || ?2 || '%'
             OR c.name LIKE '%' || ?3 || '%'
             OR t.tag_name LIKE '%' || ?4 || '%'
         ) OR (
-            ?2 is NULL AND ?3 is NULL AND ?4 is NULL 
+            ?2 IS NULL 
+            AND ?3 IS NULL 
+            AND ?4 IS NULL 
         )
     )
-ORDER BY c.name, m.fname, t.tag_name
+ORDER BY 
+    c.name, m.fname, t.tag_name, tex.id
 `
 
 type SelectCharactersWithModsAndTagsParams struct {
@@ -229,24 +293,33 @@ type SelectCharactersWithModsAndTagsParams struct {
 }
 
 type SelectCharactersWithModsAndTagsRow struct {
-	ID             int64
-	Game           int64
-	Name           string
-	AvatarUrl      string
-	Element        string
-	ID_2           sql.NullInt64
-	Fname          sql.NullString
-	Game_2         sql.NullInt64
-	CharName       sql.NullString
-	CharID         sql.NullInt64
-	Selected       sql.NullBool
-	PreviewImages  sql.NullString
-	GbID           sql.NullInt64
-	ModLink        sql.NullString
-	GbFileName     sql.NullString
-	GbDownloadLink sql.NullString
-	ModID          sql.NullInt64
-	TagName        sql.NullString
+	ID               int64
+	Game             int64
+	Name             string
+	AvatarUrl        string
+	Element          string
+	ID_2             sql.NullInt64
+	Fname            sql.NullString
+	Game_2           sql.NullInt64
+	CharName         sql.NullString
+	CharID           sql.NullInt64
+	Selected         sql.NullBool
+	PreviewImages    sql.NullString
+	GbID             sql.NullInt64
+	ModLink          sql.NullString
+	GbFileName       sql.NullString
+	GbDownloadLink   sql.NullString
+	ModID            sql.NullInt64
+	TagName          sql.NullString
+	ID_3             sql.NullInt64
+	ModID_2          sql.NullInt64
+	Fname_2          sql.NullString
+	Selected_2       sql.NullBool
+	PreviewImages_2  sql.NullString
+	GbID_2           sql.NullInt64
+	ModLink_2        sql.NullString
+	GbFileName_2     sql.NullString
+	GbDownloadLink_2 sql.NullString
 }
 
 func (q *Queries) SelectCharactersWithModsAndTags(ctx context.Context, arg SelectCharactersWithModsAndTagsParams) ([]SelectCharactersWithModsAndTagsRow, error) {
@@ -282,6 +355,15 @@ func (q *Queries) SelectCharactersWithModsAndTags(ctx context.Context, arg Selec
 			&i.GbDownloadLink,
 			&i.ModID,
 			&i.TagName,
+			&i.ID_3,
+			&i.ModID_2,
+			&i.Fname_2,
+			&i.Selected_2,
+			&i.PreviewImages_2,
+			&i.GbID_2,
+			&i.ModLink_2,
+			&i.GbFileName_2,
+			&i.GbDownloadLink_2,
 		); err != nil {
 			return nil, err
 		}
@@ -508,6 +590,64 @@ func (q *Queries) SelectPlaylistWithModsAndTags(ctx context.Context, game int64)
 			&i.GbDownloadLink,
 			&i.ModID,
 			&i.TagName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectTextureById = `-- name: SelectTextureById :one
+SELECT id, mod_id, fname, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM texture WHERE texture.id = ?1 LIMIT 1
+`
+
+func (q *Queries) SelectTextureById(ctx context.Context, id int64) (Texture, error) {
+	row := q.db.QueryRowContext(ctx, selectTextureById, id)
+	var i Texture
+	err := row.Scan(
+		&i.ID,
+		&i.ModID,
+		&i.Fname,
+		&i.Selected,
+		&i.PreviewImages,
+		&i.GbID,
+		&i.ModLink,
+		&i.GbFileName,
+		&i.GbDownloadLink,
+	)
+	return i, err
+}
+
+const selectTexturesByModId = `-- name: SelectTexturesByModId :many
+SELECT id, mod_id, fname, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM texture WHERE mod_id = ?1
+`
+
+func (q *Queries) SelectTexturesByModId(ctx context.Context, modid sql.NullInt64) ([]Texture, error) {
+	rows, err := q.db.QueryContext(ctx, selectTexturesByModId, modid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Texture
+	for rows.Next() {
+		var i Texture
+		if err := rows.Scan(
+			&i.ID,
+			&i.ModID,
+			&i.Fname,
+			&i.Selected,
+			&i.PreviewImages,
+			&i.GbID,
+			&i.ModLink,
+			&i.GbFileName,
+			&i.GbDownloadLink,
 		); err != nil {
 			return nil, err
 		}

@@ -7,6 +7,7 @@ import (
 	"hmm/pkg/types"
 	"hmm/pkg/util"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/alitto/pond"
@@ -114,14 +115,42 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 			for _, modFilename := range modDirs {
 
 				seenMods = append(seenMods, modFilename)
-
-				s.db.InsertMod(types.Mod{
+				mod := types.Mod{
 					Filename:    modFilename,
 					Game:        game,
 					CharacterId: character.Id,
 					Character:   character.Name,
 					Enabled:     false,
-				})
+				}
+
+				modId, err := s.db.InsertMod(mod)
+
+				if err != nil {
+					continue
+				}
+
+				modDir := util.GetModDir(mod)
+				texturesDir := filepath.Join(modDir, "textures")
+				os.MkdirAll(texturesDir, 0777)
+
+				if exists, _ := util.FileExists(texturesDir); exists {
+					tDir, err := os.Open(texturesDir)
+					if err != nil {
+						continue
+					}
+					tDirs, err := tDir.Readdirnames(-1)
+					if err != nil {
+						continue
+					}
+					for _, textureFilename := range tDirs {
+						texture := types.Texture{
+							Filename: textureFilename,
+							ModId:    int(modId),
+						}
+						s.db.InsertTexture(texture)
+					}
+				}
+
 			}
 		}
 		log.LogPrint("Deleting mods not in: " + strings.Join(seenMods, "\n - "))

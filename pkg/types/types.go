@@ -63,8 +63,9 @@ type CharacterWithModsAndTags struct {
 }
 
 type ModWithTags struct {
-	Mod  Mod   `json:"mod"`
-	Tags []Tag `json:"tags"`
+	Mod      Mod       `json:"mod"`
+	Tags     []Tag     `json:"tags"`
+	Textures []Texture `json:"textures"`
 }
 
 type Mod struct {
@@ -78,6 +79,18 @@ type Mod struct {
 	ModLink        string   `json:"modLink"`
 	GbFileName     string   `json:"gbFileName"`
 	GbDownloadLink string   `json:"gbDownloadLink"`
+	Id             int      `json:"id"`
+}
+
+type Texture struct {
+	Filename       string   `json:"filename"`
+	Enabled        bool     `json:"enabled"`
+	PreviewImages  []string `json:"previewImages"`
+	GbId           int      `json:"gbId"`
+	ModLink        string   `json:"modLink"`
+	GbFileName     string   `json:"gbFileName"`
+	GbDownloadLink string   `json:"gbDownloadLink"`
+	ModId          int      `json:"modId"`
 	Id             int      `json:"id"`
 }
 

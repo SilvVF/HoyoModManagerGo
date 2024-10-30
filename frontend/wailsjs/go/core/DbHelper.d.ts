@@ -8,15 +8,19 @@ export function DeleteModById(arg1:number):Promise<void>;
 
 export function DeletePlaylistById(arg1:number):Promise<void>;
 
+export function DeleteTextureById(arg1:number):Promise<void>;
+
 export function DeleteUnusedMods(arg1:Array<string>,arg2:types.Game):Promise<void>;
 
 export function EnableModById(arg1:boolean,arg2:number):Promise<void>;
 
-export function InsertMod(arg1:types.Mod):Promise<void>;
+export function InsertMod(arg1:types.Mod):Promise<number>;
+
+export function InsertTexture(arg1:types.Texture):Promise<number>;
 
 export function RenameMod(arg1:number,arg2:string):Promise<void>;
 
-export function SelectCharacterWithModsAndTags(arg1:types.Game,arg2:string,arg3:string,arg4:string):Promise<Array<types.CharacterWithModsAndTags>>;
+export function SelectCharacterWithModsTagsAndTextures(arg1:types.Game,arg2:string,arg3:string,arg4:string):Promise<Array<types.CharacterWithModsAndTags>>;
 
 export function SelectCharactersByGame(arg1:types.Game):Promise<Array<types.Character>>;
 
@@ -29,6 +33,10 @@ export function SelectModById(arg1:number):Promise<types.Mod>;
 export function SelectModsByCharacterName(arg1:string,arg2:types.Game):Promise<Array<types.Mod>>;
 
 export function SelectPlaylistWithModsAndTags(arg1:types.Game):Promise<Array<types.PlaylistWithModsAndTags>>;
+
+export function SelectTexturesByModId(arg1:number):Promise<Array<types.Texture>>;
+
+export function SelecteTextureById(arg1:number):Promise<types.Texture>;
 
 export function UpdateModsEnabledFromSlice(arg1:Array<number>,arg2:types.Game):Promise<void>;
 

@@ -45,3 +45,15 @@ type Tag struct {
 	ModID   int64
 	TagName string
 }
+
+type Texture struct {
+	ID             int64
+	ModID          sql.NullInt64
+	Fname          string
+	Selected       bool
+	PreviewImages  string
+	GbID           sql.NullInt64
+	ModLink        sql.NullString
+	GbFileName     sql.NullString
+	GbDownloadLink sql.NullString
+}

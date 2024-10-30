@@ -88,7 +88,7 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 
 			data := DataResponse{
 				Game: game,
-				Data: s.db.SelectCharacterWithModsAndTags(types.Game(game), "", "", ""),
+				Data: s.db.SelectCharacterWithModsTagsAndTextures(types.Game(game), "", "", ""),
 			}
 
 			results = append(results, data)
@@ -122,7 +122,7 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 			return
 		}
 
-		cwmt := s.db.SelectCharacterWithModsAndTags(types.Game(game), "", "", "")
+		cwmt := s.db.SelectCharacterWithModsTagsAndTextures(types.Game(game), "", "", "")
 
 		bytes, err := json.Marshal(cwmt)
 

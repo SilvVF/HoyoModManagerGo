@@ -43,6 +43,8 @@ type DLMeta struct {
 	characterId int
 	game        types.Game
 	gbId        int
+	texture     bool
+	modId       int
 }
 
 type DLItem struct {
@@ -77,6 +79,25 @@ func (d *Downloader) GetQueue() map[string]*DLItem {
 
 func (d *Downloader) RemoveFromQueue(key string) {
 	d.Queue.Remove(key)
+}
+
+func (d *Downloader) DeleteTexture(textureId int) error {
+	texture, err := d.db.SelecteTextureById(textureId)
+	if err != nil {
+		log.LogPrint(err.Error())
+		return err
+	}
+	mod, err := d.db.SelectModById(texture.ModId)
+	if err != nil {
+		log.LogPrint(err.Error())
+		return err
+	}
+	path := filepath.Join(util.GetModDir(mod), "textures", texture.Filename)
+	log.LogPrint(path)
+	if err = os.RemoveAll(path); err != nil {
+		return err
+	}
+	return d.db.DeleteTextureById(texture.Id)
 }
 
 func (d *Downloader) Delete(modId int) error {
@@ -132,10 +153,51 @@ func (d *Downloader) restart() {
 			item.Fetch = DataProgress{}
 			item.Unzip = DataProgress{}
 			d.pool.Submit(func() {
-				d.internalDonwload(item.Link, item.Filename, item.meta.character, item.meta.characterId, item.meta.game, item.meta.gbId)
+				d.internalDonwload(item.Link, item.Filename, item.meta)
 			})
 		}
 	}
+}
+
+func (d *Downloader) DownloadTexture(link, filename string, modId, gbId int) error {
+	if _, ok := d.Queue.Get(link); ok {
+		return errors.New("already downloading")
+	}
+
+	mod, err := d.db.SelectModById(modId)
+	if err != nil {
+		return err
+	}
+
+	if d.pool.Stopped() {
+		d.restart()
+	}
+	meta := DLMeta{
+		character:   mod.Character,
+		characterId: mod.CharacterId,
+		game:        mod.Game,
+		gbId:        gbId,
+		texture:     true,
+		modId:       mod.Id,
+	}
+	d.Queue.Set(link, &DLItem{
+		Filename: filename,
+		Link:     link,
+		State:    TYPE_QUEUED,
+		meta:     meta,
+	})
+
+	runtime.EventsEmit(
+		d.Ctx,
+		"download",
+		TYPE_QUEUED,
+	)
+
+	d.pool.Submit(func() {
+		d.internalDonwload(link, filename, meta)
+	})
+
+	return nil
 }
 
 func (d *Downloader) Download(link, filename, character string, characterId int, game types.Game, gbId int) error {
@@ -147,17 +209,17 @@ func (d *Downloader) Download(link, filename, character string, characterId int,
 	if d.pool.Stopped() {
 		d.restart()
 	}
-
+	meta := DLMeta{
+		character:   character,
+		characterId: characterId,
+		game:        game,
+		gbId:        gbId,
+	}
 	d.Queue.Set(link, &DLItem{
 		Filename: filename,
 		Link:     link,
 		State:    TYPE_QUEUED,
-		meta: DLMeta{
-			character:   character,
-			characterId: characterId,
-			game:        game,
-			gbId:        gbId,
-		},
+		meta:     meta,
 	})
 
 	runtime.EventsEmit(
@@ -167,14 +229,14 @@ func (d *Downloader) Download(link, filename, character string, characterId int,
 	)
 
 	d.pool.Submit(func() {
-		d.internalDonwload(link, filename, character, characterId, game, gbId)
+		d.internalDonwload(link, filename, meta)
 	})
 
 	return nil
 }
 
-func (d *Downloader) internalDonwload(link, filename, character string, characterId int, game types.Game, gbId int) (err error) {
-	log.LogPrint(fmt.Sprintf("Downloading %s %d", character, game))
+func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err error) {
+	log.LogPrint(fmt.Sprintf("Downloading %s %d", meta.character, meta.gbId))
 
 	defer func() {
 		item, ok := d.Queue.Get(link)
@@ -244,7 +306,12 @@ func (d *Downloader) internalDonwload(link, filename, character string, characte
 	defer os.RemoveAll(file.Name())
 
 	dotIdx := strings.LastIndex(filename, ".")
-	outputDir := filepath.Join(util.GetCharacterDir(character, game), filename[:dotIdx])
+	var outputDir string
+	if meta.texture {
+		outputDir = filepath.Join(util.GetCharacterDir(meta.character, meta.game), "textures", filename[:dotIdx])
+	} else {
+		outputDir = filepath.Join(util.GetCharacterDir(meta.character, meta.game), filename[:dotIdx])
+	}
 	_ = os.MkdirAll(outputDir, 0777)
 
 	onProgress := func(progress int64, total int64) {
@@ -271,18 +338,33 @@ func (d *Downloader) internalDonwload(link, filename, character string, characte
 		}
 	}
 
-	return d.db.InsertMod(types.Mod{
-		Filename:       filename[:dotIdx],
-		Game:           game,
-		Character:      character,
-		CharacterId:    characterId,
-		Enabled:        false,
-		PreviewImages:  []string{},
-		GbId:           gbId,
-		ModLink:        link,
-		GbFileName:     filename,
-		GbDownloadLink: link,
-	})
+	if meta.texture {
+		_, err = d.db.InsertTexture(types.Texture{
+			Filename:       filename[:dotIdx],
+			Enabled:        false,
+			PreviewImages:  []string{},
+			GbId:           meta.gbId,
+			ModLink:        link,
+			GbFileName:     filename,
+			GbDownloadLink: link,
+			ModId:          meta.modId,
+			Id:             dotIdx,
+		})
+	} else {
+		_, err = d.db.InsertMod(types.Mod{
+			Filename:       filename[:dotIdx],
+			Game:           meta.game,
+			Character:      meta.character,
+			CharacterId:    meta.characterId,
+			Enabled:        false,
+			PreviewImages:  []string{},
+			GbId:           meta.gbId,
+			ModLink:        link,
+			GbFileName:     filename,
+			GbDownloadLink: link,
+		})
+	}
+	return err
 }
 
 func archiveUncompressedSize(a *unarr.Archive) (int64, error) {

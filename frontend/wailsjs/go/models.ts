@@ -517,6 +517,34 @@ export namespace types {
 	        this.element = source["element"];
 	    }
 	}
+	export class Texture {
+	    filename: string;
+	    enabled: boolean;
+	    previewImages: string[];
+	    gbId: number;
+	    modLink: string;
+	    gbFileName: string;
+	    gbDownloadLink: string;
+	    modId: number;
+	    id: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Texture(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filename = source["filename"];
+	        this.enabled = source["enabled"];
+	        this.previewImages = source["previewImages"];
+	        this.gbId = source["gbId"];
+	        this.modLink = source["modLink"];
+	        this.gbFileName = source["gbFileName"];
+	        this.gbDownloadLink = source["gbDownloadLink"];
+	        this.modId = source["modId"];
+	        this.id = source["id"];
+	    }
+	}
 	export class Tag {
 	    modId: number;
 	    name: string;
@@ -566,6 +594,7 @@ export namespace types {
 	export class ModWithTags {
 	    mod: Mod;
 	    tags: Tag[];
+	    textures: Texture[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ModWithTags(source);
@@ -575,6 +604,7 @@ export namespace types {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.mod = this.convertValues(source["mod"], Mod);
 	        this.tags = this.convertValues(source["tags"], Tag);
+	        this.textures = this.convertValues(source["textures"], Texture);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -723,6 +753,7 @@ export namespace types {
 		    return a;
 		}
 	}
+	
 
 }
 

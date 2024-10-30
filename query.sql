@@ -7,7 +7,7 @@ SELECT * FROM character WHERE LOWER(name) LIKE '%' || LOWER(:name) || '%' AND ga
 -- name: SelectCharactersByGame :many
 SELECT * FROM character WHERE game = :game;
 
--- name: InsertMod :exec
+-- name: InsertMod :one
 INSERT OR IGNORE INTO mod (
     fname,
     game, 
@@ -29,7 +29,27 @@ INSERT OR IGNORE INTO mod (
     :modLink,
     :gbFilename,
     :gbDownloadLink
-);
+)
+RETURNING id;
+
+-- name: InsertTexture :one
+INSERT OR IGNORE INTO texture (
+    fname,
+    selected, 
+    preview_images, 
+    gb_id, mod_link, 
+    gb_file_name, 
+    gb_download_link
+) VALUES(
+    :modFilename,
+    :selected,
+    :previewImages,
+    :gbId,
+    :modLink,
+    :gbFilename,
+    :gbDownloadLink
+)
+RETURNING id;
 
 -- name: DeleteUnusedMods :exec
 DELETE FROM mod WHERE fname NOT IN sqlc.slice('files') AND game = :game;
@@ -38,36 +58,52 @@ DELETE FROM mod WHERE fname NOT IN sqlc.slice('files') AND game = :game;
 SELECT 
     c.*,
     m.*,
-    t.*
+    t.*,
+    tex.*
 FROM 
     character c
-    LEFT JOIN  mod m 
-    ON m.char_id = c.id
+    LEFT JOIN mod m 
+        ON m.char_id = c.id
     LEFT JOIN tag t 
-    ON t.mod_id = m.id
-    WHERE c.game = :game 
+        ON t.mod_id = m.id
+    LEFT JOIN texture tex 
+        ON tex.mod_id = m.id
+WHERE 
+    c.game = :game 
     AND (
         (
             m.fname LIKE '%' || :modFileName || '%'
             OR c.name LIKE '%' || :characterName || '%'
             OR t.tag_name LIKE '%' || :tagName || '%'
         ) OR (
-            :modFileName is NULL AND :characterName is NULL AND :tagName is NULL 
+            :modFileName IS NULL 
+            AND :characterName IS NULL 
+            AND :tagName IS NULL 
         )
     )
-ORDER BY c.name, m.fname, t.tag_name;
-
+ORDER BY 
+    c.name, m.fname, t.tag_name, tex.id;
 -- name: SelectClosestCharacterMatch :one
 SELECT * FROM character WHERE LOWER(name) LIKE '%' || LOWER(:name) || '%' AND game = :game LIMIT 1;
 
 -- name: SelectModsByCharacterName :many
 SELECT * FROM mod WHERE mod.char_name = :name AND mod.game = :game;
 
+-- name: SelectTexturesByModId :many
+SELECT * FROM texture WHERE mod_id = :modId;
+
 -- name: SelectModById :one
 SELECT * FROM mod WHERE mod.id = :id LIMIT 1;
 
 -- name: DeleteModById :exec
 DELETE FROM mod WHERE mod.id = :id;
+
+-- name: SelectTextureById :one
+SELECT * FROM texture WHERE texture.id = :id LIMIT 1;
+
+-- name: DeleteTextureById :exec
+DELETE FROM texture WHERE texture.id = :id;
+
 
 -- name: UpdateModEnabledById :exec
 UPDATE mod SET

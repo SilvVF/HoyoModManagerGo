@@ -182,7 +182,9 @@ function GameScreen(props: { dataApi: DataApi, game: number }) {
               deleteMod={deleteMod}
               viewMod={(gbId) => navigate(`/mods/${gbId}`)}
               setDialog={(d) => setDialog(d)}
-              onEditKeymap={(modId) => navigate(`/keymap/${modId}`)}
+              onEditKeymap={(modId) => navigate(`/keymap/${modId}`)} 
+              enableTexture={() => {}} 
+              deleteTexture={() => {}}           
             />
           </div>
         ))}
@@ -366,11 +368,15 @@ export function ModActionsDropDown(props: {
 
 function CharacterBox({
   cmt,
+
   enableMod,
   deleteMod,
   viewMod,
   setDialog,
-  onEditKeymap
+  onEditKeymap,
+
+  enableTexture,
+  deleteTexture,
 }: {
   cmt: types.CharacterWithModsAndTags;
   enableMod: (id: number, enabled: boolean) => void;
@@ -378,37 +384,35 @@ function CharacterBox({
   viewMod: (gbId: number) => void;
   setDialog: (d: GameDialog) => void;
   onEditKeymap: (modId: number) => void;
+
+  enableTexture: (id: number, enabled: boolean) => void;
+  deleteTexture: (id: number) => void;
 }) {
   const character: types.Character = cmt.characters;
 
   return (
     <Card className="m-2">
-      <div className="flex flex-row  m-2">
+      <div className="flex flex-row m-2">
         <div className="flex flex-col items-start">
-          <img src={character.avatarUrl}></img>
+          <img src={character.avatarUrl} alt={`${character.name} Avatar`} />
           <b className="text-lg p-2">{character.name}</b>
         </div>
         <ScrollArea className="max-h-[300px] w-full">
-          {cmt.modWithTags.map((mwt) => {
-            return (
-              <div
-                key={mwt.mod.id}
-                className="grid grid-cols-5 overflow-hidden items-center"
-              >
+          {cmt.modWithTags.map((mwt) => (
+            <div key={mwt.mod.id} className="flex flex-col">
+              <div className="grid grid-cols-5 overflow-hidden items-center">
                 <b className="col-span-3 w-full text-sm my-1 overflow-ellipsis overflow-x-hidden pe-1">
                   {mwt.mod.filename}
                 </b>
                 <Switch
                   className="col-span-1 my-1"
                   checked={mwt.mod.enabled}
-                  onCheckedChange={() =>
-                    enableMod(mwt.mod.id, !mwt.mod.enabled)
-                  }
+                  onCheckedChange={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
                 />
                 <ModActionsDropDown
                   onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
                   onDelete={() => deleteMod(mwt.mod.id)}
-                  onRename={() => setDialog( { x: "rename_mod", y: mwt.mod.id } )}
+                  onRename={() => setDialog({ x: "rename_mod", y: mwt.mod.id })}
                   onView={() => {
                     if (mwt.mod.gbId !== 0) {
                       viewMod(mwt.mod.gbId);
@@ -417,8 +421,31 @@ function CharacterBox({
                   onKeymapEdit={() => onEditKeymap(mwt.mod.id)}
                 />
               </div>
-            );
-          })}
+              {
+                mwt.textures.map((t) => {
+                  return (
+                    <div className="grid grid-cols-5 overflow-hidden items-center">
+                    <b className="col-span-3 w-full text-sm my-1 overflow-ellipsis overflow-x-hidden pe-1">
+                      {t.filename}
+                    </b>
+                    <Switch
+                      className="col-span-1 my-1"
+                      checked={t.enabled}
+                      onCheckedChange={() => enableTexture(t.id, !t.enabled)}
+                    />
+                    <ModActionsDropDown
+                      onEnable={() => enableTexture(t.id, !t.enabled)}
+                      onDelete={() => deleteTexture(t.id)}
+                      onRename={() => {}}
+                      onView={() => {}}
+                      onKeymapEdit={() => {}}
+                    />
+                  </div>
+                  )
+                })
+              }
+            </div>
+          ))}
         </ScrollArea>
       </div>
     </Card>

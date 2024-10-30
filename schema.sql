@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS mod(
     UNIQUE(fname, char_id, char_name)
 );
 
-CREATE TABLE IF NOT EXISTS mod_texture(
+CREATE TABLE IF NOT EXISTS texture(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mod_id INTEGER,
     fname TEXT NOT NULL,

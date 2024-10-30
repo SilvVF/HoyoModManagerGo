@@ -7,6 +7,7 @@ import {
   SelectModsByCharacterName,
   SelectClosestCharacter,
   SelectCharactersByGame,
+  SelectTexturesByModId,
 } from "../../../wailsjs/go/core/DbHelper";
 import * as Downloader from "../../../wailsjs/go/core/Downloader";
 import {
@@ -59,13 +60,13 @@ export function ModViewScreen() {
   const downloads = useDownloadStore(useShallow((state) => state.downloads));
   const running = useDownloadStore(useShallow((state) => state.running));
 
-  const downloaded = useStateProducer<types.Mod[]>(
+  const downloaded = useStateProducer<(types.Mod | types.Texture)[]>(
     [],
     async (update) => {
       if (character !== undefined) {
-        SelectModsByCharacterName(character.name, character.game).then((mods) =>
-          update(mods)
-        );
+        SelectModsByCharacterName(character.name, character.game).then(async (mods) => {
+          update(mods);
+      });
       }
     },
     [character, refreshTrigger, running]
@@ -84,9 +85,23 @@ export function ModViewScreen() {
   const deleteMod = async (id: number) => {
     Downloader.Delete(id).then(() => refresh());
   };
+  const deleteTexture = async (id: number) => {
+    Downloader.DeleteTexture(id).then(() => refresh());
+  };
 
   const refresh = async () => {
     setRefreshTrigger((prev) => prev + 1);
+  };
+
+  const downloadTexture = async (link: string, filename: string, modId: number) => {
+    if (character !== undefined && content?._idRow !== undefined) {
+      Downloader.DownloadTexture(
+        link,
+        filename,
+        modId,
+        content?._idRow
+      );
+    }
   };
 
   const download = async (link: string, filename: string) => {
@@ -193,8 +208,10 @@ export function ModViewScreen() {
                           it.gbFileName.toLowerCase() ===
                           (f._sFile?.toLowerCase() ?? "")
                       );
-                      if (mod) {
+                      if (mod && mod instanceof types.Mod) {
                         deleteMod(mod.id);
+                      } else if (mod && mod instanceof types.Texture) {
+                        deleteTexture(mod.id)
                       }
                     }}
                     downloading={inDownloadState(
