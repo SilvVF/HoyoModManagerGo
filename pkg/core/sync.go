@@ -128,10 +128,18 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 				}
 
 				modId, err := s.db.InsertMod(mod)
-				mod.Id = int(modId)
+				mod = types.Mod{
+					Filename:    modFilename,
+					Game:        game,
+					CharacterId: character.Id,
+					Character:   character.Name,
+					Enabled:     false,
+					Id:          int(modId),
+				}
 
 				if err != nil {
-					mod, err = s.db.SelectModByCNameAndGame(mod.Filename, mod.Character, mod.Game.Int64())
+					m, err := s.db.SelectModByCNameAndGame(mod.Filename, mod.Character, mod.Game.Int64())
+					mod = m
 					if err != nil {
 						continue
 					}
@@ -150,6 +158,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 						continue
 					}
 					for _, textureFilename := range tDirs {
+						log.LogPrint(textureFilename + " " + string(mod.Id))
 						seenTextures = append(seenTextures, Pair[int, string]{mod.Id, textureFilename})
 						texture := types.Texture{
 							Filename: textureFilename,
@@ -162,10 +171,6 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 			}
 		}
 		log.LogPrint("Deleting mods not in: " + strings.Join(seenMods, "\n - "))
-		log.LogPrint("Deleting textures not in: ")
-		for _, p := range seenTextures {
-			log.LogPrint("- " + p.y + "\n")
-		}
 		s.db.deleteUnusedMods(seenMods, game)
 		s.db.deleteUnusedTextures(seenTextures)
 		s.initialComplete[game] = true

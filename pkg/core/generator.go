@@ -130,7 +130,7 @@ func (g *Generator) Reload(game types.Game) error {
 		modDir := util.GetModDir(mod)
 		outputDir := filepath.Join(outputDir, fmt.Sprintf("%d_%s", mod.Id, mod.Filename))
 
-		textures, err := g.db.SelectEnabledTexturesByModId(mod.Id)
+		textures, err := g.db.SelectTexturesByModId(mod.Id)
 
 		if err != nil {
 			continue
@@ -139,8 +139,10 @@ func (g *Generator) Reload(game types.Game) error {
 		err = copyModWithTextures(
 			modDir,
 			outputDir,
-			false,
-			textures,
+			len(textures) > 0,
+			slices.DeleteFunc(textures, func(e types.Texture) bool {
+				return !e.Enabled
+			}),
 		)
 
 		if err != nil {
@@ -220,7 +222,34 @@ func copyModWithTextures(
 		}
 	}
 
-	err = filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+	err = filepath.WalkDir(src, func(path string, info os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, relPath)
+		if info.IsDir() {
+			if info.Name() == "keymaps" || info.Name() == "textures" {
+				return nil
+			}
+			return os.MkdirAll(dstPath, info.Type().Perm())
+		}
+
+		// Skip copying files in the "keymaps" and "textures" directories from src
+		if filepath.Dir(path) == filepath.Join(src, "keymaps") || filepath.Dir(path) == filepath.Join(src, "textures") {
+			return nil
+		}
+
+		// Copy other files from "src"
+		return util.CopyFile(path, dstPath, overwrite)
+	})
+	if err != nil {
+		return err
+	}
+	err = filepath.WalkDir(src, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -230,40 +259,16 @@ func copyModWithTextures(
 		}
 		dstPath := filepath.Join(dst, relPath)
 
-		// Skip specific directories at root level
-		if info.IsDir() {
-			if info.Name() == "keymaps" || info.Name() == "textures" {
-				return nil
-			}
-			return os.MkdirAll(dstPath, info.Mode())
-		}
+		t, ok := texturePaths[info.Name()]
 
-		// Skip copying files in the "keymaps" and "textures" directories from src
-		if filepath.Dir(path) == filepath.Join(src, "keymaps") || filepath.Dir(path) == filepath.Join(src, "textures") {
-			return nil
+		if info.IsDir() && ok {
+			return util.CopyRecursivley(filepath.Join(src, "textures", t.x, t.y), dstPath, true)
+		} else if ok {
+			// Copy other files from "src"
+			return util.CopyFile(filepath.Join(src, "textures", t.x, t.y), dstPath, true)
 		}
-
-		// Check if relPath exists in texturePaths
-		texture, ok := texturePaths[relPath]
-		if ok {
-			// Use the path from "textures" instead of "src" for matching entries
-			delete(texturePaths, relPath)
-			textureSrcPath := filepath.Join(src, "textures", texture.x, texture.y)
-			return util.CopyFile(textureSrcPath, dstPath, overwrite)
-		}
-
-		// Copy other files from "src"
-		return util.CopyFile(path, dstPath, overwrite)
+		return nil
 	})
-
-	// Copy remaining items in texturePaths recursively from textures to destination
-	for _, v := range texturePaths {
-		srcTexturePath := filepath.Join(src, "textures", v.x, v.y)
-		err := util.CopyRecursivley(srcTexturePath, dst, true)
-		if err != nil {
-			return err
-		}
-	}
 
 	return err
 }

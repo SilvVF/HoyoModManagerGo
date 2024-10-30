@@ -176,23 +176,24 @@ func deleteUnusedModsQuery(fnames []string, game types.Game) string {
 func (h *DbHelper) deleteUnusedTextures(textures []Pair[int, string]) error {
 	if len(textures) == 0 {
 		// No textures provided, delete all records
+		log.LogPrint("DELETING ALL")
 		_, err := h.db.ExecContext(h.ctx, "DELETE FROM texture")
 		return err
 	}
 
-	// Building the WHERE clause with placeholders
-	whereClauses := ""
-	args := []interface{}{}
+	// Building the WHERE clause for textures to keep
+	keepClauses := ""
 	for i, texture := range textures {
 		if i > 0 {
-			whereClauses += " AND "
+			keepClauses += " OR "
 		}
-		whereClauses += "(mod_id = ? AND fname = ?)"
-		args = append(args, texture.x, texture.y)
+		keepClauses += fmt.Sprintf("(mod_id = %d AND fname = %s)", texture.x, texture.y)
 	}
 
-	query := fmt.Sprintf("DELETE FROM texture WHERE NOT (%s)", whereClauses)
-	_, err := h.db.ExecContext(h.ctx, query, args...)
+	// Create the final query to delete textures not in the keepClauses
+	query := fmt.Sprintf("DELETE FROM texture WHERE NOT %s", keepClauses)
+	log.LogPrint(query)
+	_, err := h.db.ExecContext(h.ctx, query)
 	return err
 }
 
