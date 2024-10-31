@@ -6,8 +6,8 @@ export function Categories(arg1) {
   return window['go']['api']['GbApi']['Categories'](arg1);
 }
 
-export function CategoryContent(arg1, arg2, arg3, arg4) {
-  return window['go']['api']['GbApi']['CategoryContent'](arg1, arg2, arg3, arg4);
+export function CategoryContent(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11) {
+  return window['go']['api']['GbApi']['CategoryContent'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11);
 }
 
 export function ModPage(arg1) {

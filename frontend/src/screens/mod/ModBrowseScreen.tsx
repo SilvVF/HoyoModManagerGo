@@ -15,13 +15,15 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SortModeContext } from "./ModIndexPage";
+import { useModSearchStateStore } from "./ModIndexPage";
 import { CrossfadeImage } from "@/components/crossfade-image";
 import { useScrollContext } from "@/ScrollContext";
+import { sortModPref, usePrefrenceAsState } from "@/data/prefs";
+
 
 export default function ModBrowseScreen() {
   const { id } = useParams();
@@ -38,21 +40,52 @@ export default function ModBrowseScreen() {
     [id]
   );
   const [page, setPage] = useState(1);
+  const state = useModSearchStateStore(state => state)
 
   useEffect(() => setPage(1), [id]);
-  const sort = useContext(SortModeContext)
 
-  const { loading, value, error } = useStateProducerT<api.CategoryResponse | undefined>(
+  const { loading, value, error } = useStateProducerT<
+    api.CategoryResponse | undefined
+  >(
     undefined,
     async (update) => {
-      if (sort !== undefined) {
-        update(await GbApi.CategoryContent(Number(id), 30, page, sort));
+      if (state.sort !== undefined) {
+        /*
+        	id,
+          perPage,
+          page int,
+          sort Sort,
+          name string,
+          nameFilter NameFilter,
+          featured,
+          hasWip,
+          hasProject bool,
+          releaseType ReleaseType,
+          contentRating ContentRating,
+        */
+        update(
+          await GbApi.CategoryContent(
+            Number(id),
+            30,
+            page,
+            state.sort,
+            state.name,
+            state.nameFilter,
+            state.featured,
+            state.hasWip,
+            state.hasProject,
+            state.releaseType,
+            state.contentRating
+          )
+        );
       }
     },
-    [page, id, sort]
+    [page, id, state]
   );
 
-  useEffect(() => {toTop()}, [value]);
+  useEffect(() => {
+    toTop();
+  }, [value]);
 
   const lastPage = useMemo<number>(() => {
     const records = value?._aMetadata._nRecordCount;
@@ -65,35 +98,34 @@ export default function ModBrowseScreen() {
 
   return (
     <div className="flex flex-row justify-end items-start max-w-full h-full min-w-full">
-       <div className="absolute z-20 bottom-4 start-1/2 -translate-x-1/2 lg:-translate-x-1/4 bg-primary/30 backdrop-blur-lg rounded-full">
+      <div className="absolute z-20 bottom-4 start-1/2 -translate-x-1/2 lg:-translate-x-1/4 bg-primary/30 backdrop-blur-lg rounded-full">
         <Paginator
           page={page}
           lastPage={lastPage}
-          goToPage={(page) => setPage(Math.max(0, Math.min(lastPage, page)))} />
-        </div>
-        <CategoryItemsList 
-          res={value} 
-          error={error} 
-          loading={loading}
-         />
-        <div className="flex flex-col w-fit me-2 overflow-clip">
-          {categories.map((c) => {
-            return (
-              <Button
-                key={c._sName}
-                onClick={() => navigate("/mods/cats/" + c._idRow)}
-                variant={c._idRow !== undefined &&
-                  location.pathname.includes(c._idRow.toString())
-                  ? "secondary"
-                  : "ghost"}
-                className="min-w-max justify-start font-normal rounded-full"
-              >
-                {c._sName}
-              </Button>
-            );
-          })}
-        </div>
+          goToPage={(page) => setPage(Math.max(0, Math.min(lastPage, page)))}
+        />
       </div>
+      <CategoryItemsList res={value} error={error} loading={loading} />
+      <div className="flex flex-col w-fit me-2 overflow-clip">
+        {categories.map((c) => {
+          return (
+            <Button
+              key={c._sName}
+              onClick={() => navigate("/mods/cats/" + c._idRow)}
+              variant={
+                c._idRow !== undefined &&
+                location.pathname.includes(c._idRow.toString())
+                  ? "secondary"
+                  : "ghost"
+              }
+              className="min-w-max justify-start font-normal rounded-full"
+            >
+              {c._sName}
+            </Button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -104,7 +136,7 @@ function CategoryItemsList({
 }: {
   res: api.CategoryResponse | undefined;
   loading: boolean;
-  error: any
+  error: any;
 }) {
   const navigate = useNavigate();
 
@@ -118,7 +150,7 @@ function CategoryItemsList({
 
   if (loading || res === undefined) {
     return (
-      <div className="grid grid-cols-3"> 
+      <div className="grid grid-cols-3">
         {range(0, 15, 1).map(() => {
           return (
             <div className="col-span-1 aspect-video m-2 space-y-3">
@@ -135,7 +167,7 @@ function CategoryItemsList({
   }
 
   return (
-    <div className="grid grid-cols-3 mb-14"> 
+    <div className="grid grid-cols-3 mb-14">
       {res._aRecords?.map((record) => {
         const image = record._aPreviewMedia._aImages[0];
 

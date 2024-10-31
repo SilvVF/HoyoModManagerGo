@@ -12,7 +12,7 @@ import {
   WutheringWavesApi,
   ZenlessApi,
 } from "@/data/dataapi";
-import { cn, useStateProducer } from "@/lib/utils";
+import { cn, getEnumValues, useStateProducer } from "@/lib/utils";
 import * as GbApi from "../../../wailsjs/go/api/GbApi";
 import { api } from "../../../wailsjs/go/models";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -25,9 +25,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDownIcon } from "lucide-react";
-import { discoverGamePref, sortModPref, usePrefrenceAsState } from "@/data/prefs";
+import { discoverGamePref, sortModPref } from "@/data/prefs";
 import { LogDebug } from "../../../wailsjs/runtime/runtime";
 import { Button } from "@/components/ui/button";
+import { create } from "zustand";
+import { ScrollArea } from "@radix-ui/react-scroll-area";
 
 const gameDispalyNameFromIdx = (n: number) => {
   switch (n) {
@@ -87,26 +89,81 @@ const createCategoryCrumbs = async (id: number, skinIds: number[], subCats: api.
   }
 };
 
-type Sorts = "MostLiked" | "MostDownloaded" | "MostViewed" | "";
-const sortName = (s: string | undefined) => {
-  switch (s) {
-    case "":
-      return "Default";
-    case "MostLiked":
-      return "Most liked";
-    case "MostDownloaded":
-      return "Most downloaded";
-    case "MostViewed":
-      return "Most view";
+function getEnumName<T>(enumType: T, value: T[keyof T]): string | undefined {
+  // @ts-ignore
+ return (Object.keys(enumType) as Array<keyof T>).find(key => enumType[key] === value);
+}
+
+const contentRatingName = (cr: ContentRating) => {
+  switch (cr) {
+    case ContentRating.None:
+      return "All";
     default:
-      return "";
+      return getEnumName(ContentRating, cr)?.replace(/([a-z])([A-Z])/g, '$1 $2') ?? "";
   }
 };
 
-const sortOptions: Sorts[] = ["MostLiked", "MostDownloaded", "MostViewed", ""];
+const sortName = (s: Sort) => {
+  switch (s) {
+    case Sort.None:
+      return "Default";
+    default:
+      return s.valueOf().replace(/([a-z])([A-Z])/g, '$1 $2');
+  }
+};
+
+enum Sort {
+  None = "",
+  MostLiked = "MostLiked",
+  MostDownloaded = "MostDownloaded",
+  MostViewed = "MostViewed",
+  Newest = "Newest",
+  Oldest = "Oldest",
+  LatestModified = "LatestModified",
+  NewAndUpdated = "NewAndUpdated",
+  LatestUpdated = "LatestUpdated",
+  Alphabetically = "Alphabetically",
+  ReverseAlphabetically = "ReverseAlphabetically",
+  MostCommented = "MostCommented",
+  LatestComment = "LatestComment"
+}
+
+enum NameFilter {
+  None = "",
+  Contains = "contains",
+  ExactlyEqual = "equals",
+  StartsWith = "starts_with",
+  EndsWith = "ends_with"
+}
+
+enum ContentRating {
+  None = "",
+  Unrated = "-",
+  CrudeOrProfane = "cp",
+  SexualThemes = "st",
+  SexualContent = "sc",
+  BloodAndGore = "bg",
+  AlcoholUse = "au",
+  TobaccoUse = "tu",
+  DrugUse = "du",
+  FlashingLights = "ps",
+  SkimpyAttire = "sa",
+  PartialNudity = "pn",
+  FullNudity = "nu",
+  IntenseViolence = "iv",
+  Fetishistic = "ft",
+  RatingPending = "rp"
+}
+
+enum ReleaseType {
+  None = "",
+  Any = "any",
+  Studio = "studio",
+  Indie = "indie",
+  Redistribution = "redistribution"
+}
 
 export const DataApiContext = createContext<DataApi | undefined>(GenshinApi);
-export const SortModeContext = createContext<Sorts>("");
 
 type Crumb = { name: string; path: string };
 
@@ -118,6 +175,30 @@ const currentPathInfo = (path: string) => {
     id: Number(split[split.length - 1]),
   };
 };
+
+interface ModSearchState {
+  name: string
+  sort: Sort | undefined
+  nameFilter: NameFilter
+  featured: boolean
+  hasWip: boolean
+  hasProject: boolean
+  releaseType: ReleaseType
+  contentRating: ContentRating,
+  update: (block: (state: ModSearchState) => ModSearchState) => void
+}
+
+export const useModSearchStateStore = create<ModSearchState>((set) => ({
+  name: "",
+  sort: undefined,
+  nameFilter: NameFilter.None,
+  featured: false,
+  hasWip: false,
+  hasProject: false,
+  releaseType: ReleaseType.None,
+  contentRating: ContentRating.None,
+  update: (block) => set(state => block(state))
+}))
 
 export function ModIndexPage() {
 
@@ -188,8 +269,6 @@ export function ModIndexPage() {
     [location.pathname, subCats]
   );
 
-  const [sort, setSort] = usePrefrenceAsState<string>(sortModPref);
-
   useEffect(() => {
     try {
       const idx = location.pathname.indexOf("/mods/")
@@ -214,9 +293,20 @@ export function ModIndexPage() {
     return undefined
   }, [crumbs, skinIds]);
 
+  const updateState = useModSearchStateStore(state => state.update)
+  const state = useModSearchStateStore(state => state)
+
+  useEffect(() => {
+    sortModPref.Get().then((s) => updateState((state) => {
+      return {
+        ...state,
+        sort: (s as Sort ?? Sort.None)
+      }
+    }))
+  }, [])
+
   return (
     <DataApiContext.Provider value={dataApi}>
-      <SortModeContext.Provider value={sort as Sorts}>
       <div className="flex flex-col">
         <div className="flex flex-row justify-between sticky top-2 end-0 m-2 z-30">
         <BreadCrumbList
@@ -225,22 +315,58 @@ export function ModIndexPage() {
           topLevelCrumbs={topLevelCrumbs}
         />
         {crumbs.length !== 3 ? 
-          <div>
+          <div className="flex flex-row justify-center items-center">
           <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-1 w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 p-2 me-12 font-semibold text-foreground">
-                {sortName(sort)}
+                {sortName(state.sort ?? Sort.None)}
                 <ChevronDownIcon />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                {sortOptions.map((s) => {
-                  return (
-                    <DropdownMenuItem onPointerDown={() => setSort(s)}>
-                      <Button variant={"ghost"} className="w-full">
-                        {sortName(s)}
-                      </Button>
-                    </DropdownMenuItem>
-                  );
-                })}
+                <ScrollArea className="h-64 flex flex-col overflow-auto">
+                  {getEnumValues(Sort).map((s) => {
+                    return (
+                      <DropdownMenuItem onPointerDown={() => {
+                        sortModPref.Set(s).then(() => updateState((state) =>  {
+                          delete state["sort"]
+                          return {
+                            ...state,
+                            sort: s
+                          }
+                        }))
+                      }}>
+                        <Button variant={"ghost"} className="w-full">
+                          {sortName(s)}
+                        </Button>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  </ScrollArea>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 p-2 me-12 font-semibold text-foreground">
+                {contentRatingName(state.contentRating)}
+                <ChevronDownIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <ScrollArea className="h-64 flex flex-col overflow-auto">
+                  {getEnumValues(ContentRating).map((cr) => {
+                    return (
+                      <DropdownMenuItem onPointerDown={() => {
+                        updateState((state) =>  {
+                          return {
+                            ...state,
+                            contentRating: cr
+                          }
+                        })
+                      }}>
+                        <Button variant={"ghost"} className="w-full">
+                          {contentRatingName(cr)}
+                        </Button>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  </ScrollArea>
               </DropdownMenuContent>
             </DropdownMenu>
           </div> : undefined 
@@ -248,7 +374,6 @@ export function ModIndexPage() {
         </div>
         <Outlet />
       </div>
-      </SortModeContext.Provider>
     </DataApiContext.Provider>
   );
 }

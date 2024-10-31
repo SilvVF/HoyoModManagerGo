@@ -5,17 +5,56 @@ import (
 	"fmt"
 	"hmm/pkg/log"
 	"io"
+	"strings"
 )
 
 const (
-	MostLiked      Sort = "MostLiked"
-	MostDownloaded Sort = "MostDownloaded"
-	MostViewed     Sort = "MostViewed"
+	MostLiked             Sort = "MostLiked"
+	MostDownloaded        Sort = "MostDownloaded"
+	MostViewed            Sort = "MostViewed"
+	Newest                Sort = "Newest"
+	Oldest                Sort = "Oldest"
+	LatestModified        Sort = "LatestModified"
+	NewAndUpdated         Sort = "NewAndUpdated"
+	LatestUpdated         Sort = "LatestUpdated"
+	Alphabetically        Sort = "Alphabetically"
+	ReverseAlphabetically Sort = "ReverseAlphabetically"
+	MostCommented         Sort = "MostCommented"
+	LatestComment         Sort = "LatestComment"
+
+	Contains     NameFilter = "contains"
+	ExactlyEqual NameFilter = "equals"
+	StartsWith   NameFilter = "starts_with"
+	EndsWith     NameFilter = "ends_with"
+
+	Unrated         ContentRating = "-"
+	CrudeOrProfane  ContentRating = "cp"
+	SexualThemes    ContentRating = "st"
+	SexualContent   ContentRating = "sc"
+	BloodAndGore    ContentRating = "bg"
+	AlcoholUse      ContentRating = "au"
+	TobaccoUse      ContentRating = "tu"
+	DrugUse         ContentRating = "du"
+	FlashingLights  ContentRating = "ps"
+	SkimpyAttire    ContentRating = "sa"
+	PartialNudity   ContentRating = "pn"
+	FullNudity      ContentRating = "nu"
+	IntenseViolence ContentRating = "iv"
+	Fetishistic     ContentRating = "ft"
+	RatingPending   ContentRating = "rp"
+
+	Any            ReleaseType = "any"
+	Studio         ReleaseType = "studio"
+	Indie          ReleaseType = "indie"
+	Redistribution ReleaseType = "redistribution"
 
 	GB_URL = "https://gamebanana.com/apiv11"
 )
 
+type NameFilter string
 type Sort string
+type ReleaseType string
+type ContentRating string
 
 type GbApi struct{}
 
@@ -153,27 +192,59 @@ func (g *GbApi) ModPage(id int) ModPageResponse {
 }
 
 func (g *GbApi) CategoryContent(
-	id int,
-	perPage int,
+	id,
+	perPage,
 	page int,
-	sort string,
+	sort Sort,
+	name string,
+	nameFilter NameFilter,
+	featured,
+	hasWip,
+	hasProject bool,
+	releaseType ReleaseType,
+	contentRating ContentRating,
 ) CategoryResponse {
-	sortQuery := ""
-	if sort != "" {
-		sortQuery = fmt.Sprintf("&_sSort=Generic_%s", sort)
-	}
 
 	if perPage == 0 {
 		perPage = 15
 	}
-
 	if page <= 0 {
 		page = 1
 	}
+	if nameFilter == "" {
+		nameFilter = Contains
+	}
 
-	url := fmt.Sprintf("%s/Mod/Index?_nPerpage=%d&_aFilters[Generic_Category]=%d%s&_nPage=%d", GB_URL, perPage, id, sortQuery, page)
-	log.LogPrint(url)
-	resp, err := client.Get(url)
+	url := strings.Builder{}
+
+	url.WriteString(GB_URL)
+	url.WriteString(fmt.Sprintf("/Mod/Index?_nPerpage=%d", perPage))
+	url.WriteString(fmt.Sprintf("&_aFilters[Generic_Category]=%d", id))
+	url.WriteString(fmt.Sprintf("&_nPage=%d", page))
+	if sort != "" {
+		url.WriteString(fmt.Sprintf("&_sSort=Generic_%s", sort))
+	}
+	if name != "" {
+		url.WriteString(fmt.Sprintf("&_aFilters[Generic_Name]=%s,%s", nameFilter, name))
+	}
+	if featured {
+		url.WriteString("&_aFilters[Generic_WasFeatured]=true")
+	}
+	if hasWip {
+		url.WriteString("&_aFilters[Generic_HasWip]=true")
+	}
+	if hasProject {
+		url.WriteString("&_aFilters[Generic_HasProject]=true")
+	}
+	if releaseType != "" {
+		url.WriteString(fmt.Sprintf("&_aFilters[Generic_ReleaseType]=%s", releaseType))
+	}
+	if contentRating != "" {
+		url.WriteString(fmt.Sprintf("&_aFilters[Generic_ContentRatings]=%s", contentRating))
+	}
+
+	log.LogPrint(url.String())
+	resp, err := client.Get(url.String())
 	if err != nil {
 		log.LogPrint(err.Error())
 		return CategoryResponse{}

@@ -13,6 +13,16 @@ export type ProducedState<T, E> = {
   value: T
 }
 
+export function getEnumNames<T>(enumType: T): string[] {
+  // @ts-ignore
+  return Object.keys(enumType).filter(key => isNaN(Number(key)));
+}
+
+export function getEnumValues<T>(enumType: T): T[keyof T][] {
+    // @ts-ignore
+  return Object.values(enumType).filter(value => typeof value === "string") as T[keyof T][];
+}
+
 export const range = (start: number, stop: number, step: number = 1) =>
   Array.from({ length: (stop - start) / step + 1 }, (_, i) => start + i * step);
 
