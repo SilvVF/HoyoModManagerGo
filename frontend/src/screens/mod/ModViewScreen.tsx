@@ -202,36 +202,46 @@ export function ModViewScreen() {
                   })}
                 </TableCell>
                 <TableCell className="text-right min-w-[64px] m-2 space-x-4">
-                  <DownloadButton
-                    onDownloadAsTextureClick={(id) =>
-                      downloadTexture(f._sDownloadUrl ?? "", f._sFile ?? "", id)
-                    }
-                    downloaded={downloaded
-                      .map((it) => it.gbFileName.toLowerCase())
-                      .includes(f._sFile?.toLowerCase() ?? "")}
-                    onDeleteClick={() => {
-                      const mod = downloaded.find(
-                        (it) =>
-                          it.gbFileName.toLowerCase() ===
-                          (f._sFile?.toLowerCase() ?? "")
-                      );
-                      if (mod) {
-                        deleteMod(mod.id);
+                  <div className="flex flex-row justify-end">
+                    <DownloadButton
+                      onDownloadAsTextureClick={(id) =>
+                        downloadTexture(
+                          f._sDownloadUrl ?? "",
+                          f._sFile ?? "",
+                          id
+                        )
                       }
-                    }}
-                    downloading={inDownloadState(
-                      downloads[f._sDownloadUrl ?? ""]?.state
-                    )}
-                    onDownloadClick={() =>
-                      download(f._sDownloadUrl ?? "", f._sFile ?? "")
-                    }
-                  />
-                  <TextureDownloadButton
-                    character={character}
-                    onDownloadAsTextureClick={(id) =>
-                      downloadTexture(f._sDownloadUrl ?? "", f._sFile ?? "", id)
-                    }
-                  />
+                      downloaded={downloaded
+                        .map((it) => it.gbFileName.toLowerCase())
+                        .includes(f._sFile?.toLowerCase() ?? "")}
+                      onDeleteClick={() => {
+                        const mod = downloaded.find(
+                          (it) =>
+                            it.gbFileName.toLowerCase() ===
+                            (f._sFile?.toLowerCase() ?? "")
+                        );
+                        if (mod) {
+                          deleteMod(mod.id);
+                        }
+                      }}
+                      downloading={inDownloadState(
+                        downloads[f._sDownloadUrl ?? ""]?.state
+                      )}
+                      onDownloadClick={() =>
+                        download(f._sDownloadUrl ?? "", f._sFile ?? "")
+                      }
+                    />
+                    <TextureDownloadButton
+                      character={character}
+                      onDownloadAsTextureClick={(id) =>
+                        downloadTexture(
+                          f._sDownloadUrl ?? "",
+                          f._sFile ?? "",
+                          id
+                        )
+                      }
+                    />
+                  </div>
                 </TableCell>
               </TableRow>
             );
