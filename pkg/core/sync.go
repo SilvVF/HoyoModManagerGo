@@ -100,6 +100,10 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 
 		for _, character := range characters {
 
+			if character.Name == "" {
+				return
+			}
+
 			charDir := util.GetCharacterDir(character.Name, game)
 			os.MkdirAll(charDir, 0777)
 

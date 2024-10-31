@@ -227,48 +227,72 @@ func copyModWithTextures(
 			return err
 		}
 		relPath, err := filepath.Rel(src, path)
+		log.LogDebug(relPath)
 		if err != nil {
 			return err
 		}
 		dstPath := filepath.Join(dst, relPath)
+
 		if info.IsDir() {
 			if info.Name() == "keymaps" || info.Name() == "textures" {
+				log.LogDebug("skipped " + relPath)
 				return nil
 			}
+			if strings.HasPrefix(relPath, "textures\\") || strings.HasPrefix(relPath, "keymaps") {
+				log.LogDebug("skipped " + relPath)
+				return nil
+			}
+
 			return os.MkdirAll(dstPath, info.Type().Perm())
 		}
 
-		// Skip copying files in the "keymaps" and "textures" directories from src
-		if filepath.Dir(path) == filepath.Join(src, "keymaps") || filepath.Dir(path) == filepath.Join(src, "textures") {
+		if filepath.Dir(path) == filepath.Join(src, "keymaps") || strings.HasPrefix(relPath, "textures\\") {
+			log.LogDebug("skipped " + relPath)
 			return nil
 		}
 
-		// Copy other files from "src"
 		return util.CopyFile(path, dstPath, overwrite)
 	})
 	if err != nil {
 		return err
 	}
-	err = filepath.WalkDir(src, func(path string, info os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		dstPath := filepath.Join(dst, relPath)
+	if len(texturePaths) > 0 {
+		err = filepath.WalkDir(src, func(path string, info os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			relPath, err := filepath.Rel(src, path)
+			if err != nil {
+				return err
+			}
+			dstPath := filepath.Join(dst, relPath)
 
-		t, ok := texturePaths[info.Name()]
+			t, ok := texturePaths[info.Name()]
 
-		if info.IsDir() && ok {
-			return util.CopyRecursivley(filepath.Join(src, "textures", t.x, t.y), dstPath, true)
-		} else if ok {
-			// Copy other files from "src"
-			return util.CopyFile(filepath.Join(src, "textures", t.x, t.y), dstPath, true)
-		}
-		return nil
-	})
+			if info.IsDir() && ok {
+
+				if info.Name() == "keymaps" || info.Name() == "textures" {
+					log.LogDebug("skipped " + relPath)
+					return nil
+				}
+				if strings.HasPrefix(relPath, "textures\\") || strings.HasPrefix(relPath, "keymaps") {
+					log.LogDebug("skipped " + relPath)
+					return nil
+				}
+
+				log.LogDebug("copy dir to " + dstPath)
+				return util.CopyRecursivley(filepath.Join(src, "textures", t.x, t.y), dstPath, true)
+			} else if ok {
+				if filepath.Dir(path) == filepath.Join(src, "keymaps") || strings.HasPrefix(relPath, "textures\\") {
+					log.LogDebug("skipped " + relPath)
+					return nil
+				}
+				log.LogDebug("copy to " + dstPath)
+				return util.CopyFile(filepath.Join(src, "textures", t.x, t.y), dstPath, true)
+			}
+			return nil
+		})
+	}
 	return err
 }
 
