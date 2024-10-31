@@ -5,6 +5,8 @@ import * as WuWaApi from '../../wailsjs/go/api/WutheringWavesApi'
 import * as ZZZApi from '../../wailsjs/go/api/ZenlessZoneZeroApi'
 import * as DbHelper from '../../wailsjs/go/core/DbHelper'
 
+
+
 export interface DataApi {
     game(): Promise<number>
     skinId(): Promise<number>
@@ -12,6 +14,13 @@ export interface DataApi {
     charactersWithModsAndTags(): Promise<types.CharacterWithModsAndTags[]>,
     elements(): Promise<string[]>
 }
+
+export const Game = {
+    Genshin: 1,
+    StarRail: 2,
+    ZZZ: 3,
+    WuWa: 4,
+} as const;
 
 export const GenshinApi: DataApi = { 
     game: GApi.GetGame,

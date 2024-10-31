@@ -10,6 +10,8 @@ export function DeletePlaylistById(arg1:number):Promise<void>;
 
 export function DeleteTextureById(arg1:number):Promise<void>;
 
+export function DisableAllModsByGame(arg1:types.Game):Promise<void>;
+
 export function EnableModById(arg1:boolean,arg2:number):Promise<void>;
 
 export function EnableTextureById(arg1:boolean,arg2:number):Promise<void>;
@@ -37,6 +39,8 @@ export function SelectModByCNameAndGame(arg1:string,arg2:string,arg3:number):Pro
 export function SelectModById(arg1:number):Promise<types.Mod>;
 
 export function SelectModsByCharacterName(arg1:string,arg2:types.Game):Promise<Array<types.Mod>>;
+
+export function SelectModsByGbId(arg1:number):Promise<Array<types.Mod>>;
 
 export function SelectPlaylistWithModsAndTags(arg1:types.Game):Promise<Array<types.PlaylistWithModsAndTags>>;
 

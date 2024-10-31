@@ -54,6 +54,17 @@ func (q *Queries) DeleteUnusedMods(ctx context.Context, arg DeleteUnusedModsPara
 	return err
 }
 
+const disableAllModsByGame = `-- name: DisableAllModsByGame :exec
+UPDATE mod SET 
+    selected = FALSE
+WHERE mod.game = ?
+`
+
+func (q *Queries) DisableAllModsByGame(ctx context.Context, game int64) error {
+	_, err := q.db.ExecContext(ctx, disableAllModsByGame, game)
+	return err
+}
+
 const insertMod = `-- name: InsertMod :one
 INSERT INTO mod (
     fname,
@@ -615,6 +626,45 @@ type SelectModsByCharacterNameParams struct {
 
 func (q *Queries) SelectModsByCharacterName(ctx context.Context, arg SelectModsByCharacterNameParams) ([]Mod, error) {
 	rows, err := q.db.QueryContext(ctx, selectModsByCharacterName, arg.Name, arg.Game)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Mod
+	for rows.Next() {
+		var i Mod
+		if err := rows.Scan(
+			&i.ID,
+			&i.Fname,
+			&i.Game,
+			&i.CharName,
+			&i.CharID,
+			&i.Selected,
+			&i.PreviewImages,
+			&i.GbID,
+			&i.ModLink,
+			&i.GbFileName,
+			&i.GbDownloadLink,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectModsByGbId = `-- name: SelectModsByGbId :many
+SELECT id, fname, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.gb_id = ?1
+`
+
+func (q *Queries) SelectModsByGbId(ctx context.Context, gbid sql.NullInt64) ([]Mod, error) {
+	rows, err := q.db.QueryContext(ctx, selectModsByGbId, gbid)
 	if err != nil {
 		return nil, err
 	}

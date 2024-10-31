@@ -116,6 +116,8 @@ SELECT * FROM texture WHERE texture.id = :id LIMIT 1;
 -- name: DeleteTextureById :exec
 DELETE FROM texture WHERE texture.id = :id;
 
+-- name: SelectModsByGbId :many
+SELECT * FROM mod WHERE mod.gb_id = :gbId;
 
 -- name: UpdateModEnabledById :exec
 UPDATE mod SET
@@ -172,6 +174,11 @@ INSERT INTO playlist_mod_cross_ref (
     :playlistId,
     :modId
 );
+
+-- name: DisableAllModsByGame :exec
+UPDATE mod SET 
+    selected = FALSE
+WHERE mod.game = ?;
 
 -- name: UpdateModsEnabledFromSlice :exec
 UPDATE mod SET 

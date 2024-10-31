@@ -4,9 +4,10 @@ import { api, types } from "../../../wailsjs/go/models";
 import { useParams } from "react-router-dom";
 import { LogPrint } from "../../../wailsjs/runtime/runtime";
 import {
-  SelectModsByCharacterName,
   SelectClosestCharacter,
   SelectCharactersByGame,
+  SelectModsByGbId,
+  SelectModsByCharacterName,
 } from "../../../wailsjs/go/core/DbHelper";
 import * as Downloader from "../../../wailsjs/go/core/Downloader";
 import {
@@ -45,6 +46,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Game } from "@/data/dataapi";
+import { FileBoxIcon } from "lucide-react";
 
 const dlStates = ["download", "queued", "unzip"];
 const inDownloadState = (state: string | undefined) => {
@@ -69,21 +72,14 @@ export function ModViewScreen() {
   const downloaded = useStateProducer<types.Mod[]>(
     [],
     async (update) => {
-      if (character !== undefined) {
-        SelectModsByCharacterName(character.name, character.game).then(
-          async (mods) => {
-            update(mods);
-          }
-        );
-      }
+      SelectModsByGbId(Number(id)).then((mods) => update(mods));
     },
-    [character, refreshTrigger, running]
+    [refreshTrigger, running, id]
   );
 
   const content = useStateProducer<api.ModPageResponse | undefined>(
     undefined,
     async (update) => {
-      LogPrint(id ?? "undefinded");
       const page = await GbApi.ModPage(Number(id));
       update(page);
     },
@@ -93,9 +89,6 @@ export function ModViewScreen() {
   const deleteMod = async (id: number) => {
     Downloader.Delete(id).then(() => refresh());
   };
-  // const deleteTexture = async (id: number) => {
-  //   Downloader.DeleteTexture(id).then(() => refresh());
-  // };
 
   const refresh = async () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -107,7 +100,7 @@ export function ModViewScreen() {
     modId: number
   ) => {
     if (character !== undefined && content?._idRow !== undefined) {
-      LogPrint(modId.toString())
+      LogPrint(modId.toString());
       Downloader.DownloadTexture(link, filename, modId, content?._idRow);
     }
   };
@@ -129,11 +122,9 @@ export function ModViewScreen() {
     (async () => {
       let cName = content?._aCategory?._sName;
       if (cName !== undefined && dataApi !== undefined) {
-
-        if (await dataApi.game() === 3) {
-          cName = cName.split(" ")[0]
+        if ((await dataApi.game()) === Game.ZZZ) {
+          cName = cName.split(" ")[0];
         }
-
         SelectClosestCharacter(cName, await dataApi?.game()).then((character) =>
           setCharacter(character)
         );
@@ -210,9 +201,8 @@ export function ModViewScreen() {
                     }
                   })}
                 </TableCell>
-                <TableCell className="text-right min-w-[64px] m-2">
+                <TableCell className="text-right min-w-[64px] m-2 space-x-4">
                   <DownloadButton
-                    mods={downloaded}
                     onDownloadAsTextureClick={(id) =>
                       downloadTexture(f._sDownloadUrl ?? "", f._sFile ?? "", id)
                     }
@@ -236,6 +226,12 @@ export function ModViewScreen() {
                       download(f._sDownloadUrl ?? "", f._sFile ?? "")
                     }
                   />
+                  <TextureDownloadButton
+                    character={character}
+                    onDownloadAsTextureClick={(id) =>
+                      downloadTexture(f._sDownloadUrl ?? "", f._sFile ?? "", id)
+                    }
+                  />
                 </TableCell>
               </TableRow>
             );
@@ -247,8 +243,54 @@ export function ModViewScreen() {
   );
 }
 
+function TextureDownloadButton({
+  character,
+  onDownloadAsTextureClick,
+}: {
+  character: types.Character | undefined;
+  onDownloadAsTextureClick: (id: number) => void;
+}) {
+  const mods = useStateProducer<types.Mod[]>(
+    [],
+    async (update) => {
+      if (character) {
+        SelectModsByCharacterName(character.name, character.game).then(update);
+      }
+    },
+    [character]
+  );
+
+  return (
+    <Dialog>
+      <DialogTrigger>
+        <Button variant={"ghost"}>
+          <FileBoxIcon></FileBoxIcon>
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Select a mod to attach texture</DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="h-300">
+          {mods.map((m) => {
+            return (
+              <DialogTrigger>
+                <Button
+                  variant="ghost"
+                  onClick={() => onDownloadAsTextureClick(m.id)}
+                >
+                  {m.filename}
+                </Button>
+              </DialogTrigger>
+            );
+          })}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DownloadButton(props: {
-  mods: types.Mod[];
   downloading: boolean;
   downloaded: boolean;
   onDownloadClick: () => void;
@@ -300,44 +342,22 @@ function DownloadButton(props: {
   }
 
   return (
-    <div className="flex flex-row">
-      <Button
-        onClick={props.onDownloadClick}
-        variant="outline"
-        size="icon"
-        className="fade-in fade-out"
+    <Button
+      onClick={props.onDownloadClick}
+      variant="outline"
+      size="icon"
+      className="fade-in fade-out"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        height="24px"
+        viewBox="0 -960 960 960"
+        width="24px"
+        fill="#e8eaed"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          height="24px"
-          viewBox="0 -960 960 960"
-          width="24px"
-          fill="#e8eaed"
-        >
-          <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
-        </svg>
-      </Button>
-      <Dialog>
-        <DialogTrigger>Open</DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Select a mod to attach texture</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="h-300">
-            {props.mods.map((m) => {
-              return (
-                <Button
-                  variant="ghost"
-                  onClick={() => props.onDownloadAsTextureClick(m.id)}
-                >
-                  {m.filename}
-                </Button>
-              );
-            })}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-    </div>
+        <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z" />
+      </svg>
+    </Button>
   );
 }
 

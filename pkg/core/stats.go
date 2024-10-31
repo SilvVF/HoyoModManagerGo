@@ -26,8 +26,6 @@ func getDirSize(path string) (int64, error) {
 		if err != nil {
 			return err
 		}
-
-		// Accumulate size only if it's a file
 		if !info.IsDir() {
 			totalSize += info.Size()
 		}

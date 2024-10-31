@@ -16,6 +16,10 @@ export type ProducedState<T, E> = {
 export const range = (start: number, stop: number, step: number = 1) =>
   Array.from({ length: (stop - start) / step + 1 }, (_, i) => start + i * step);
 
+export type Pair<X, Y> = {
+  x: X
+  y: Y
+}
 
 export function useStateProducerT<T extends any, E = Error>(
   defaultValue: T,
@@ -29,15 +33,23 @@ export function useStateProducerT<T extends any, E = Error>(
   const [error, setError] = useState<any|undefined>(undefined)
 
   useEffect(() => { 
+    let aborted = false
     const debounced = setTimeout(() => {
       setLoading(true)
-      producer(setValue)
+      producer(
+         (v) => {
+            if (!aborted) { 
+              setValue(v)
+            }
+         }
+      )
       .then(() => setError(undefined))
       .catch(e => setError(e))
       .finally(() => setLoading(false))
     }, debounce)
 
     return () => {
+      aborted = true
       setLoading(false)
       clearTimeout(debounced)
     }

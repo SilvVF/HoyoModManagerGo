@@ -19,9 +19,9 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useScrollContext } from "@/App";
 import { SortModeContext } from "./ModIndexPage";
 import { CrossfadeImage } from "@/components/crossfade-image";
+import { useScrollContext } from "@/ScrollContext";
 
 export default function ModBrowseScreen() {
   const { id } = useParams();
@@ -42,9 +42,7 @@ export default function ModBrowseScreen() {
   useEffect(() => setPage(1), [id]);
   const sort = useContext(SortModeContext)
 
-  const { loading, value, error } = useStateProducerT<
-    api.CategoryResponse | undefined
-  >(
+  const { loading, value, error } = useStateProducerT<api.CategoryResponse | undefined>(
     undefined,
     async (update) => {
       if (sort !== undefined) {

@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import GameScreen from './screens/GameScreen.tsx';
-import { GenshinApi, StarRailApi, WutheringWavesApi, ZenlessApi } from './data/dataapi.ts';
+import { Game, GenshinApi, StarRailApi, WutheringWavesApi, ZenlessApi } from './data/dataapi.ts';
 import { createHashRouter, RouterProvider, useNavigate, useRouteError } from 'react-router-dom';
 import ModBrowseScreen from './screens/mod/ModBrowseScreen.tsx';
 import { ModViewScreen } from './screens/mod/ModViewScreen.tsx';
@@ -13,6 +13,7 @@ import SettingsScreen from './screens/SettingsScreen.tsx';
 import { PlaylistScreen } from './screens/PlaylistScreen.tsx';
 import { SearchScreen } from './screens/SearchScreen.tsx';
 import { KeymappingScreen } from './screens/KeyMappingScreen.tsx';
+import { syncCharacters, SyncType } from './data/sync.ts';
 
 const router = createHashRouter([
   {
@@ -21,19 +22,35 @@ const router = createHashRouter([
     children: [
       {
         path: "genshin",
-        element: <GameScreen dataApi={GenshinApi} game={1}/>,
+        loader: () => { 
+          syncCharacters(GenshinApi, SyncType.StartupRequest); 
+          return null
+        },
+        element: <GameScreen dataApi={GenshinApi} game={Game.Genshin}/>,
       },
       {
         path: "starrail",
-        element: <GameScreen dataApi={StarRailApi}  game={2}/>,
+        loader: () => { 
+          syncCharacters(StarRailApi, SyncType.StartupRequest); 
+          return null
+        },
+        element: <GameScreen dataApi={StarRailApi}  game={Game.StarRail}/>,
       },
       {
         path: "zenless",
-        element: <GameScreen dataApi={ZenlessApi}  game={3}/>,
+        loader: () => { 
+          syncCharacters(ZenlessApi, SyncType.StartupRequest); 
+          return null
+        },
+        element: <GameScreen dataApi={ZenlessApi}  game={Game.ZZZ}/>,
       },
       {
         path: "wuwa",
-        element: <GameScreen dataApi={WutheringWavesApi}  game={4}/>,
+        loader: () => { 
+          syncCharacters(WutheringWavesApi, SyncType.StartupRequest);
+          return null 
+        },
+        element: <GameScreen dataApi={WutheringWavesApi}  game={Game.WuWa}/>,
       },
       {
         path: "playlist",

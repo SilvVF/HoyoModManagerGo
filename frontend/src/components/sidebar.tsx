@@ -27,6 +27,7 @@ import {
 } from "./ui/dropdown-menu";
 import { Card } from "./ui/card";
 import { discoverGamePref } from "@/data/prefs";
+import { usePlaylistStore } from "@/state/playlistStore";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   refreshPlaylist: () => void;
@@ -95,6 +96,7 @@ function ModeToggle() {
 export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylist }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const enablePlaylist = usePlaylistStore((state) => state.enable)
 
   const navigateToLastDiscoverCat = async () => {
     const defaultPath = await GenshinApi.skinId()
@@ -185,6 +187,7 @@ export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylis
                     key={`${playlist}-${i}`}
                     variant="ghost"
                     className="w-full justify-start font-normal"
+                    onClick={() => enablePlaylist(playlist.playlist.game, playlist.playlist.id)}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"

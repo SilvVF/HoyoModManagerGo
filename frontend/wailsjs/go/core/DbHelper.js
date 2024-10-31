@@ -18,6 +18,10 @@ export function DeleteTextureById(arg1) {
   return window['go']['core']['DbHelper']['DeleteTextureById'](arg1);
 }
 
+export function DisableAllModsByGame(arg1) {
+  return window['go']['core']['DbHelper']['DisableAllModsByGame'](arg1);
+}
+
 export function EnableModById(arg1, arg2) {
   return window['go']['core']['DbHelper']['EnableModById'](arg1, arg2);
 }
@@ -72,6 +76,10 @@ export function SelectModById(arg1) {
 
 export function SelectModsByCharacterName(arg1, arg2) {
   return window['go']['core']['DbHelper']['SelectModsByCharacterName'](arg1, arg2);
+}
+
+export function SelectModsByGbId(arg1) {
+  return window['go']['core']['DbHelper']['SelectModsByGbId'](arg1);
 }
 
 export function SelectPlaylistWithModsAndTags(arg1) {

@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   SelectCharacterWithModsTagsAndTextures,
   EnableModById,
+  DisableAllModsByGame,
 } from "../../wailsjs/go/core/DbHelper";
 import { useStateProducer } from "@/lib/utils";
 import { types } from "wailsjs/go/models";
@@ -22,23 +23,24 @@ import { Badge } from "@/components/ui/badge";
 import { usePlaylistStore } from "@/state/playlistStore";
 import { useShallow } from "zustand/shallow";
 import { playlistGamePref, usePrefrenceAsState } from "@/data/prefs";
+import { Game } from "@/data/dataapi";
 
 const gameNameFromId = (n: number) => {
   switch (n) {
-    case 1:
+    case Game.Genshin:
       return "Genshin Impact";
-    case 2:
+    case Game.StarRail:
       return "Honkai Star Rail";
-    case 3:
+    case Game.ZZZ:
       return "Zenless Zone Zero";
-    case 4:
+    case Game.WuWa:
       return "Wuthering Waves";
     default:
       return "";
   }
 };
 
-const ids = [1, 2, 3, 4];
+const ids = Object.values(Game);
 
 export function PlaylistScreen() {
   const [game, setGame] = usePrefrenceAsState(playlistGamePref);
@@ -67,17 +69,24 @@ function PlaylistScreenContent({game, setGame}: {
   const playlists = usePlaylistStore(useShallow((state) => state.playlists[game]))
   const createPlaylist = usePlaylistStore((state) => state.create)
   const enablePlaylist = usePlaylistStore((state) => state.enable)
+  const updates = usePlaylistStore(useShallow(state => state.updates))
 
   const mods = useStateProducer<types.CharacterWithModsAndTags[]>(
     [],
     async (update) => {
       SelectCharacterWithModsTagsAndTextures(game, "", "", "").then((it) => update(it));
     },
-    [modRefreshTrigger, game]
+    [modRefreshTrigger, game, updates]
   );
 
   const toggleModEnabled = async (enabled: boolean, id: number) => {
     EnableModById(enabled, id).then(() =>
+      setModRefreshTrigger((prev) => prev + 1)
+    );
+  };
+
+  const unselectAllMods = async () => {
+    DisableAllModsByGame(game).then(() =>
       setModRefreshTrigger((prev) => prev + 1)
     );
   };
@@ -88,7 +97,8 @@ function PlaylistScreenContent({game, setGame}: {
 
   return (
     <div className="flex flex-col">
-      <div className={`flex flex-row sticky top-0`}>
+      <div className={`flex flex-row justify-between sticky top-0 z-10 backdrop-blur-md`}>
+        <div className="flex flex-row">
         {ids.map((id) => {
           return (
             <Badge
@@ -100,6 +110,15 @@ function PlaylistScreenContent({game, setGame}: {
             </Badge>
           );
         })}
+        </div>
+        <div className="flex flex-row pe-2">
+        <Button
+              className="m-2 backdrop-blur-sm text-sm p-2"
+              onClick={unselectAllMods}
+            >
+              Unselect All
+        </Button>
+        </div>
       </div>
       <div className="static">
         <div className="grid grid-cols-2 divide-y">

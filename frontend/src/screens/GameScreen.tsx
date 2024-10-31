@@ -1,28 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { DataApi } from "../data/dataapi";
-import { syncCharacters } from "../data/sync";
-import { cn, useStateProducer } from "../lib/utils";
+import { DataApi, Game } from "../data/dataapi";
+import { syncCharacters, SyncType } from "../data/sync";
+import { cn, Pair, useStateProducer } from "../lib/utils";
 import { types } from "wailsjs/go/models";
 import { Reload } from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import {
+  DisableAllModsByGame,
   EnableModById,
   EnableTextureById,
   RenameMod,
   RenameTexture,
 } from "../../wailsjs/go/core/DbHelper";
-import { Switch } from "@/components/ui/switch";
-import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuShortcut,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { CheckCheckIcon, ChevronDown, PencilIcon, Trash, ViewIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Dialog,
@@ -45,47 +35,49 @@ import {
 } from "@/data/prefs";
 import { useDownloadStore } from "@/state/downloadStore";
 import { useShallow } from "zustand/shallow";
-import { Separator } from "@/components/ui/separator";
+import { CharacterInfoCard } from "@/components/CharacterInfoCard";
+import { usePlaylistStore } from "@/state/playlistStore";
 
-type DialogType = "rename_mod" | "create_tag" | "rename_tag" | "rename_texture";
-type GameDialog = Pair<DialogType, number>;
-type Pair<T, V> = { x: T; y: V };
+export type DialogType =
+  | "rename_mod"
+  | "create_tag"
+  | "rename_tag"
+  | "rename_texture";
+export type GameDialog = Pair<DialogType, number>;
+
+const getElementPref = (game: number): GoPref<string[]> => {
+  switch (game) {
+    case Game.Genshin:
+      return genshinElementPref;
+    case Game.StarRail:
+      return honkaiElementPref;
+    case Game.ZZZ:
+      return zzzElementPref;
+    case Game.WuWa:
+      return wuwaElementPref;
+    default:
+      return genshinElementPref;
+  }
+};
 
 function GameScreen(props: { dataApi: DataApi; game: number }) {
   const navigate = useNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const updates = usePlaylistStore(useShallow((state) => state.updates));
   const [available, setAvailableOnly] = usePrefrenceAsState(modsAvailablePref);
 
   const [dialog, setDialog] = useState<GameDialog | undefined>(undefined);
 
-  const getElementPref = (): GoPref<string[]> => {
-    switch (props.game) {
-      case 1:
-        return genshinElementPref;
-      case 2:
-        return honkaiElementPref;
-      case 3:
-        return zzzElementPref;
-      case 4:
-        return wuwaElementPref;
-      default:
-        return genshinElementPref;
-    }
-  };
   const [selectedElements, setSelectedElements] = usePrefrenceAsState(
-    getElementPref()
+    getElementPref(props.game)
   );
   const running = useDownloadStore(useShallow((state) => state.running));
 
   const refreshCharacters = () => setRefreshTrigger((prev) => prev + 1);
 
   useEffect(() => {
-    syncCharacters(props.dataApi, 0);
-  }, [props.dataApi]);
-
-  useEffect(() => {
     refreshCharacters();
-  }, [running]);
+  }, [running, updates]);
 
   const elements = useStateProducer<string[]>(
     [],
@@ -144,6 +136,64 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     EnableTextureById(enabled, id).then(refreshCharacters);
   };
 
+  const disableAllMods = async () => {
+    DisableAllModsByGame(props.game).then(refreshCharacters)
+  }
+
+  return (
+    <div className="flex flex-col w-full" key={props.game}>
+      <div className="sticky top-0 z-10 backdrop-blur-md">
+        <CharacterFilters
+          className={`relative w-full`}
+          unselectAll={disableAllMods}
+          elements={elements}
+          selectedElements={selectedElements ?? []}
+          available={available ?? false}
+          toggleElement={onElementSelected}
+          toggleAvailable={setAvailableOnly}
+        />
+      </div>
+      <OverlayOptions
+        dataApi={props.dataApi}
+        dialog={dialog}
+        setDialog={setDialog}
+        refreshCharacters={refreshCharacters}
+      />
+      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
+        {filteredCharacters.map((c) => (
+          <div className="col-span-1">
+            <CharacterInfoCard
+              key={c.characters.id}
+              enableMod={enableMod}
+              cmt={c}
+              deleteMod={deleteMod}
+              viewMod={(gbId) => navigate(`/mods/${gbId}`)}
+              setDialog={(d) => setDialog(d)}
+              onEditKeymap={(modId) => navigate(`/keymap/${modId}`)}
+              enableTexture={enableTexture}
+              deleteTexture={deleteTexture}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OverlayOptions({
+  dialog,
+  dataApi,
+  setDialog,
+  refreshCharacters,
+}: {
+  dataApi: DataApi;
+  dialog: GameDialog | undefined;
+  setDialog: (dialgo: GameDialog | undefined) => void;
+  refreshCharacters: () => void;
+}) {
+  const [reloading, setReloading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
   const dialogSettings = useMemo(() => {
     return {
       rename_mod: {
@@ -175,73 +225,113 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     };
   }, []);
 
+  const sync = (type: SyncType) => {
+    setSyncing(true);
+    syncCharacters(dataApi, type)
+      .then(refreshCharacters)
+      .finally(() => setSyncing(false));
+  };
+
+  const reload = async () => {
+    setReloading(true)
+    Reload(await dataApi.game())
+    .finally(() => setReloading(false))
+    .catch()
+  }
+
   const settings = dialog !== undefined ? dialogSettings[dialog.x] : undefined;
 
   return (
-    <div className="flex flex-col w-full" key={props.game}>
-      <div className="sticky top-0 z-10 backdrop-blur-md">
-        <CharacterFilters
-          className={`relative w-full`}
-          elements={elements}
-          selectedElements={selectedElements ?? []}
-          available={available ?? false}
-          toggleElement={onElementSelected}
-          toggleAvailable={setAvailableOnly}
-        />
-      </div>
-      <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10">
-        <NameDialog
-          title={settings?.title ?? ""}
-          description={settings?.description ?? ""}
-          open={dialog !== undefined}
-          onOpenChange={() => setDialog(undefined)}
-          onSuccess={(n) => settings!!.onSuccess(dialog!!.y, n)}
-        />
+    <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10">
+      <NameDialog
+        title={settings?.title ?? ""}
+        description={settings?.description ?? ""}
+        open={dialog !== undefined}
+        onOpenChange={() => setDialog(undefined)}
+        onSuccess={(n) => settings!!.onSuccess(dialog!!.y, n)}
+      />
+      {!reloading ? (
         <Button
           className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
           variant={"ghost"}
-          onClick={() =>
-            (async () => Reload(await props.dataApi.game()).catch())()
-          }
+          onClick={reload}
         >
           Generate
         </Button>
-        <Button
-          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
-          variant={"ghost"}
-          onClick={() =>
-            syncCharacters(props.dataApi, 1).then(refreshCharacters)
-          }
-        >
-          Refresh Local
-        </Button>
-        <Button
-          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
-          variant={"ghost"}
-          onClick={() =>
-            syncCharacters(props.dataApi, 2).then(refreshCharacters)
-          }
-        >
-          Refresh
-        </Button>
-      </div>
-      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
-        {filteredCharacters.map((c) => (
-          <div className="col-span-1">
-            <CharacterInfoCard
-              key={c.characters.id}
-              enableMod={enableMod}
-              cmt={c}
-              deleteMod={deleteMod}
-              viewMod={(gbId) => navigate(`/mods/${gbId}`)}
-              setDialog={(d) => setDialog(d)}
-              onEditKeymap={(modId) => navigate(`/keymap/${modId}`)}
-              enableTexture={enableTexture}
-              deleteTexture={deleteTexture}
-            />
-          </div>
-        ))}
-      </div>
+      ) : (
+        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/20 mx-2">
+          <svg
+            className="h-4 w-4 animate-spin"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Generating...
+        </div>
+      )}
+      {!syncing ? (
+        <div>
+          <Button
+            className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+            variant={"ghost"}
+            onClick={() => sync(SyncType.SyncRequestLocal)}
+          >
+            Refresh Local
+          </Button>
+          <Button
+            className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+            variant={"ghost"}
+            onClick={() => sync(SyncType.SyncRequestForceNetwork)}
+          >
+            Refresh
+          </Button>
+        </div>
+      ) : (
+        <>
+        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/20 mx-2">
+          <svg
+            className="h-4 w-4 animate-spin"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Syncing...
+        </div>
+        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/20 mx-2">
+          <svg
+            className="h-4 w-4 animate-spin"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          Syncing...
+        </div>
+        </>
+      )}
     </div>
   );
 }
@@ -252,10 +342,12 @@ interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement> {
   available: boolean;
   toggleAvailable: (change: boolean) => void;
   toggleElement: (element: string) => void;
+  unselectAll: () => void;
 }
 
 function CharacterFilters({
   elements,
+  unselectAll,
   selectedElements,
   available,
   toggleAvailable,
@@ -293,6 +385,13 @@ function CharacterFilters({
           );
         })}
       </div>
+      <div className="flex flex-row pe-2">
+      <Button
+        className="mx-2 backdrop-blur-md border-0"
+        onPointerDown={unselectAll}
+      >
+        Unselect All
+      </Button>
       <Button
         className={cn(
           available ? "bg-primary/50" : "bg-secondary/20",
@@ -303,6 +402,7 @@ function CharacterFilters({
       >
         Mods available
       </Button>
+      </div>
     </div>
   );
 }
@@ -353,227 +453,6 @@ export function NameDialog(props: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-export function TextureActionDropDown(props: {
-  onDelete: () => void;
-  onRename: () => void;
-  onView: () => void;
-  onEnable: () => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button className="col-span-1" variant={"ghost"} size="icon">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="12" cy="5" r="1" />
-            <circle cx="12" cy="19" r="1" />
-          </svg>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuItem onClick={props.onDelete}>
-          <Trash className="mr-2 h-4 w-4" />
-          <span className="w-full">Delete</span>
-          <DropdownMenuShortcut>⇧d</DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onRename}>
-          <PencilIcon className="mr-2 h-4 w-4" />
-          <span className="w-full">Rename</span>
-          <DropdownMenuShortcut>⇧r</DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onView}>
-          <ViewIcon className="mr-2 h-4 w-4" />
-          <span className="w-full">View</span>
-          <DropdownMenuShortcut>⇧v</DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onEnable}>
-          <CheckCheckIcon className="mr-2 h-4 w-4" />
-          <span className="w-full">Toggle</span>
-          <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-export function ModActionsDropDown(props: {
-  onDelete: () => void;
-  onRename: () => void;
-  onView: () => void;
-  onEnable: () => void;
-  onKeymapEdit: () => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button className="col-span-1" variant={"ghost"} size="icon">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="12" cy="5" r="1" />
-            <circle cx="12" cy="19" r="1" />
-          </svg>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuItem onClick={props.onDelete}>
-          <Trash className="mr-2 h-4 w-4" />
-          <span className="w-full">Delete</span>
-          <DropdownMenuShortcut>⇧d</DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onRename}>
-          <PencilIcon className="mr-2 h-4 w-4" />
-          <span className="w-full">Rename</span>
-          <DropdownMenuShortcut>⇧r</DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onView}>
-          <ViewIcon className="mr-2 h-4 w-4" />
-          <span className="w-full">View</span>
-          <DropdownMenuShortcut>⇧v</DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onEnable}>
-          <CheckCheckIcon className="mr-2 h-4 w-4" />
-          <span className="w-full">Toggle</span>
-          <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onKeymapEdit}>
-          <CheckCheckIcon className="mr-2 h-4 w-4" />
-          <span className="w-full">Edit</span>
-          <DropdownMenuShortcut>⇧e</DropdownMenuShortcut>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-interface CharacterInfoCardProps {
-  cmt: types.CharacterWithModsAndTags;
-  enableMod: (id: number, enabled: boolean) => void;
-  deleteMod: (id: number) => void;
-  viewMod: (gbId: number) => void;
-  setDialog: (d: GameDialog) => void;
-  onEditKeymap: (modId: number) => void;
-
-  enableTexture: (id: number, enabled: boolean) => void;
-  deleteTexture: (id: number) => void;
-}
-
-function CharacterInfoCard({
-  cmt,
-
-  enableMod,
-  deleteMod,
-  viewMod,
-  setDialog,
-  onEditKeymap,
-
-  enableTexture,
-  deleteTexture,
-}: CharacterInfoCardProps) {
-  const character: types.Character = cmt.characters;
-  const [showT, setShowT] = useState(true);
-
-  return (
-    <Card className="m-2">
-      <div className="flex flex-row m-2">
-        <div className="flex flex-col items-start">
-          <img src={character.avatarUrl} alt={`${character.name} Avatar`} />
-          <b className="text-lg p-2">{character.name}</b>
-        </div>
-        <ScrollArea className="max-h-[300px] w-full">
-          {cmt.modWithTags.map((mwt) => (
-            <div key={mwt.mod.id} className="flex flex-col">
-              <div className="grid grid-cols-5 overflow-hidden items-center">
-                <b className="col-span-3 w-full text-sm my-1 overflow-ellipsis overflow-x-hidden pe-1">
-                  {mwt.mod.filename}
-                </b>
-                <Switch
-                  className="col-span-1 my-1"
-                  checked={mwt.mod.enabled}
-                  onCheckedChange={() =>
-                    enableMod(mwt.mod.id, !mwt.mod.enabled)
-                  }
-                />
-                <div className="flex flex-row">
-                  <ModActionsDropDown
-                    onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
-                    onDelete={() => deleteMod(mwt.mod.id)}
-                    onRename={() =>
-                      setDialog({ x: "rename_mod", y: mwt.mod.id })
-                    }
-                    onView={() => {
-                      if (mwt.mod.gbId !== 0) {
-                        viewMod(mwt.mod.gbId);
-                      }
-                    }}
-                    onKeymapEdit={() => onEditKeymap(mwt.mod.id)}
-                  />
-                  {mwt.textures.length > 0 ? (
-                    <Button variant='ghost' size='icon' onClick={() => setShowT((p) => !p)} className={showT ? "rotate-180" : "rotate-0"}>
-                      <ChevronDown />
-                    </Button>
-                  ) : undefined}
-                </div>
-              </div>
-              {showT && mwt.textures.length > 0 ? (
-                <div className="slide-in fade-out flex flex-col">
-                  <div className="text-sm">{`Textures for ${mwt.mod.filename}`}</div>
-                  {mwt.textures.map((t) => {
-                    return (
-                      <div className="grid grid-cols-5 overflow-hidden items-center">
-                        <b className="text-sm col-span-3 w-full my-1 overflow-ellipsis overflow-x-hidden pe-1">
-                          {t.filename}
-                        </b>
-                        <Switch
-                          className="col-span-1 my-1"
-                          checked={t.enabled}
-                          onCheckedChange={() =>
-                            enableTexture(t.id, !t.enabled)
-                          }
-                        />
-                        <TextureActionDropDown
-                          onEnable={() => enableTexture(t.id, !t.enabled)}
-                          onDelete={() => deleteTexture(t.id)}
-                          onRename={() =>
-                            setDialog({ x: "rename_texture", y: t.id })
-                          }
-                          onView={() => {
-                            if (t.gbId !== 0) {
-                              viewMod(t.gbId);
-                            }
-                          }}
-                        />
-                      </div>
-                    );
-                  })}
-                    <Separator className="my-1"/>
-                </div>
-              ) : undefined}
-            </div>
-          ))}
-        </ScrollArea>
-      </div>
-    </Card>
   );
 }
 

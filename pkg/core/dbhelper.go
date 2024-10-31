@@ -300,6 +300,21 @@ func (h *DbHelper) SelectTexturesByModId(id int) ([]types.Texture, error) {
 	return result, nil
 }
 
+func (h *DbHelper) SelectModsByGbId(id int64) ([]types.Mod, error) {
+	mods, err := h.queries.SelectModsByGbId(h.ctx, sql.NullInt64{Valid: true, Int64: id})
+	if err != nil {
+		return make([]types.Mod, 0), err
+	}
+
+	result := make([]types.Mod, 0, len(mods))
+
+	for _, m := range mods {
+		result = append(result, modFromDb(m))
+	}
+
+	return result, nil
+}
+
 func (h *DbHelper) SelectModsByCharacterName(name string, game types.Game) ([]types.Mod, error) {
 	mods, err := h.queries.SelectModsByCharacterName(h.ctx, db.SelectModsByCharacterNameParams{Name: name, Game: game.Int64()})
 	if err != nil {
@@ -508,6 +523,10 @@ func arrayToString(A []int64, delim string) string {
 	}
 
 	return buffer.String()
+}
+
+func (h *DbHelper) DisableAllModsByGame(game types.Game) error {
+	return h.queries.DisableAllModsByGame(h.ctx, game.Int64())
 }
 
 func (h *DbHelper) UpdateModsEnabledFromSlice(ids []int64, game types.Game) error {

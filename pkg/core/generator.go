@@ -149,27 +149,27 @@ func (g *Generator) Reload(game types.Game) error {
 			log.LogError(err.Error())
 		}
 
-		files, err := os.ReadDir(filepath.Join(modDir, "keymaps"))
-		if err != nil {
-			continue
-		}
-		paths := make([]string, 0, len(files))
-		for _, file := range files {
-			paths = append(paths, file.Name())
-		}
-
-		slices.SortFunc(paths, dateSorter())
-		if len(paths) > 0 {
-			ini, err := os.ReadFile(filepath.Join(modDir, "keymaps", paths[0]))
+		writeKeymaps := func() {
+			files, err := os.ReadDir(filepath.Join(modDir, "keymaps"))
 			if err != nil {
-				log.LogDebug(err.Error())
-				continue
+				return
 			}
-			findAndOverwriteMergedIni(
-				outputDir,
-				string(ini),
-			)
+			paths := make([]string, 0, len(files))
+			for _, file := range files {
+				paths = append(paths, file.Name())
+			}
+
+			slices.SortFunc(paths, dateSorter())
+			if len(paths) > 0 {
+				ini, err := os.ReadFile(filepath.Join(modDir, "keymaps", paths[0]))
+				if err != nil {
+					log.LogDebug(err.Error())
+					return
+				}
+				findAndOverwriteMergedIni(outputDir, ini)
+			}
 		}
+		writeKeymaps()
 	}
 
 	for _, file := range exported {
@@ -296,7 +296,7 @@ func copyModWithTextures(
 	return err
 }
 
-func findAndOverwriteMergedIni(dir, newContent string) error {
+func findAndOverwriteMergedIni(dir string, newContent []byte) error {
 	// Walk the directory
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -311,7 +311,7 @@ func findAndOverwriteMergedIni(dir, newContent string) error {
 		if d.Name() == "merged.ini" {
 			// Overwrite the file with new content
 			log.LogDebug("Found and overwriting:" + path)
-			os.WriteFile(path, []byte(newContent), os.ModePerm)
+			os.WriteFile(path, newContent, os.ModePerm)
 			return errors.New("stop walking normally")
 		}
 		return nil // Continue walking the directory

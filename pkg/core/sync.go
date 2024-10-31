@@ -170,7 +170,6 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 						s.db.InsertTexture(texture)
 					}
 				}
-
 			}
 		}
 		log.LogPrint("Deleting mods not in: " + strings.Join(seenMods, "\n - "))
