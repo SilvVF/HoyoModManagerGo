@@ -94,7 +94,7 @@ export function ModIndexPage() {
 
   const updateState = useModSearchStateStore((state) => state.update);
   const state = useModSearchStateStore((state) => state);
-  const [collapsed, setCollapased] = useState(false);
+  const [collapsed, setCollapased] = useState(true);
 
   useModSearchStateInitializer();
 
@@ -254,7 +254,7 @@ function SearchBar() {
   const [text, setText] = useState(query);
 
   const handleSubmit = (e: any) => {
-    e.preventDefault(); // Prevents the form from refreshing the page
+    e.preventDefault();
     handleChange((s) => ({
       ...s,
       name: text,

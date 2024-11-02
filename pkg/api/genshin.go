@@ -84,6 +84,8 @@ func avatarIconUrl(name string) string {
 		return avatar("Lynette", "Linette")
 	case "noelle":
 		return avatar("Noelle", "Noel")
+	case "charlotte":
+		return "https://keqingmains.com/wp-content/uploads/2023/11/Charlotte_Icon.webp"
 	default:
 		split := strings.Split(name, " ")
 		last := split[len(split)-1]

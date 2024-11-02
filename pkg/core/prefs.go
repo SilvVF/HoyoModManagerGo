@@ -78,9 +78,14 @@ func NewPrefs(debug bool) PreferenceStore {
 	if debug {
 		db = &MemeoryPreferenceDb{m: map[string][]byte{}}
 	} else {
-		options := rosedb.DefaultOptions
-		options.DirPath = filepath.Join(util.GetCacheDir(), "/rosedb_basic")
-		rose, err := rosedb.Open(options)
+		rose, err := rosedb.Open(rosedb.Options{
+			DirPath:           filepath.Join(util.GetCacheDir(), "/rosedb_basic"),
+			SegmentSize:       rosedb.DefaultOptions.SegmentSize,
+			Sync:              rosedb.DefaultOptions.Sync,
+			BytesPerSync:      rosedb.DefaultOptions.BytesPerSync,
+			WatchQueueSize:    rosedb.DefaultOptions.WatchQueueSize,
+			AutoMergeCronExpr: rosedb.DefaultOptions.AutoMergeCronExpr,
+		})
 		if err != nil {
 			panic(err)
 		}

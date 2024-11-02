@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"hmm/pkg/log"
@@ -8,12 +9,14 @@ import (
 	"hmm/pkg/util"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
+
+var ErrStopWalkingDirError = errors.New("stop walking normally")
 
 type Generator struct {
 	db         *DbHelper
@@ -144,47 +147,98 @@ func (g *Generator) Reload(game types.Game) error {
 				return !e.Enabled
 			}),
 		)
-
 		if err != nil {
 			log.LogError(err.Error())
 		}
 
-		writeKeymaps := func() {
-			files, err := os.ReadDir(filepath.Join(modDir, "keymaps"))
-			if err != nil {
-				return
-			}
-			paths := make([]string, 0, len(files))
-			for _, file := range files {
-				paths = append(paths, file.Name())
-			}
-
-			slices.SortFunc(paths, dateSorter())
-			if len(paths) > 0 {
-				ini, err := os.ReadFile(filepath.Join(modDir, "keymaps", paths[0]))
-				if err != nil {
-					log.LogDebug(err.Error())
-					return
-				}
-				findAndOverwriteMergedIni(outputDir, ini)
-			}
-		}
-		writeKeymaps()
-	}
-
-	for _, file := range exported {
-		if strings.Contains(file, ".exe") {
-			log.LogPrint(fmt.Sprintf("running %s", file))
-
-			cmd := exec.Command("cmd.exe", "/c", fmt.Sprintf("cd %s && start %s", outputDir, file))
-			if err = cmd.Run(); err != nil {
-				log.LogError(err.Error())
-			}
-			break
+		err = copyKeyMapToMergedIni(modDir, outputDir)
+		if err != nil {
+			log.LogError(err.Error())
 		}
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	fixExe := getModFixExe(exported)
+	cmder := util.NewCmder(filepath.Join(outputDir, fixExe), ctx)
+	cmder.SetDir(outputDir)
+
+	if fixExe == "" {
+		return errors.New("unable to run mod fix")
+	}
+
+	cmder.WithOutFn(func(b []byte) (int, error) {
+		value := string(b)
+		log.LogDebug(fmt.Sprintf("%s len: %d", value, len(value)))
+		if strings.HasSuffix(value, "Done!") {
+			log.LogDebug("Cancelling")
+			cmder.WriteLine(b)
+			cancel()
+		}
+		return len(b), nil
+	})
+	cmder.Run(make([]string, 0))
 
 	return nil
+}
+
+func copyKeyMapToMergedIni(modDir, outputDir string) error {
+	files, err := os.ReadDir(filepath.Join(modDir, "keymaps"))
+	if err != nil {
+		return err
+	}
+	paths := make([]string, 0, len(files))
+	for _, file := range files {
+		paths = append(paths, file.Name())
+	}
+
+	slices.SortFunc(paths, dateSorter())
+	if len(paths) > 0 {
+		ini, err := os.ReadFile(filepath.Join(modDir, "keymaps", paths[0]))
+		if err != nil {
+			log.LogDebug(err.Error())
+			return err
+		}
+		err = filepath.WalkDir(outputDir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Check if the file is named "merged.ini"
+			if d.IsDir() {
+				return nil // Continue if it's a directory
+			}
+
+			if d.Name() == "merged.ini" {
+				// Overwrite the file with new content
+				log.LogDebug("Found and overwriting:" + path)
+				os.WriteFile(path, ini, os.ModePerm)
+				return ErrStopWalkingDirError
+			}
+			return nil
+		})
+		if err == ErrStopWalkingDirError {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func getModFixExe(exported []string) string {
+	var fixExe string
+	for _, file := range exported {
+		if strings.Contains(file, ".exe") {
+			if strings.Contains(file, "fix") || strings.Contains(file, "mod") {
+				fixExe = file
+				break
+			} else if fixExe == "" {
+				fixExe = file
+			}
+		}
+	}
+	return fixExe
 }
 
 type Pair[X any, Y any] struct {
@@ -293,29 +347,5 @@ func copyModWithTextures(
 			return nil
 		})
 	}
-	return err
-}
-
-func findAndOverwriteMergedIni(dir string, newContent []byte) error {
-	// Walk the directory
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Check if the file is named "merged.ini"
-		if d.IsDir() {
-			return nil // Continue if it's a directory
-		}
-
-		if d.Name() == "merged.ini" {
-			// Overwrite the file with new content
-			log.LogDebug("Found and overwriting:" + path)
-			os.WriteFile(path, newContent, os.ModePerm)
-			return errors.New("stop walking normally")
-		}
-		return nil // Continue walking the directory
-	})
-
 	return err
 }
