@@ -22,32 +22,32 @@ const router = createHashRouter([
     children: [
       {
         path: "genshin",
-        loader: () => { 
-          syncCharacters(GenshinApi, SyncType.StartupRequest); 
+        loader: async () => { 
+          await syncCharacters(GenshinApi, SyncType.StartupRequest); 
           return null
         },
         element: <GameScreen dataApi={GenshinApi} game={Game.Genshin}/>,
       },
       {
         path: "starrail",
-        loader: () => { 
-          syncCharacters(StarRailApi, SyncType.StartupRequest); 
+        loader: async () => { 
+          await syncCharacters(StarRailApi, SyncType.StartupRequest); 
           return null
         },
         element: <GameScreen dataApi={StarRailApi}  game={Game.StarRail}/>,
       },
       {
         path: "zenless",
-        loader: () => { 
-          syncCharacters(ZenlessApi, SyncType.StartupRequest); 
+        loader: async () => { 
+          await syncCharacters(ZenlessApi, SyncType.StartupRequest); 
           return null
         },
         element: <GameScreen dataApi={ZenlessApi}  game={Game.ZZZ}/>,
       },
       {
         path: "wuwa",
-        loader: () => { 
-          syncCharacters(WutheringWavesApi, SyncType.StartupRequest);
+        loader: async () => { 
+          await syncCharacters(WutheringWavesApi, SyncType.StartupRequest);
           return null 
         },
         element: <GameScreen dataApi={WutheringWavesApi}  game={Game.WuWa}/>,

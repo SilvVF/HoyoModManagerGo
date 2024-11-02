@@ -15,15 +15,14 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useModSearchStateStore } from "./ModIndexPage";
 import { CrossfadeImage } from "@/components/crossfade-image";
 import { useScrollContext } from "@/ScrollContext";
-import { sortModPref, usePrefrenceAsState } from "@/data/prefs";
-
+import { useShallow } from "zustand/shallow";
+import { useModSearchStateStore } from "@/state/modSearchStore";
 
 export default function ModBrowseScreen() {
   const { id } = useParams();
@@ -39,10 +38,7 @@ export default function ModBrowseScreen() {
     },
     [id]
   );
-  const [page, setPage] = useState(1);
-  const state = useModSearchStateStore(state => state)
-
-  useEffect(() => setPage(1), [id]);
+  const state = useModSearchStateStore(useShallow((state) => state));
 
   const { loading, value, error } = useStateProducerT<
     api.CategoryResponse | undefined
@@ -67,7 +63,7 @@ export default function ModBrowseScreen() {
           await GbApi.CategoryContent(
             Number(id),
             30,
-            page,
+            state.page,
             state.sort,
             state.name,
             state.nameFilter,
@@ -80,7 +76,7 @@ export default function ModBrowseScreen() {
         );
       }
     },
-    [page, id, state]
+    [id, state]
   );
 
   useEffect(() => {
@@ -100,9 +96,16 @@ export default function ModBrowseScreen() {
     <div className="flex flex-row justify-end items-start max-w-full h-full min-w-full">
       <div className="absolute z-20 bottom-4 start-1/2 -translate-x-1/2 lg:-translate-x-1/4 bg-primary/30 backdrop-blur-lg rounded-full">
         <Paginator
-          page={page}
+          page={state.page}
           lastPage={lastPage}
-          goToPage={(page) => setPage(Math.max(0, Math.min(lastPage, page)))}
+          goToPage={(page) => {
+            state.update((s) => {
+              return {
+                ...s,
+                page: Math.max(1, Math.min(lastPage, page)),
+              };
+            });
+          }}
         />
       </div>
       <CategoryItemsList res={value} error={error} loading={loading} />
