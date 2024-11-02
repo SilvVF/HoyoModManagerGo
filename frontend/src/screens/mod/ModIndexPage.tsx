@@ -12,9 +12,9 @@ import {
   WutheringWavesApi,
   ZenlessApi,
 } from "@/data/dataapi";
-import { cn, getEnumValues, useStateProducer } from "@/lib/utils";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { createContext, useEffect, useMemo, useState } from "react";
+import { cn, getEnumValues } from "@/lib/utils";
+import { Outlet, useNavigate } from "react-router-dom";
+import { createContext, useMemo, useState } from "react";
 
 import {
   DropdownMenu,
@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDownIcon, SearchIcon, Underline } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { useShallow } from "zustand/shallow";
@@ -30,6 +30,8 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   ContentRating,
+  NameFilter,
+  ReleaseType,
   Sort,
   useModSearchStateInitializer,
   useModSearchStateStore,
@@ -42,6 +44,27 @@ function getEnumName<T>(enumType: T, value: T[keyof T]): string | undefined {
     (key) => enumType[key] === value
   );
 }
+const nameFilterName = (nf: NameFilter) => {
+  switch (nf) {
+    case NameFilter.None:
+      return "Default";
+    default:
+      return (
+        getEnumName(NameFilter, nf)?.replace(/([a-z])([A-Z])/g, "$1 $2") ?? ""
+      );
+  }
+};
+
+const releaseTypeName = (rt: ReleaseType) => {
+  switch (rt) {
+    case ReleaseType.None:
+      return "All";
+    default:
+      return (
+        getEnumName(ReleaseType, rt)?.replace(/([a-z])([A-Z])/g, "$1 $2") ?? ""
+      );
+  }
+};
 
 const contentRatingName = (cr: ContentRating) => {
   switch (cr) {
@@ -71,6 +94,7 @@ export function ModIndexPage() {
 
   const updateState = useModSearchStateStore((state) => state.update);
   const state = useModSearchStateStore((state) => state);
+  const [collapsed, setCollapased] = useState(false);
 
   useModSearchStateInitializer();
 
@@ -99,77 +123,128 @@ export function ModIndexPage() {
   return (
     <DataApiContext.Provider value={dataApi}>
       <div className="flex flex-col">
-        <div className="flex flex-row justify-between sticky top-2 end-0 m-2 z-30">
+        <div className="flex flex-row justify-between items-center sticky top-2 end-0 m-2 z-30">
           <BreadCrumbList
             onCrumbSelected={(path) => navigate(path)}
             crumbs={crumbs}
             topLevelCrumbs={topLevelCrumbs}
           />
           {crumbs.length !== 3 ? (
-            <div className="flex flex-row justify-center items-center space-x-2">
-              <SearchBar></SearchBar>
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-1 w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 p-2 me-12 font-semibold text-foreground">
-                  {sortName(state.sort ?? Sort.None)}
-                  <ChevronDownIcon />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <ScrollArea className="h-64 flex flex-col overflow-auto">
-                    {getEnumValues(Sort).map((s) => {
-                      return (
-                        <DropdownMenuItem
-                          onPointerDown={() => {
-                            updateState((state) => {
-                              return {
-                                ...state,
-                                sort: s,
-                              };
-                            });
-                          }}
-                        >
-                          <Button variant={"ghost"} className="w-full">
-                            {sortName(s)}
-                          </Button>
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </ScrollArea>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-1 w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 p-2 me-12 font-semibold text-foreground">
-                  {contentRatingName(state.contentRating)}
-                  <ChevronDownIcon />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <ScrollArea className="h-64 flex flex-col overflow-auto">
-                    {getEnumValues(ContentRating).map((cr) => {
-                      return (
-                        <DropdownMenuItem
-                          onPointerDown={() => {
-                            updateState((state) => {
-                              return {
-                                ...state,
-                                contentRating: cr,
-                              };
-                            });
-                          }}
-                        >
-                          <Button variant={"ghost"} className="w-full">
-                            {contentRatingName(cr)}
-                          </Button>
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </ScrollArea>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="flex flex-row justify-end">
+              <div
+                className={cn(
+                  collapsed
+                    ? "translate-x-0 opacity-100"
+                    : "translate-x-full opacity-0",
+                  "flex flex-row overflow-x-clip justify-center items-center space-x-2 slide-in-from-right-full slide-out-to-right-full transition-all duration-300 ease-in-out"
+                )}
+              >
+                <SearchBar></SearchBar>
+                <FilterDropDown
+                  selected={state.nameFilter}
+                  valueName={nameFilterName}
+                  values={getEnumValues(NameFilter)}
+                  onValueChange={(v) =>
+                    updateState((state) => {
+                      return {
+                        ...state,
+                        nameFilter: v,
+                      };
+                    })
+                  }
+                />
+                <FilterDropDown
+                  selected={state.sort ?? Sort.None}
+                  valueName={sortName}
+                  values={getEnumValues(Sort)}
+                  onValueChange={(v) =>
+                    updateState((state) => {
+                      return {
+                        ...state,
+                        sort: v,
+                      };
+                    })
+                  }
+                />
+                <FilterDropDown
+                  selected={state.contentRating}
+                  valueName={contentRatingName}
+                  values={getEnumValues(ContentRating)}
+                  onValueChange={(v) =>
+                    updateState((state) => {
+                      return {
+                        ...state,
+                        contentRating: v,
+                      };
+                    })
+                  }
+                />
+                <FilterDropDown
+                  selected={state.releaseType}
+                  valueName={releaseTypeName}
+                  values={getEnumValues(ReleaseType)}
+                  onValueChange={(v) =>
+                    updateState((state) => {
+                      return {
+                        ...state,
+                        releaseType: v,
+                      };
+                    })
+                  }
+                />
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                onPointerDown={() => setCollapased((c) => !c)}
+                className={cn(
+                  collapsed ? "rotate-0" : "rotate-180",
+                  "backdrop-blur-lg backdrop-brightness-75 bg-primary/30 m-2 font-semibold text-foreground rounded-full",
+                  "transform transition-transform duration-300"
+                )}
+              >
+                <ChevronRightIcon />
+              </Button>
             </div>
           ) : undefined}
         </div>
         <Outlet />
       </div>
     </DataApiContext.Provider>
+  );
+}
+
+function FilterDropDown<T>({
+  values,
+  valueName,
+  onValueChange,
+  selected,
+}: {
+  selected: T;
+  values: T[];
+  onValueChange: (v: T) => void;
+  valueName: (v: T) => string;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex items-center gap-1 w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 p-2 me-12 font-semibold text-foreground">
+        {valueName(selected)}
+        <ChevronDownIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <ScrollArea className="h-64 flex flex-col overflow-auto">
+          {values.map((s) => {
+            return (
+              <DropdownMenuItem onPointerDown={() => onValueChange(s)}>
+                <Button variant={"ghost"} className="w-full">
+                  {valueName(s)}
+                </Button>
+              </DropdownMenuItem>
+            );
+          })}
+        </ScrollArea>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
