@@ -319,7 +319,7 @@ func (p *IntPreference) DefaultValue() int {
 
 func (p *IntPreference) Watch() (<-chan int, func()) {
 
-	send := make(chan int, 0)
+	send := make(chan int)
 
 	id := p.db.RegisterKeyChangeListener(func(event KeyChangeEvent) {
 		if string(event.x) == p.key {
