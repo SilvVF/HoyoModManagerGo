@@ -11,11 +11,15 @@ import kotlinx.coroutines.flow.stateIn
 
 // RestartableStateFlow that allows you to re-run the execution
 interface RestartableStateFlow<out T> : StateFlow<T> {
+    /*** restart the flow and reset the replay cache*/
     fun restart()
+    /*** restart the flow keeping the replay cache*/
+    fun refresh()
 }
 
 interface SharingRestartable : SharingStarted {
     fun restart()
+    fun refresh()
 }
 
 // impementation of the sharing restartable
@@ -28,6 +32,12 @@ private data class SharingRestartableImpl(
     // combine the commands from the restartFlow and the subscriptionCount
     override fun command(subscriptionCount: StateFlow<Int>): Flow<SharingCommand> {
         return merge(restartFlow, sharingStarted.command(subscriptionCount))
+    }
+
+    // stop and reset the replay cache and restart
+    override fun refresh() {
+        restartFlow.tryEmit(SharingCommand.STOP)
+        restartFlow.tryEmit(SharingCommand.START)
     }
 
     // stop and reset the replay cache and restart
@@ -46,6 +56,7 @@ fun <T> Flow<T>.restartableStateIn(
     val sharingRestartable = SharingRestartableImpl(started)
     val stateFlow = stateIn(scope, sharingRestartable, initialValue)
     return object : RestartableStateFlow<T>, StateFlow<T> by stateFlow {
+        override fun refresh() = sharingRestartable.refresh()
         override fun restart() = sharingRestartable.restart()
     }
 }

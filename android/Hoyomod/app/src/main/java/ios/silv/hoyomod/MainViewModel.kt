@@ -1,106 +1,161 @@
 package ios.silv.hoyomod
 
+import android.content.SharedPreferences
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ios.silv.hoyomod.net.CharacterWithModsAndTags
-import ios.silv.hoyomod.net.DataListResponse
-import ios.silv.hoyomod.net.Game
-import ios.silv.hoyomod.net.ServerConstants
+import ios.silv.hoyomod.net.ModsWithTagsAndTextures
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class MainViewModel(
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    preferences: SharedPreferences
 ): ViewModel() {
 
-    private val ipAddressFlow = flowOf(kotlin.runCatching { "192.168.1.251" })
-        .restartableStateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = NetUtils.getIpv4Addr()
+    private val ipAddressFlow = callbackFlow {
+        send(preferences.getString("addr_pref", "192.168.1.251:6969").orEmpty())
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+            if (key == "addr_pref") {
+                prefs.getString(key, null)?.let {
+                    trySend(it)
+                }
+            }
+        }
+        try {
+            preferences.registerOnSharedPreferenceChangeListener(listener)
+            awaitCancellation()
+        } finally {
+            preferences.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Lazily,
+            preferences.getString("addr_pref", "192.168.1.251:6969").orEmpty()
         )
 
-    private val search = MutableSaveStateFlow(savedStateHandle, "search", "")
-    private val selectedTabIdx = MutableSaveStateFlow(savedStateHandle, "tab_idx", 0)
-    val tabIdx: StateFlow<Int> get() = selectedTabIdx.asStateFlow()
+    val search = MutableSavedState(savedStateHandle, "search", "")
 
     private val _state: MutableStateFlow<State> = MutableStateFlow(State.Loading)
     val state: StateFlow<State> get() = _state
 
-    private val dataFlow = ipAddressFlow.mapLatest { result ->
+    private val dataFlow = ipAddressFlow.mapLatest { addr ->
         runCatching {
-            val addr = result.getOrThrow()
-            val data = withContext(Dispatchers.IO) {
+            val resp = withContext(Dispatchers.IO) {
                 val res = App.client.newCall(
                     Request.Builder()
-                        .url("http://192.168.1.251:6969/data")
+                        .url("http://$addr/data")
                         .build()
                 )
                     .execute()
 
-                Json.decodeFromStream<DataListResponse>(res.body!!.byteStream())
+                Json.decodeFromStream<List<ModsWithTagsAndTextures>>(res.body!!.byteStream())
             }
-            data.associateBy(
+            resp.associateBy(
                 keySelector = { it.game },
                 valueTransform = { it.data }
             )
         }.onFailure { it.printStackTrace() }
     }
+        .restartableStateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000L),
+            null
+        )
 
     init {
         viewModelScope.launch {
             combine(
                 dataFlow,
-                search.asStateFlow(),
-                selectedTabIdx.asStateFlow(),
-               ::Triple
-            ).collect { (data, query, tab) ->
+                search.asFlow(),
+                ::Pair
+            ).collect { (data, query) ->
                 _state.update {
-                    data.fold(
+                    data?.fold(
                         onSuccess = {
-                            val list = it[tab + 1] ?: emptyList()
                             State.Success(
-                                list.filter { (character) ->
-                                    query.isBlank() || character.name.contains(query, ignoreCase = true)
-                                }
+                               data = it.mapValues { (_, mwt) ->
+                                   if (query.isBlank()) {
+                                       mwt
+                                   } else {
+                                       mwt.filter { item -> item.characters.name.contains(query, true) }
+                                   }
+                               }
                             )
                         },
                         onFailure = { State.Failure(it.localizedMessage) }
-                    )
+                    ) ?: State.Loading
                 }
             }
         }
-    }
-
-    fun updateCurrentTab(position: Int) {
-        selectedTabIdx.value = position
     }
 
     fun search(text: String) {
         search.value = text
     }
 
-    fun refresh() {
-        ipAddressFlow.restart()
+    fun toggleMod(id: Int, enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching {
+                val addr = ipAddressFlow.value
+                val res = withContext(Dispatchers.IO) {
+                    App.client.newCall(
+                        Request.Builder()
+                            .url("http://$addr/update/mod")
+                            .post(
+                                body = Json.encodeToString(
+                                    TogglePostRequest(id, enabled)
+                                ).toRequestBody("application/json".toMediaType())
+                            )
+                            .build()
+                    )
+                        .execute()
+                }
+                if (res.isSuccessful) { dataFlow.refresh() }
+            }
+                .onFailure {
+                    it.printStackTrace()
+                }
+        }
     }
 
-    sealed class State() {
+    fun restart() {
+        dataFlow.restart()
+    }
+
+    @Serializable
+    data class TogglePostRequest(
+        @SerialName("mod_id")
+        val id:      Int,
+        @SerialName("enabled")
+        val enabled: Boolean,
+    )
+
+
+    sealed class State {
         data object Loading: State()
         data class Failure(val msg: String?): State()
         data class Success(
-            val data: List<CharacterWithModsAndTags>
+            val data: Map<Int, List<ModsWithTagsAndTextures.Data>>
         ): State()
     }
 }

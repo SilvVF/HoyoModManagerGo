@@ -1,5 +1,11 @@
 package ios.silv.hoyomod
 
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.SavedStateViewModelFactory
 import androidx.lifecycle.ViewModel
@@ -37,16 +43,33 @@ inline fun <reified T> SavedStateHandle.stored(key: String, defaultValue: T) = o
 
 
 inline fun <reified T : ViewModel> SavedStateViewModelFactory(
-    savedStateHandle: SavedStateHandle
+    crossinline create: (SavedStateHandle) -> T
 ) = object : ViewModelProvider.Factory {
     override fun <VM : ViewModel> create(modelClass: Class<VM>): VM {
         if (modelClass.isAssignableFrom(T::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return T::class.java.getConstructor(SavedStateHandle::class.java)
-                .newInstance(savedStateHandle) as VM
+            return create(SavedStateHandle()) as VM
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
+}
+
+class MutableSavedState<T>(
+    private val savedStateHandle: SavedStateHandle,
+    private val key: String,
+    defaultValue: T
+){
+    var state by mutableStateOf(savedStateHandle.get<T>(key) ?: defaultValue)
+        private set
+
+    var value: T
+        get() = state
+        set(value) {
+           state = value
+            savedStateHandle[key] = value
+        }
+
+    fun asFlow() = snapshotFlow { state }
 }
 
 class MutableSaveStateFlow<T>(
