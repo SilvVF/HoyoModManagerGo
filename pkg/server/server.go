@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"hmm/pkg/core"
@@ -15,9 +17,10 @@ import (
 )
 
 type Server struct {
-	port int
-	db   *core.DbHelper
-	ctx  context.Context
+	port  int
+	db    *core.DbHelper
+	prefs *core.AppPrefs
+	ctx   context.Context
 }
 
 func newServer(ctx context.Context, port int, db *core.DbHelper) *Server {
@@ -28,7 +31,7 @@ func newServer(ctx context.Context, port int, db *core.DbHelper) *Server {
 	}
 }
 
-var validGame []int = []int{types.Genshin, types.StarRail, types.WuWa, types.ZZZ}
+var validGame []int = []int{int(types.Genshin), int(types.StarRail), int(types.WuWa), int(types.ZZZ)}
 
 func joinIntSlice(intSlice []int, sep string) string {
 	strSlice := make([]string, len(intSlice))
@@ -87,6 +90,44 @@ type TogglePostRequest struct {
 
 func (s *Server) registerHandlers(mux *http.ServeMux) {
 
+	basicAuthMiddleware := func(next func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if s.prefs.ServerAuthTypePref.Get() != int(types.AUTH_BASIC) {
+				next(w, r)
+				return
+			}
+
+			username, password, ok := r.BasicAuth()
+
+			if ok {
+				// Calculate SHA-256 hashes for the provided and expected
+				// usernames and passwords.
+				usernameHash := sha256.Sum256([]byte(username))
+				passwordHash := sha256.Sum256([]byte(password))
+				expectedUsernameHash := sha256.Sum256([]byte(s.prefs.ServerUsernamePref.Get()))
+				expectedPasswordHash := sha256.Sum256([]byte(s.prefs.ServerPasswordPref.Get()))
+
+				// Use the subtle.ConstantTimeCompare() function to check if
+				// the provided username and password hashes equal the
+				// expected username and password hashes. ConstantTimeCompare
+				// will return 1 if the values are equal, or 0 otherwise.
+				// Importantly, we should to do the work to evaluate both the
+				// username and password before checking the return values to
+				// avoid leaking information.
+				usernameMatch := (subtle.ConstantTimeCompare(usernameHash[:], expectedUsernameHash[:]) == 1)
+				passwordMatch := (subtle.ConstantTimeCompare(passwordHash[:], expectedPasswordHash[:]) == 1)
+
+				// If the username and password are correct, then call
+				// the next handler in the chain. Make sure to return
+				// afterwards, so that none of the code below is run.
+				if usernameMatch && passwordMatch {
+					next(w, r)
+					return
+				}
+			}
+		}
+	}
+
 	validateGame := func(w http.ResponseWriter, r *http.Request) (types.Game, error) {
 		game, err := strconv.Atoi(r.PathValue("game"))
 
@@ -105,7 +146,7 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 		return types.Game(game), nil
 	}
 
-	mux.HandleFunc("GET /data", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /data", basicAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 
 		results := make([]DataResponse, 0, 4)
 
@@ -129,9 +170,8 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 
 		w.WriteHeader(http.StatusOK)
 		w.Write(bytes)
-	})
-	mux.HandleFunc("GET /data/{game}", func(w http.ResponseWriter, r *http.Request) {
-
+	}))
+	mux.HandleFunc("GET /data/{game}", basicAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		game, err := validateGame(w, r)
 		if err != nil {
 			return
@@ -149,9 +189,9 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 
 		w.WriteHeader(http.StatusOK)
 		w.Write(bytes)
-	})
+	}))
 
-	mux.HandleFunc("POST /update/mod", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /update/mod", basicAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -174,5 +214,5 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-	})
+	}))
 }

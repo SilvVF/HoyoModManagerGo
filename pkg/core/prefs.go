@@ -10,6 +10,8 @@ import (
 	"math"
 	"path/filepath"
 	"strconv"
+	"sync"
+	"sync/atomic"
 
 	"github.com/rosedblabs/rosedb/v2"
 )
@@ -25,6 +27,7 @@ type Preference[T any] interface {
 	IsSet() bool
 	Delete()
 	DefaultValue() T
+	Watch() (<-chan T, func())
 }
 
 type PreferenceStore interface {
@@ -38,7 +41,10 @@ type PreferenceStore interface {
 }
 
 type MemeoryPreferenceDb struct {
-	m map[string][]byte
+	m         map[string][]byte
+	id        *atomic.Int32
+	listeners map[string]KeyChangedListener
+	mutex     sync.Mutex
 }
 
 func (mp *MemeoryPreferenceDb) Put(key []byte, value []byte) error {
@@ -72,11 +78,95 @@ func (mp *MemeoryPreferenceDb) Close() error {
 	return nil
 }
 
+func (mp *MemeoryPreferenceDb) events() <-chan KeyChangeEvent {
+	return make(<-chan Pair[[]byte, []byte])
+}
+
+func (mp *MemeoryPreferenceDb) onKeyChanged(event KeyChangeEvent) {}
+
+func (mp *MemeoryPreferenceDb) RegisterKeyChangeListener(listener KeyChangedListener) string {
+	mp.mutex.Lock()
+	id := strconv.Itoa(int(mp.id.Add(1)))
+	mp.listeners[id] = listener
+	mp.mutex.Unlock()
+
+	return id
+}
+
+func (mp *MemeoryPreferenceDb) UnregisterKeyChangeListener(id string) {
+	mp.mutex.Lock()
+	delete(mp.listeners, id)
+	mp.mutex.Unlock()
+}
+
+type KeyChangeEvent = Pair[[]byte, []byte]
+type KeyChangedListener = func(event KeyChangeEvent)
+
+type RoseDbPrefs struct {
+	*rosedb.DB
+	id        *atomic.Int32
+	listeners map[string]KeyChangedListener
+	mutex     sync.Mutex
+}
+
+func (r *RoseDbPrefs) events() <-chan KeyChangeEvent {
+	keyChanged := make(chan KeyChangeEvent)
+
+	go func() {
+		eventCh, err := r.Watch()
+		if err != nil {
+			return
+		}
+		for {
+			event := <-eventCh
+			// when db closed, the event will receive nil.
+			if event == nil {
+				log.LogPrint("The db is closed, so the watch channel is closed.")
+				close(keyChanged)
+				return
+			}
+			// events can be captured here for processing
+			keyChanged <- KeyChangeEvent{event.Key, event.Value}
+		}
+	}()
+
+	return keyChanged
+}
+
+func (r *RoseDbPrefs) onKeyChanged(event KeyChangeEvent) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	for _, listener := range r.listeners {
+		listener(event)
+	}
+}
+
+func (r *RoseDbPrefs) RegisterKeyChangeListener(listener KeyChangedListener) string {
+	r.mutex.Lock()
+	id := strconv.Itoa(int(r.id.Add(1)))
+	r.listeners[id] = listener
+	r.mutex.Unlock()
+
+	return id
+}
+
+func (r *RoseDbPrefs) UnregisterKeyChangeListener(id string) {
+	r.mutex.Lock()
+	delete(r.listeners, id)
+	r.mutex.Unlock()
+}
+
 func NewPrefs(debug bool) PreferenceStore {
 	var db PrefrenceDb
 
 	if debug {
-		db = &MemeoryPreferenceDb{m: map[string][]byte{}}
+		db = &MemeoryPreferenceDb{
+			m:         map[string][]byte{},
+			id:        &atomic.Int32{},
+			listeners: map[string]KeyChangedListener{},
+			mutex:     sync.Mutex{},
+		}
 	} else {
 		rose, err := rosedb.Open(rosedb.Options{
 			DirPath:           filepath.Join(util.GetCacheDir(), "/rosedb_basic"),
@@ -89,8 +179,21 @@ func NewPrefs(debug bool) PreferenceStore {
 		if err != nil {
 			panic(err)
 		}
-		db = rose
+		db = &RoseDbPrefs{
+			DB:        rose,
+			id:        &atomic.Int32{},
+			listeners: map[string]KeyChangedListener{},
+			mutex:     sync.Mutex{},
+		}
 	}
+
+	go func() {
+		eventChan := db.events()
+		for {
+			event := <-eventChan
+			db.onKeyChanged(event)
+		}
+	}()
 
 	return &Prefs{
 		db: db,
@@ -98,11 +201,15 @@ func NewPrefs(debug bool) PreferenceStore {
 }
 
 type PrefrenceDb interface {
+	events() <-chan KeyChangeEvent
+	onKeyChanged(KeyChangeEvent)
 	Put(key []byte, value []byte) error
 	Get(key []byte) ([]byte, error)
 	Delete(key []byte) error
 	Exist(key []byte) (bool, error)
 	Close() error
+	RegisterKeyChangeListener(listener KeyChangedListener) string
+	UnregisterKeyChangeListener(id string)
 }
 
 type StringPreference struct {
@@ -149,6 +256,10 @@ func (s *StringPreference) Delete() {
 
 func (s *StringPreference) DefaultValue() string {
 	return s.defaultValue
+}
+
+func (s *StringPreference) Watch() (<-chan string, func()) {
+	panic("not implemented")
 }
 
 func (p *Prefs) GetString(key string, defaultValue string) Preference[string] {
@@ -206,6 +317,22 @@ func (p *IntPreference) DefaultValue() int {
 	return p.defaultValue
 }
 
+func (p *IntPreference) Watch() (<-chan int, func()) {
+
+	send := make(chan int, 0)
+
+	id := p.db.RegisterKeyChangeListener(func(event KeyChangeEvent) {
+		if string(event.x) == p.key {
+			send <- p.Get()
+		}
+	})
+
+	return send, func() {
+		p.db.UnregisterKeyChangeListener(id)
+		close(send)
+	}
+}
+
 func (p *Prefs) GetInt(key string, defaultValue int) Preference[int] {
 	return &IntPreference{
 		key:          key,
@@ -259,6 +386,10 @@ func (p *LongPreference) DefaultValue() int64 {
 	return p.defaultValue
 }
 
+func (p *LongPreference) Watch() (<-chan int64, func()) {
+	panic("not implemented")
+}
+
 func (p *Prefs) GetLong(key string, defaultValue int64) Preference[int64] {
 	return &LongPreference{
 		key:          key,
@@ -310,6 +441,10 @@ func (p *FloatPreference) Delete() {
 
 func (p *FloatPreference) DefaultValue() float32 {
 	return p.defaultValue
+}
+
+func (p *FloatPreference) Watch() (<-chan float32, func()) {
+	panic("not implemented")
 }
 
 func (p *Prefs) GetFloat(key string, defaultValue float32) Preference[float32] {
@@ -367,6 +502,10 @@ func (p *BooleanPreference) Delete() {
 
 func (p *BooleanPreference) DefaultValue() bool {
 	return p.defaultValue
+}
+
+func (p *BooleanPreference) Watch() (<-chan bool, func()) {
+	panic("not implemented")
 }
 
 func (p *Prefs) GetBoolean(key string, defaultValue bool) Preference[bool] {
@@ -430,6 +569,10 @@ func (p *StringSlicePreference) Delete() {
 
 func (p *StringSlicePreference) DefaultValue() []string {
 	return p.defaultValue
+}
+
+func (p *StringSlicePreference) Watch() (<-chan []string, func()) {
+	panic("not implemented")
 }
 
 func (p *Prefs) GetStringSlice(key string, defaultValue []string) Preference[[]string] {

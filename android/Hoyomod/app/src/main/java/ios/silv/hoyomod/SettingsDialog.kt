@@ -1,5 +1,6 @@
 package ios.silv.hoyomod
 
+import android.content.SharedPreferences
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,15 +25,69 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import ios.silv.hoyomod.theme.MyApplicationTheme
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.launch
+
+@Composable
+fun collectPreferenceAsState(key: String, default: String): String {
+
+    val preferences = LocalSharedPreferences.current
+    val lifecycle = LocalLifecycleOwner.current
+
+    val scope = rememberCoroutineScope()
+
+    val value by remember { mutableStateOf(preferences.getString(key, default)) }
+
+    DisposableEffect(Unit) {
+       scope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                callbackFlow {
+                    val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, prefKey ->
+                        if (prefKey == key) {
+                            prefs.getString(prefKey, default)?.let {
+                                trySend(it)
+                            }
+                        }
+                    }
+                    try {
+                        preferences.registerOnSharedPreferenceChangeListener(listener)
+                        awaitCancellation()
+                    } finally {
+                        preferences.unregisterOnSharedPreferenceChangeListener(listener)
+                    }
+                }
+                    .launchIn(this)
+            }
+        }
+        onDispose {
+            scope.cancel()
+        }
+    }
+
+    return value ?: default
+}
 
 @Composable
 fun SettingsDialog(
@@ -138,6 +193,11 @@ private fun SettingsDialogSectionTitle(text: String) {
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
     )
+}
+
+@Composable
+private fun SettingsEditTextItem(modifier: Modifier = Modifier) {
+
 }
 
 @Composable

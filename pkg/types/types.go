@@ -1,13 +1,17 @@
 package types
 
 const (
-	Genshin  = 1
-	StarRail = 2
-	ZZZ      = 3
-	WuWa     = 4
+	Genshin  Game = 1
+	StarRail Game = 2
+	ZZZ      Game = 3
+	WuWa     Game = 4
+
+	AUTH_NONE  AuthType = 0
+	AUTH_BASIC AuthType = 1
 )
 
 type Game int
+type AuthType int
 
 var Games = []Game{Genshin, StarRail, ZZZ, WuWa}
 

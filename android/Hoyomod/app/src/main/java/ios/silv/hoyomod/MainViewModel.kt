@@ -5,6 +5,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ios.silv.hoyomod.net.ModsWithTagsAndTextures
+import ios.silv.hoyomod.net.awaitSuccess
+import ios.silv.hoyomod.net.parseAs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,14 +63,13 @@ class MainViewModel(
     private val dataFlow = ipAddressFlow.mapLatest { addr ->
         runCatching {
             val resp = withContext(Dispatchers.IO) {
-                val res = App.client.newCall(
+                App.client.newCall(
                     Request.Builder()
-                        .url("http://$addr/data")
+                        .url("http://$addr$DATA_ROUTE")
                         .build()
                 )
-                    .execute()
-
-                Json.decodeFromStream<List<ModsWithTagsAndTextures>>(res.body!!.byteStream())
+                    .awaitSuccess()
+                    .parseAs<List<ModsWithTagsAndTextures>>()
             }
             resp.associateBy(
                 keySelector = { it.game },
@@ -113,14 +114,14 @@ class MainViewModel(
         search.value = text
     }
 
-    fun toggleMod(id: Int, enabled: Boolean) {
+    fun toggleMod(game: Int, id: Int, enabled: Boolean) {
         viewModelScope.launch {
             runCatching {
                 val addr = ipAddressFlow.value
                 val res = withContext(Dispatchers.IO) {
                     App.client.newCall(
                         Request.Builder()
-                            .url("http://$addr/update/mod")
+                            .url("http://$addr$UPDATE_MOD")
                             .post(
                                 body = Json.encodeToString(
                                     TogglePostRequest(id, enabled)
@@ -128,14 +129,42 @@ class MainViewModel(
                             )
                             .build()
                     )
-                        .execute()
+                        .awaitSuccess()
                 }
-                if (res.isSuccessful) { dataFlow.refresh() }
+                if (res.isSuccessful) { refreshGame(game) }
             }
                 .onFailure {
                     it.printStackTrace()
                 }
         }
+    }
+
+
+    private suspend fun refreshGame(game: Int) {
+        runCatching {
+            val addr = ipAddressFlow.value
+            val res = withContext(Dispatchers.IO) {
+                App.client.newCall(
+                    Request.Builder()
+                        .url("http://$addr${GAME_ROUTE(game)}")
+                        .build()
+                )
+                    .awaitSuccess()
+                    .parseAs<List<ModsWithTagsAndTextures.Data>>()
+            }
+            _state.update { state ->
+                when(state) {
+                    is State.Success -> state.copy(
+                        data = buildMap {
+                            putAll(state.data)
+                            put(game, res)
+                        }
+                    )
+                    else -> state
+                }
+            }
+        }
+            .onFailure { it.printStackTrace() }
     }
 
     fun restart() {
@@ -157,5 +186,11 @@ class MainViewModel(
         data class Success(
             val data: Map<Int, List<ModsWithTagsAndTextures.Data>>
         ): State()
+    }
+
+    companion object {
+        private const val DATA_ROUTE = "/data"
+        private val GAME_ROUTE = { game: Int -> "/data/$game" }
+        private const val UPDATE_MOD = "/update/mod"
     }
 }

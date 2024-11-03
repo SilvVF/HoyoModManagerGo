@@ -1,5 +1,6 @@
 package ios.silv.hoyomod
 
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.preference.PreferenceManager
 import androidx.activity.ComponentActivity
@@ -42,6 +43,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +51,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,17 +70,20 @@ import ios.silv.hoyomod.lib.toStableFlow
 import ios.silv.hoyomod.net.ModsWithTagsAndTextures
 import ios.silv.hoyomod.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
+val LocalSharedPreferences = staticCompositionLocalOf<SharedPreferences> { error("SharedPrefrences not provided in scope") }
 
 class MainActivity : ComponentActivity() {
+
+    private val sharedPreferences =  applicationContext.getSharedPreferences(
+        PreferenceManager.getDefaultSharedPreferencesName(applicationContext),
+        0
+    )
 
     private val mainViewmodel by viewModels<MainViewModel> {
         SavedStateViewModelFactory<MainViewModel> { savedStateHandle ->
             MainViewModel(
                 savedStateHandle,
-                applicationContext.getSharedPreferences(
-                    PreferenceManager.getDefaultSharedPreferencesName(applicationContext),
-                    0
-                )
+                sharedPreferences
             )
         }
     }
@@ -88,108 +94,122 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            MyApplicationTheme {
-                val state by mainViewmodel.state.collectAsStateWithLifecycle()
-                val scope = rememberCoroutineScope()
-                val tabs = rememberMutableStateListOf {
-                    listOf("Genshin", "Star Rail", "Zenless Zone Zero", "Wuthering Waves")
+            CompositionLocalProvider(
+                LocalSharedPreferences provides sharedPreferences
+            ) {
+                MyApplicationTheme {
+                    MainScreen(mainViewModel = mainViewmodel)
                 }
+            }
+        }
+    }
+}
 
-                val pagerState = rememberPagerState { tabs.size }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(
+    mainViewModel: MainViewModel
+) {
+    val state by mainViewModel.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val tabs = rememberMutableStateListOf {
+        listOf("Genshin", "Star Rail", "Zenless Zone Zero", "Wuthering Waves")
+    }
 
-                var settingsVisible by rememberSaveable { mutableStateOf(false) }
+    val pagerState = rememberPagerState { tabs.size }
 
-                if (settingsVisible) {
-                    SettingsDialog {
-                        settingsVisible = !settingsVisible
-                    }
-                }
+    var settingsVisible by rememberSaveable { mutableStateOf(false) }
 
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    topBar = {
-                        Column {
-                            TopAppBar(
-                                title = { Text("HoyoModManager") },
-                                actions = {
-                                    IconButton(onClick = { settingsVisible = !settingsVisible }) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Settings,
-                                            contentDescription = "settings"
-                                        )
-                                    }
-                                }
+    if (settingsVisible) {
+        SettingsDialog {
+            settingsVisible = !settingsVisible
+        }
+    }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            Column {
+                TopAppBar(
+                    title = { Text("HoyoModManager") },
+                    actions = {
+                        IconButton(onClick = { settingsVisible = !settingsVisible }) {
+                            Icon(
+                                imageVector = Icons.Filled.Settings,
+                                contentDescription = "settings"
                             )
-                            Box(
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column {
-                                    OutlinedTextField(
-                                        value = mainViewmodel.search.state,
-                                        onValueChange = mainViewmodel::search,
-                                        singleLine = true,
-                                        placeholder = { Text("Search...") },
-                                        trailingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Filled.Search,
-                                                contentDescription = "search"
-                                            )
-                                        },
-                                        shape = MaterialTheme.shapes.extraLarge,
-                                        modifier = Modifier
-                                            .padding(12.dp)
-                                            .fillMaxWidth()
-                                    )
-                                    TextPagerIndicator(
-                                        texts = tabs,
-                                        offsetPercentWithSelectFlow = remember {
-                                            snapshotFlow {
-                                                pagerState.currentPageOffsetFraction
-                                            }.toStableFlow()
-                                        },
-                                        selectIndexFlow = remember { snapshotFlow { pagerState.currentPage }.toStableFlow() },
-                                        fontSize = 14.sp,
-                                        selectFontSize = 16.sp,
-                                        textColor = LocalContentColor.current,
-                                        selectTextColor = MaterialTheme.colorScheme.primary,
-                                        selectIndicatorColor = MaterialTheme.colorScheme.primary,
-                                        onIndicatorClick = {
-                                            scope.launch {
-                                                pagerState.animateScrollToPage(it)
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(48.dp),
-                                        margin = 18.dp,
-                                    )
+                        }
+                    }
+                )
+                Box(
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column {
+                        OutlinedTextField(
+                            value = mainViewModel.search.state,
+                            onValueChange = mainViewModel::search,
+                            singleLine = true,
+                            placeholder = { Text("Search...") },
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Search,
+                                    contentDescription = "search"
+                                )
+                            },
+                            shape = MaterialTheme.shapes.extraLarge,
+                            modifier = Modifier
+                                .padding(12.dp)
+                                .fillMaxWidth()
+                        )
+                        TextPagerIndicator(
+                            texts = tabs,
+                            offsetPercentWithSelectFlow = remember {
+                                snapshotFlow {
+                                    pagerState.currentPageOffsetFraction
+                                }.toStableFlow()
+                            },
+                            selectIndexFlow = remember { snapshotFlow { pagerState.currentPage }.toStableFlow() },
+                            fontSize = 14.sp,
+                            selectFontSize = 16.sp,
+                            textColor = LocalContentColor.current,
+                            selectTextColor = MaterialTheme.colorScheme.primary,
+                            selectIndicatorColor = MaterialTheme.colorScheme.primary,
+                            onIndicatorClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(it)
                                 }
-                            }
-                        }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            margin = 18.dp,
+                        )
                     }
-                ) { innerPadding ->
-                    PullToRefreshBox(
-                        isRefreshing = state is MainViewModel.State.Loading,
-                        onRefresh = { mainViewmodel.restart() }
-                    ) {
-                        HorizontalPager(
-                            state = pagerState,
-                            contentPadding = innerPadding,
-                            modifier = Modifier.fillMaxSize()
-                        ) {page ->
-                            when (val s = state){
-                                is MainViewModel.State.Failure -> ErrorScreen(
-                                    onRetry = { mainViewmodel.restart() },
-                                    message = s.msg
-                                )
-                                MainViewModel.State.Loading -> LoadingScreen()
-                                is MainViewModel.State.Success ->  SuccessScreen(
-                                    data =  s.data[page + 1].orEmpty(),
-                                    onEnableMod = mainViewmodel::toggleMod
-                                )
-                            }
+                }
+            }
+        }
+    ) { innerPadding ->
+        PullToRefreshBox(
+            isRefreshing = state is MainViewModel.State.Loading,
+            onRefresh = { mainViewModel.restart() }
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                contentPadding = innerPadding,
+                modifier = Modifier.fillMaxSize()
+            ) {page ->
+                when (val s = state){
+                    is MainViewModel.State.Failure -> ErrorScreen(
+                        onRetry = { mainViewModel.restart() },
+                        message = s.msg
+                    )
+                    MainViewModel.State.Loading -> LoadingScreen()
+                    is MainViewModel.State.Success ->  SuccessScreen(
+                        data =  s.data[page + 1].orEmpty(),
+                        onEnableMod = { id, enabled ->
+                            mainViewModel.toggleMod(page + 1, id, enabled)
                         }
-                    }
+                    )
                 }
             }
         }

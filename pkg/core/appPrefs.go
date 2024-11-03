@@ -22,6 +22,9 @@ type AppPrefs struct {
 	PlaylistGamePref       *PlaylistGamePref
 	DiscoverGamePref       *DiscoverGamePref
 	ServerPortPref         *ServerPortPref
+	ServerAuthTypePref     *ServerAuthTypePref
+	ServerUsernamePref     *ServerUsernamePref
+	ServerPasswordPref     *ServerPasswordPref
 }
 
 func NewAppPrefs(store PreferenceStore) *AppPrefs {
@@ -70,13 +73,22 @@ func NewAppPrefs(store PreferenceStore) *AppPrefs {
 			Preference: store.GetInt("max_download_workers", 1),
 		},
 		&PlaylistGamePref{
-			Preference: store.GetInt("playlist_game", types.Genshin),
+			Preference: store.GetInt("playlist_game", int(types.Genshin)),
 		},
 		&DiscoverGamePref{
 			Preference: store.GetString("discovergamepref", ""),
 		},
 		&ServerPortPref{
 			Preference: store.GetInt("server_port", 6969),
+		},
+		&ServerAuthTypePref{
+			Preference: store.GetInt("server_auth_type", int(types.AUTH_BASIC)),
+		},
+		&ServerUsernamePref{
+			Preference: store.GetString("server_username", "username"),
+		},
+		&ServerPasswordPref{
+			Preference: store.GetString("server_password", "password"),
 		},
 	}
 }
@@ -107,3 +119,6 @@ type PlaylistGamePref struct{ Preference[int] }
 type DiscoverGamePref struct{ Preference[string] }
 
 type ServerPortPref struct{ Preference[int] }
+type ServerUsernamePref struct{ Preference[string] }
+type ServerPasswordPref struct{ Preference[string] }
+type ServerAuthTypePref struct{ Preference[int] }
