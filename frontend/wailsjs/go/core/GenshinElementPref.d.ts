@@ -12,3 +12,5 @@ export function IsSet():Promise<boolean>;
 export function Key():Promise<string>;
 
 export function Set(arg1:Array<string>):Promise<void>;
+
+export function Watch():Promise<any|any>;

@@ -17,17 +17,27 @@ import (
 )
 
 type Server struct {
-	port  int
-	db    *core.DbHelper
-	prefs *core.AppPrefs
-	ctx   context.Context
+	port     int
+	db       *core.DbHelper
+	authType core.Preference[int]
+	username core.Preference[string]
+	password core.Preference[string]
+	ctx      context.Context
 }
 
-func newServer(ctx context.Context, port int, db *core.DbHelper) *Server {
+func newServer(
+	ctx context.Context,
+	port int,
+	db *core.DbHelper,
+	prefs *core.AppPrefs,
+) *Server {
 	return &Server{
-		port: port,
-		db:   db,
-		ctx:  ctx,
+		port:     port,
+		db:       db,
+		ctx:      ctx,
+		authType: prefs.ServerAuthTypePref,
+		username: prefs.ServerUsernamePref,
+		password: prefs.ServerPasswordPref,
 	}
 }
 
@@ -92,7 +102,7 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 
 	basicAuthMiddleware := func(next func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			if s.prefs.ServerAuthTypePref.Get() != int(types.AUTH_BASIC) {
+			if s.authType.Get() != int(types.AUTH_BASIC) {
 				next(w, r)
 				return
 			}
@@ -104,8 +114,8 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 				// usernames and passwords.
 				usernameHash := sha256.Sum256([]byte(username))
 				passwordHash := sha256.Sum256([]byte(password))
-				expectedUsernameHash := sha256.Sum256([]byte(s.prefs.ServerUsernamePref.Get()))
-				expectedPasswordHash := sha256.Sum256([]byte(s.prefs.ServerPasswordPref.Get()))
+				expectedUsernameHash := sha256.Sum256([]byte(s.username.Get()))
+				expectedPasswordHash := sha256.Sum256([]byte(s.password.Get()))
 
 				// Use the subtle.ConstantTimeCompare() function to check if
 				// the provided username and password hashes equal the

@@ -32,6 +32,7 @@ import { ChartConfig } from "@/components/ui/chart";
 import { NameDialog } from "./GameScreen";
 import { useServerStore } from "@/state/serverStore";
 import { useShallow } from "zustand/shallow";
+import { LogDebug } from "wailsjs/runtime/runtime";
 
 // Helper function to generate random HSL color
 function getRandomColor(): string {
@@ -201,7 +202,8 @@ export default function SettingsScreen() {
         "change the port number the http server for external apps will run on (1024 - 49151)",
       onSuccess: (port: string) => {
         try {
-          const pNum = Math.max(Math.min(1024, Number(port)), 49151);
+          const pNum = Math.min(Math.max(1024, Number(port.trim())), 49151);
+          LogDebug(`setting port to ${pNum}`)
           setServerPort(pNum);
         } catch {}
       },

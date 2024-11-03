@@ -5,10 +5,12 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"hmm/pkg/log"
 	"hmm/pkg/util"
 	"math"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -115,6 +117,7 @@ func (r *RoseDbPrefs) events() <-chan KeyChangeEvent {
 	go func() {
 		eventCh, err := r.Watch()
 		if err != nil {
+			log.LogError(err.Error())
 			return
 		}
 		for {
@@ -125,6 +128,7 @@ func (r *RoseDbPrefs) events() <-chan KeyChangeEvent {
 				close(keyChanged)
 				return
 			}
+			log.LogPrint(fmt.Sprintf("Rose db event. %s", string(event.Key)))
 			// events can be captured here for processing
 			keyChanged <- KeyChangeEvent{event.Key, event.Value}
 		}
@@ -173,7 +177,7 @@ func NewPrefs(debug bool) PreferenceStore {
 			SegmentSize:       rosedb.DefaultOptions.SegmentSize,
 			Sync:              rosedb.DefaultOptions.Sync,
 			BytesPerSync:      rosedb.DefaultOptions.BytesPerSync,
-			WatchQueueSize:    rosedb.DefaultOptions.WatchQueueSize,
+			WatchQueueSize:    1000,
 			AutoMergeCronExpr: rosedb.DefaultOptions.AutoMergeCronExpr,
 		})
 		if err != nil {
@@ -188,9 +192,12 @@ func NewPrefs(debug bool) PreferenceStore {
 	}
 
 	go func() {
+		log.LogDebug("starting keywatch for db")
 		eventChan := db.events()
+		log.LogDebug("received event channel")
 		for {
 			event := <-eventChan
+			log.LogDebug(fmt.Sprintf("event received key: %s", string(event.x)))
 			db.onKeyChanged(event)
 		}
 	}()
@@ -259,7 +266,7 @@ func (s *StringPreference) DefaultValue() string {
 }
 
 func (s *StringPreference) Watch() (<-chan string, func()) {
-	panic("not implemented")
+	return createWatcher(s.key, s.db, s)
 }
 
 func (p *Prefs) GetString(key string, defaultValue string) Preference[string] {
@@ -318,19 +325,7 @@ func (p *IntPreference) DefaultValue() int {
 }
 
 func (p *IntPreference) Watch() (<-chan int, func()) {
-
-	send := make(chan int)
-
-	id := p.db.RegisterKeyChangeListener(func(event KeyChangeEvent) {
-		if string(event.x) == p.key {
-			send <- p.Get()
-		}
-	})
-
-	return send, func() {
-		p.db.UnregisterKeyChangeListener(id)
-		close(send)
-	}
+	return createWatcher(p.key, p.db, p)
 }
 
 func (p *Prefs) GetInt(key string, defaultValue int) Preference[int] {
@@ -387,7 +382,7 @@ func (p *LongPreference) DefaultValue() int64 {
 }
 
 func (p *LongPreference) Watch() (<-chan int64, func()) {
-	panic("not implemented")
+	return createWatcher(p.key, p.db, p)
 }
 
 func (p *Prefs) GetLong(key string, defaultValue int64) Preference[int64] {
@@ -444,7 +439,7 @@ func (p *FloatPreference) DefaultValue() float32 {
 }
 
 func (p *FloatPreference) Watch() (<-chan float32, func()) {
-	panic("not implemented")
+	return createWatcher(p.key, p.db, p)
 }
 
 func (p *Prefs) GetFloat(key string, defaultValue float32) Preference[float32] {
@@ -505,7 +500,7 @@ func (p *BooleanPreference) DefaultValue() bool {
 }
 
 func (p *BooleanPreference) Watch() (<-chan bool, func()) {
-	panic("not implemented")
+	return createWatcher(p.key, p.db, p)
 }
 
 func (p *Prefs) GetBoolean(key string, defaultValue bool) Preference[bool] {
@@ -572,7 +567,23 @@ func (p *StringSlicePreference) DefaultValue() []string {
 }
 
 func (p *StringSlicePreference) Watch() (<-chan []string, func()) {
-	panic("not implemented")
+	send := make(chan []string)
+	prev := p.Get()
+
+	id := p.db.RegisterKeyChangeListener(func(event KeyChangeEvent) {
+		if string(event.x) == p.key {
+			new := p.Get()
+			if slices.Compare(new, prev) != 0 {
+				send <- new
+				prev = new
+			}
+		}
+	})
+
+	return send, func() {
+		p.db.UnregisterKeyChangeListener(id)
+		close(send)
+	}
 }
 
 func (p *Prefs) GetStringSlice(key string, defaultValue []string) Preference[[]string] {
@@ -580,5 +591,25 @@ func (p *Prefs) GetStringSlice(key string, defaultValue []string) Preference[[]s
 		key:          key,
 		defaultValue: defaultValue,
 		db:           p.db,
+	}
+}
+
+func createWatcher[T comparable](key string, db PrefrenceDb, p Preference[T]) (<-chan T, func()) {
+	send := make(chan T)
+	prev := p.Get()
+
+	id := db.RegisterKeyChangeListener(func(event KeyChangeEvent) {
+		if string(event.x) == key {
+			new := p.Get()
+			if new != prev {
+				send <- new
+				prev = new
+			}
+		}
+	})
+
+	return send, func() {
+		db.UnregisterKeyChangeListener(id)
+		close(send)
 	}
 }

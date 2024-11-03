@@ -25,3 +25,7 @@ export function Key() {
 export function Set(arg1) {
   return window['go']['core']['HonkaiDirPref']['Set'](arg1);
 }
+
+export function Watch() {
+  return window['go']['core']['HonkaiDirPref']['Watch']();
+}

@@ -84,7 +84,7 @@ func main() {
 	stats := core.NewStats(preferenceDirs)
 	keymapper := core.NewKeymapper(dbHelper)
 
-	serverManager := server.NewServerManager(appPrefs.ServerPortPref.Preference, dbHelper)
+	serverManager := server.NewServerManager(appPrefs, dbHelper)
 
 	generator := core.NewGenerator(
 		dbHelper,

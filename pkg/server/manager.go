@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"hmm/pkg/core"
+	"hmm/pkg/log"
 	"net"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -27,7 +29,7 @@ type ServCmd int
 
 type ServerManager struct {
 	server *CancelableServer
-	port   core.Preference[int]
+	prefs  *core.AppPrefs
 	db     *core.DbHelper
 	events chan ServCmd
 }
@@ -69,36 +71,52 @@ func (*ServerManager) GetLocalIp() (string, error) {
 	return "", errors.New("are you connected to the network?")
 }
 
-func NewServerManager(port core.Preference[int], db *core.DbHelper) *ServerManager {
+func NewServerManager(prefs *core.AppPrefs, db *core.DbHelper) *ServerManager {
 	return &ServerManager{
 		server: nil,
-		port:   port,
+		prefs:  prefs,
 		db:     db,
 		events: make(chan ServCmd),
 	}
 }
 
 func (sm *ServerManager) Listen(ctx context.Context) {
+
+	stopServer := func() {
+		sm.cancelServer()
+		runtime.EventsEmit(ctx, EVENT_NAME, EVENT_STOPPED)
+	}
+	startServer := func(port int) {
+		sm.startCancellableServer(port)
+		runtime.EventsEmit(ctx, EVENT_NAME, EVENT_STARTED)
+	}
+	portPref := sm.prefs.ServerPortPref
+
 	go func() {
+		port, cancel := portPref.Watch()
 		for {
 			select {
-			case <-ctx.Done():
-				close(sm.events)
-				return
+			case p := <-port:
+				if sm.Running() {
+					log.LogDebug(fmt.Sprintf("Restarting server with port: %d", p))
+					stopServer()
+					startServer(p)
+				}
 			case cmd := <-sm.events:
 				switch cmd {
 				case CMD_START:
-					sm.startCancellableServer()
-					runtime.EventsEmit(ctx, EVENT_NAME, EVENT_STARTED)
+					startServer(portPref.Get())
 				case CMD_STOP:
-					sm.cancelServer()
-					runtime.EventsEmit(ctx, EVENT_NAME, EVENT_STOPPED)
+					stopServer()
 				case CMD_RESTART:
-					sm.cancelServer()
-					runtime.EventsEmit(ctx, EVENT_NAME, EVENT_STOPPED)
-					sm.startCancellableServer()
-					runtime.EventsEmit(ctx, EVENT_NAME, EVENT_STARTED)
+					stopServer()
+					startServer(portPref.Get())
 				}
+			case <-ctx.Done():
+				stopServer()
+				cancel()
+				close(sm.events)
+				return
 			}
 		}
 	}()
@@ -127,9 +145,10 @@ func (sm *ServerManager) cancelServer() {
 	}
 }
 
-func (sm *ServerManager) startCancellableServer() {
+func (sm *ServerManager) startCancellableServer(port int) {
 
 	if sm.server != nil {
+		log.LogDebug(fmt.Sprintf("cancelling previously running server on %d", sm.server.server.port))
 		sm.cancelServer()
 	}
 
@@ -137,11 +156,10 @@ func (sm *ServerManager) startCancellableServer() {
 
 	sm.server = &CancelableServer{
 		cancel,
-		newServer(ctx, sm.port.Get(), sm.db),
+		newServer(ctx, port, sm.db, sm.prefs),
 	}
 
 	go func() {
 		sm.server.server.run()
-		sm.cancelServer()
 	}()
 }

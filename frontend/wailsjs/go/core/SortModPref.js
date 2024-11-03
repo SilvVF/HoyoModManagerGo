@@ -25,3 +25,7 @@ export function Key() {
 export function Set(arg1) {
   return window['go']['core']['SortModPref']['Set'](arg1);
 }
+
+export function Watch() {
+  return window['go']['core']['SortModPref']['Watch']();
+}
