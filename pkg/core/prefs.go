@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"hmm/pkg/log"
 	"hmm/pkg/util"
@@ -12,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/rosedblabs/rosedb/v2"
 )
@@ -27,6 +27,7 @@ type Prefs struct {
 }
 
 type PrefrenceDb interface {
+	done() chan struct{}
 	events() <-chan *KeyChangeEvent
 	onKeyChanged(*KeyChangeEvent)
 	Put(key []byte, value []byte) error
@@ -58,90 +59,16 @@ type PreferenceStore interface {
 	Close() error
 }
 
-type MemeoryPreferenceDb struct {
-	m         map[string][]byte
-	listeners map[KeyChangedListener]struct{}
-	mutex     sync.Mutex
-}
-
-func (mp *MemeoryPreferenceDb) UnregisterListener(listener KeyChangedListener) {
-
-}
-
-func (mp *MemeoryPreferenceDb) Put(key []byte, value []byte) error {
-	if key != nil && value != nil {
-		mp.m[string(key)] = value
-	}
-	return nil
-}
-func (mp *MemeoryPreferenceDb) Get(key []byte) ([]byte, error) {
-	v, ok := mp.m[string(key)]
-	var err error
-	if !ok {
-		err = errors.New("value not found")
-	}
-	return v, err
-}
-func (mp *MemeoryPreferenceDb) Delete(key []byte) error {
-	if key != nil {
-		delete(mp.m, string(key))
-	}
-	return nil
-}
-func (mp *MemeoryPreferenceDb) Exist(key []byte) (bool, error) {
-	if key != nil {
-		_, ok := mp.m[string(key)]
-		return ok, nil
-	}
-	return false, nil
-}
-func (mp *MemeoryPreferenceDb) Close() error {
-	return nil
-}
-
-func (mp *MemeoryPreferenceDb) events() <-chan *KeyChangeEvent {
-	return make(<-chan *KeyChangeEvent)
-}
-
-func (mp *MemeoryPreferenceDb) onKeyChanged(event *KeyChangeEvent) {}
-
-func (mp *MemeoryPreferenceDb) RegisterListener(listener KeyChangedListener) {
-	mp.mutex.Lock()
-	defer mp.mutex.Unlock()
-
-	mp.listeners[listener] = struct{}{}
-}
-
 type RoseDbPrefs struct {
 	*rosedb.DB
 	listeners map[KeyChangedListener]struct{}
 	mutex     sync.Mutex
+	dc        chan struct{} // Add done channel for cleanup
+	wg        sync.WaitGroup
 }
 
-func (r *RoseDbPrefs) events() <-chan *KeyChangeEvent {
-	keyChanged := make(chan *KeyChangeEvent)
-
-	go func() {
-		eventCh, err := r.Watch()
-		if err != nil {
-			log.LogError(err.Error())
-			return
-		}
-		for {
-			event, ok := <-eventCh
-			// when db closed, the event will receive nil.
-			if event == nil || !ok {
-				log.LogPrint("The db is closed, so the watch channel is closed.")
-				close(keyChanged)
-				return
-			}
-			log.LogPrint(fmt.Sprintf("Rose db event. %s", string(event.Key)))
-			// events can be captured here for processing
-			keyChanged <- &KeyChangeEvent{event.Key, event.Value}
-		}
-	}()
-
-	return keyChanged
+func (r *RoseDbPrefs) done() chan struct{} {
+	return r.dc
 }
 
 func (r *RoseDbPrefs) onKeyChanged(event *KeyChangeEvent) {
@@ -157,19 +84,15 @@ func (r *RoseDbPrefs) onKeyChanged(event *KeyChangeEvent) {
 		return
 	}
 
+	const timeout = 100 * time.Millisecond
 	var closedListeners []KeyChangedListener
 
 	for listener := range r.listeners {
 		select {
 		case listener <- event:
-			log.LogPrintf("broadcase event to key: %s", string(event.key))
-		default:
+			log.LogPrintf("broadcast event to key: %s", string(event.key))
+		case <-time.After(timeout):
 			log.LogDebugf("listener was blocked key: %s", string(event.key))
-			log.LogDebugf("Removing blocked or closed listener: %v", listener)
-			closedListeners = append(closedListeners, listener)
-		}
-
-		if _, ok := r.listeners[listener]; !ok {
 			closedListeners = append(closedListeners, listener)
 		}
 	}
@@ -194,57 +117,132 @@ func (r *RoseDbPrefs) UnregisterListener(listener KeyChangedListener) {
 	delete(r.listeners, listener)
 }
 
+func (r *RoseDbPrefs) events() <-chan *KeyChangeEvent {
+	keyChanged := make(chan *KeyChangeEvent, 100)
+
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		defer func() {
+			r.mutex.Lock()
+			close(keyChanged)
+			r.mutex.Unlock()
+		}()
+
+		eventCh, err := r.Watch()
+		if err != nil {
+			log.LogError(err.Error())
+			return
+		}
+
+		for {
+			select {
+			case event, ok := <-eventCh:
+				if !ok || event == nil {
+					return
+				}
+				// Make a copy of the event data to prevent races
+				eventCopy := &KeyChangeEvent{
+					key:   append([]byte(nil), event.Key...),
+					value: append([]byte(nil), event.Value...),
+				}
+				select {
+				case keyChanged <- eventCopy:
+				case <-r.dc:
+					return
+				}
+			case <-r.dc:
+				return
+			}
+		}
+	}()
+
+	return keyChanged
+}
+
+func (r *RoseDbPrefs) Close() error {
+	close(r.dc)
+	r.wg.Wait()
+	var listenersToClose []KeyChangedListener
+	r.mutex.Lock()
+	for listener := range r.listeners {
+		listenersToClose = append(listenersToClose, listener)
+	}
+	r.listeners = make(map[KeyChangedListener]struct{})
+	r.mutex.Unlock()
+	for _, listener := range listenersToClose {
+		close(listener)
+	}
+	return r.DB.Close()
+}
+
 func createWatcher[T any](db PrefrenceDb, p Preference[T]) (<-chan T, func()) {
-	send := make(chan T)
-	events := make(chan *KeyChangeEvent)
+	send := make(chan T, 10)
+	events := make(chan *KeyChangeEvent, 10)
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
 
 	db.RegisterListener(events)
 
 	go func() {
-		defer close(send)
-		for event := range events {
-			if event == nil {
-				return
-			}
+		defer wg.Done()
+		defer func() {
+			db.UnregisterListener(events)
+			close(events)
+			close(send)
+		}()
 
-			if string(event.key) == p.Key() {
-				send <- p.Get()
+		for {
+			select {
+			case event, ok := <-events:
+				if !ok || event == nil {
+					return
+				}
+				if string(event.key) == p.Key() {
+					value := p.Get() // Get the value outside the select to prevent deadlock
+					select {
+					case send <- value:
+					case <-done:
+						return
+					default:
+						// Skip if channel is full rather than blocking
+						log.LogDebug("Skipping value update due to full channel")
+					}
+				}
+			case <-done:
+				return
+			case <-db.done():
+				return
 			}
 		}
 	}()
 
 	return send, func() {
-		db.UnregisterListener(events)
-		close(events)
+		close(done)
+		wg.Wait()
 	}
 }
 
 func NewPrefs(debug bool) PreferenceStore {
-	var db PrefrenceDb
-
-	if debug {
-		db = &MemeoryPreferenceDb{
-			m:         map[string][]byte{},
-			listeners: map[KeyChangedListener]struct{}{},
-			mutex:     sync.Mutex{},
-		}
-	} else {
-		rose, err := rosedb.Open(rosedb.Options{
-			DirPath:           filepath.Join(util.GetCacheDir(), "/rosedb_basic"),
-			SegmentSize:       rosedb.DefaultOptions.SegmentSize,
-			Sync:              rosedb.DefaultOptions.Sync,
-			BytesPerSync:      rosedb.DefaultOptions.BytesPerSync,
-			WatchQueueSize:    1000,
-			AutoMergeCronExpr: rosedb.DefaultOptions.AutoMergeCronExpr,
-		})
-		if err != nil {
-			panic(err)
-		}
-		db = &RoseDbPrefs{
-			DB:        rose,
-			listeners: map[KeyChangedListener]struct{}{},
-			mutex:     sync.Mutex{},
-		}
+	rose, err := rosedb.Open(rosedb.Options{
+		DirPath:           filepath.Join(util.GetCacheDir(), "/rosedb_basic"),
+		SegmentSize:       rosedb.DefaultOptions.SegmentSize,
+		Sync:              rosedb.DefaultOptions.Sync,
+		BytesPerSync:      rosedb.DefaultOptions.BytesPerSync,
+		WatchQueueSize:    300,
+		AutoMergeCronExpr: rosedb.DefaultOptions.AutoMergeCronExpr,
+	})
+	if err != nil {
+		panic(err)
+	}
+	var db PrefrenceDb = &RoseDbPrefs{
+		DB:        rose,
+		listeners: map[KeyChangedListener]struct{}{},
+		mutex:     sync.Mutex{},
+		dc:        make(chan struct{}),
+		wg:        sync.WaitGroup{},
 	}
 
 	go func() {
@@ -252,14 +250,17 @@ func NewPrefs(debug bool) PreferenceStore {
 		eventChan := db.events()
 		log.LogDebug("received event channel")
 		for {
-			event, ok := <-eventChan
-			if event == nil || !ok {
-				log.LogDebug("event channel was closed")
+			select {
+			case event, ok := <-eventChan:
+				if !ok || event == nil {
+					log.LogDebug("event channel was closed")
+					return
+				}
+				log.LogDebug(fmt.Sprintf("event received key: %s", string(event.key)))
+				db.onKeyChanged(event)
+			case <-db.done():
 				return
 			}
-
-			log.LogDebug(fmt.Sprintf("event received key: %s", string(event.key)))
-			db.onKeyChanged(event)
 		}
 	}()
 

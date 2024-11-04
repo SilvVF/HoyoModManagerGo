@@ -117,7 +117,7 @@ export default function ModBrowseScreen() {
               onClick={() => navigate("/mods/cats/" + c._idRow)}
               variant={
                 c._idRow !== undefined &&
-                location.pathname.includes(c._idRow.toString())
+                location.pathname.includes(c._idRow?.toString() ?? "")
                   ? "secondary"
                   : "ghost"
               }

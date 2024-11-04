@@ -99,13 +99,15 @@ export function Sidebar({ className, playlists, onDeletePlaylist, refreshPlaylis
   const enablePlaylist = usePlaylistStore((state) => state.enable)
 
   const navigateToLastDiscoverCat = async () => {
-    const defaultPath = await GenshinApi.skinId()
-    if (await discoverGamePref.IsSet()) {
-      const path = (await discoverGamePref.Get()).ifEmpty(() => `cats/${defaultPath}`)
-      navigate(`/mods/${path}`);
-    } else {
-      navigate(`/mods/cats/${defaultPath}`);
-    }
+    try {
+      const defaultPath = await GenshinApi.skinId()
+      if (await discoverGamePref.IsSet()) {
+        const path = (await discoverGamePref.Get()).ifEmpty(() => `cats/${defaultPath}`)
+        navigate(`/mods/${path}`);
+      } else {
+        navigate(`/mods/cats/${defaultPath}`);
+      }
+    } catch{}
   };
 
   return (

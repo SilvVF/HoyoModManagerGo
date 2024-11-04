@@ -81,22 +81,34 @@ func NewServerManager(prefs *core.AppPrefs, db *core.DbHelper) *ServerManager {
 }
 
 func (sm *ServerManager) Listen(ctx context.Context) {
+	var portChan <-chan int
+	var cancelPortWatch func()
+
+	portPref := sm.prefs.ServerPortPref.Preference
 
 	stopServer := func() {
+		if cancelPortWatch != nil {
+			cancelPortWatch()
+			portChan = nil
+			cancelPortWatch = nil
+		}
 		sm.cancelServer()
 		runtime.EventsEmit(ctx, EVENT_NAME, EVENT_STOPPED)
 	}
+
 	startServer := func(port int) {
 		sm.startCancellableServer(port)
+		portChan, cancelPortWatch = portPref.Watch()
 		runtime.EventsEmit(ctx, EVENT_NAME, EVENT_STARTED)
 	}
-	portPref := sm.prefs.ServerPortPref
 
 	go func() {
-		port, cancel := portPref.Watch()
 		for {
 			select {
-			case p := <-port:
+			case p, ok := <-portChan:
+				if !ok {
+					return
+				}
 				if sm.Running() {
 					log.LogDebug(fmt.Sprintf("Restarting server with port: %d", p))
 					stopServer()
@@ -114,7 +126,6 @@ func (sm *ServerManager) Listen(ctx context.Context) {
 				}
 			case <-ctx.Done():
 				stopServer()
-				cancel()
 				close(sm.events)
 				return
 			}
