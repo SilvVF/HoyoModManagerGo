@@ -2,12 +2,12 @@ package pref
 
 import (
 	"context"
-	"hmm/pkg/util"
-	"log"
-	"path/filepath"
-	"sync"
+	"slices"
+)
 
-	"github.com/rosedblabs/rosedb/v2"
+const (
+	OUT_BUFFER_SIZE   = 5
+	WATCH_BUFFER_SIZE = 10
 )
 
 type Prefs struct {
@@ -44,34 +44,10 @@ type PreferenceStore interface {
 	Close() error
 }
 
-type RoseDbPrefs struct {
-	*rosedb.DB
-	cancel   context.CancelFunc
-	watchers map[chan<- []byte]struct{}
-	mutex    sync.Mutex
-}
+func createSliceWatcher[S ~[]E, E comparable](db PrefrenceDb, p Preference[S]) (<-chan S, func()) {
 
-func (r *RoseDbPrefs) Close() error {
-	r.cancel()
-	return r.DB.Close()
-}
-
-func (r *RoseDbPrefs) PutWatcher(watch chan<- []byte) {
-	r.mutex.Lock()
-	r.watchers[watch] = struct{}{}
-	r.mutex.Unlock()
-}
-
-func (r *RoseDbPrefs) RemoveWatcher(watch chan<- []byte) {
-	r.mutex.Lock()
-	delete(r.watchers, watch)
-	r.mutex.Unlock()
-}
-
-func createWatcher[T any](db PrefrenceDb, p Preference[T]) (<-chan T, func()) {
-
-	out := make(chan T, 5)
-	watch := make(chan []byte, 10)
+	out := make(chan S, OUT_BUFFER_SIZE)
+	watch := make(chan []byte, WATCH_BUFFER_SIZE)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -81,11 +57,16 @@ func createWatcher[T any](db PrefrenceDb, p Preference[T]) (<-chan T, func()) {
 
 		db.PutWatcher(watch)
 
+		var prev S
+
 		for {
 			select {
-			case _, ok := <-watch:
-				if ok {
-					out <- p.Get()
+			case key, ok := <-watch:
+				if ok && string(key) == p.Key() {
+					if new := p.Get(); !slices.Equal(new, prev) {
+						out <- new
+						prev = new
+					}
 				} else {
 					return
 				}
@@ -99,64 +80,45 @@ func createWatcher[T any](db PrefrenceDb, p Preference[T]) (<-chan T, func()) {
 
 	return out, cancel
 }
-func NewPrefs(ctx context.Context) PreferenceStore {
 
-	_, cancel := context.WithCancel(ctx)
+func createWatcher[T comparable](db PrefrenceDb, p Preference[T]) (<-chan T, func()) {
 
-	rose, err := rosedb.Open(rosedb.Options{
-		DirPath:           filepath.Join(util.GetCacheDir(), "/rosedb_basic"),
-		SegmentSize:       rosedb.DefaultOptions.SegmentSize,
-		Sync:              rosedb.DefaultOptions.Sync,
-		BytesPerSync:      rosedb.DefaultOptions.BytesPerSync,
-		WatchQueueSize:    300,
-		AutoMergeCronExpr: rosedb.DefaultOptions.AutoMergeCronExpr,
-	})
-	if err != nil {
-		panic(err)
-	}
-	db := &RoseDbPrefs{
-		DB:       rose,
-		cancel:   cancel,
-		watchers: map[chan<- []byte]struct{}{},
-		mutex:    sync.Mutex{},
-	}
+	out := make(chan T, OUT_BUFFER_SIZE)
+	watch := make(chan []byte, WATCH_BUFFER_SIZE)
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
-		eventCh, err := rose.Watch()
-		if err != nil {
-			return
-		}
+
+		defer close(out)
+
+		db.PutWatcher(watch)
+
+		var prev T
+
 		for {
 			select {
-			case event := <-eventCh:
-				// when db closed, the event will receive nil.
-				if event == nil {
-					log.Println("The db is closed, so the watch channel is closed.")
+			case key, ok := <-watch:
+				if ok && string(key) == p.Key() {
+					if new := p.Get(); new != prev {
+						out <- new
+						prev = new
+					}
+				} else {
 					return
 				}
-				// events can be captured here for processing
-				log.Printf("Get a new event: key%s \n", event.Key)
-
-				go func() {
-					db.mutex.Lock()
-					defer db.mutex.Unlock()
-
-					for watcher := range db.watchers {
-						watcher <- event.Key
-					}
-				}()
 			case <-ctx.Done():
-				db.mutex.Lock()
-				for watcher := range db.watchers {
-					close(watcher)
-				}
-				db.watchers = map[chan<- []byte]struct{}{}
-				db.mutex.Unlock()
+				db.RemoveWatcher(watch)
+				close(watch)
 				return
 			}
 		}
 	}()
 
+	return out, cancel
+}
+
+func NewPrefs(db PrefrenceDb) PreferenceStore {
 	return &Prefs{
 		db: db,
 	}

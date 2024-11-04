@@ -357,7 +357,7 @@ func (p *StringSlicePreference) DefaultValue() []string {
 }
 
 func (p *StringSlicePreference) Watch() (<-chan []string, func()) {
-	return createWatcher(p.db, p)
+	return createSliceWatcher(p.db, p)
 }
 
 func (p *Prefs) GetStringSlice(key string, defaultValue []string) Preference[[]string] {

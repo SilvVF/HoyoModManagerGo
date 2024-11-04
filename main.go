@@ -35,16 +35,22 @@ var icon []byte
 var ddl string
 
 func main() {
-	// // Create an instance of the app structure
-	// debug := false
+	// Create an instance of the app structure
+	debug := false
 
-	// argsWithoutProg := os.Args[1:]
-	// if len(argsWithoutProg) >= 1 {
-	// 	debug = argsWithoutProg[0] == "debug"
-	// }
+	argsWithoutProg := os.Args[1:]
+	if len(argsWithoutProg) >= 1 {
+		debug = argsWithoutProg[0] == "debug"
+	}
 
 	ctx := context.Background()
-	app := NewApp(pref.NewPrefs(context.Background()))
+	var store pref.PrefrenceDb
+	if debug {
+		store = pref.NewMemoryPrefs(context.Background())
+	} else {
+		store = pref.NewRosePrefs(context.Background())
+	}
+	app := NewApp(pref.NewPrefs(store))
 
 	genshinApi := api.ApiList[types.Genshin]
 	starRailApi := api.ApiList[types.StarRail]
