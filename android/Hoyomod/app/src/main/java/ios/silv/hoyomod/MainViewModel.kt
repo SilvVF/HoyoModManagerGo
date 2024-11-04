@@ -23,7 +23,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -34,9 +33,8 @@ class MainViewModel(
 ): ViewModel() {
 
     private val ipAddressFlow = callbackFlow {
-        send(preferences.getString("addr_pref", "192.168.1.251:6969").orEmpty())
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
-            if (key == "addr_pref") {
+            if (key == PrefKeys.ADDR) {
                 prefs.getString(key, null)?.let {
                     trySend(it)
                 }
@@ -52,7 +50,7 @@ class MainViewModel(
         .stateIn(
             viewModelScope,
             SharingStarted.Lazily,
-            preferences.getString("addr_pref", "192.168.1.251:6969").orEmpty()
+            preferences.getString(PrefKeys.ADDR, null).orEmpty()
         )
 
     val search = MutableSavedState(savedStateHandle, "search", "")

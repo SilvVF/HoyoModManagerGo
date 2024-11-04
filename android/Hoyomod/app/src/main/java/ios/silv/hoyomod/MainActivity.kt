@@ -74,28 +74,22 @@ val LocalSharedPreferences = staticCompositionLocalOf<SharedPreferences> { error
 
 class MainActivity : ComponentActivity() {
 
-    private val sharedPreferences =  applicationContext.getSharedPreferences(
-        PreferenceManager.getDefaultSharedPreferencesName(applicationContext),
-        0
-    )
-
     private val mainViewmodel by viewModels<MainViewModel> {
         SavedStateViewModelFactory<MainViewModel> { savedStateHandle ->
             MainViewModel(
                 savedStateHandle,
-                sharedPreferences
+                App.sharedPreferences
             )
         }
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         setContent {
             CompositionLocalProvider(
-                LocalSharedPreferences provides sharedPreferences
+                LocalSharedPreferences provides App.sharedPreferences
             ) {
                 MyApplicationTheme {
                     MainScreen(mainViewModel = mainViewmodel)

@@ -135,6 +135,12 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 					return
 				}
 			}
+			// If the Authentication header is not present, is invalid, or the
+			// username or password is wrong, then set a WWW-Authenticate
+			// header to inform the client that we expect them to use basic
+			// authentication and send a 401 Unauthorized response.
+			w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}
 	}
 
