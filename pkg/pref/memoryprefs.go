@@ -9,7 +9,7 @@ import (
 
 type MemoryPrefs struct {
 	cancel    context.CancelFunc
-	watchers  map[chan<- []byte]struct{}
+	watchers  map[string][]chan<- struct{}
 	events    chan<- []byte
 	prefs     map[string][]byte
 	prefMutex sync.Mutex
@@ -24,7 +24,7 @@ func NewMemoryPrefs(ctx context.Context) PrefrenceDb {
 	db := &MemoryPrefs{
 		cancel:    cancel,
 		prefs:     map[string][]byte{},
-		watchers:  map[chan<- []byte]struct{}{},
+		watchers:  map[string][]chan<- struct{}{},
 		prefMutex: sync.Mutex{},
 		mutex:     sync.RWMutex{},
 	}
@@ -32,10 +32,12 @@ func NewMemoryPrefs(ctx context.Context) PrefrenceDb {
 	go func() {
 		defer func() {
 			db.mutex.Lock()
-			for watcher := range db.watchers {
-				close(watcher)
+			for _, watchers := range db.watchers {
+				for _, watcher := range watchers {
+					close(watcher)
+				}
 			}
-			db.watchers = map[chan<- []byte]struct{}{}
+			db.watchers = map[string][]chan<- struct{}{}
 			db.mutex.Unlock()
 		}()
 
@@ -53,8 +55,8 @@ func NewMemoryPrefs(ctx context.Context) PrefrenceDb {
 					db.mutex.RLock()
 					defer db.mutex.RUnlock()
 
-					for watcher := range db.watchers {
-						watcher <- event
+					for _, watcher := range db.watchers[string(event)] {
+						watcher <- struct{}{}
 					}
 				}()
 			case <-context.Done():
@@ -113,14 +115,19 @@ func (mp *MemoryPrefs) Close() error {
 	return nil
 }
 
-func (mp *MemoryPrefs) PutWatcher(watch chan<- []byte) {
+func (mp *MemoryPrefs) PutWatcher(key []byte, watch chan<- struct{}) {
 	mp.mutex.Lock()
-	mp.watchers[watch] = struct{}{}
+	mp.watchers[string(key)] = append(mp.watchers[string(key)], watch)
 	mp.mutex.Unlock()
 }
 
-func (mp *MemoryPrefs) RemoveWatcher(watch chan<- []byte) {
+func (mp *MemoryPrefs) RemoveWatcher(key []byte, watch chan<- struct{}) {
 	mp.mutex.Lock()
-	delete(mp.watchers, watch)
+	values := mp.watchers[string(key)]
+	if len(values) == 1 {
+		delete(mp.watchers, string(key))
+	} else {
+		mp.watchers[string(key)] = removeElement(values, watch)
+	}
 	mp.mutex.Unlock()
 }

@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/rosedblabs/rosedb/v2"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/logger"
@@ -48,7 +49,16 @@ func main() {
 	if debug {
 		store = pref.NewMemoryPrefs(context.Background())
 	} else {
-		store = pref.NewRosePrefs(context.Background())
+		store = pref.NewRosePrefDb(
+			rosedb.Options{
+				DirPath:           filepath.Join(util.GetCacheDir(), "/rosedb_basic"),
+				SegmentSize:       rosedb.DefaultOptions.SegmentSize,
+				Sync:              rosedb.DefaultOptions.Sync,
+				BytesPerSync:      rosedb.DefaultOptions.BytesPerSync,
+				WatchQueueSize:    300,
+				AutoMergeCronExpr: rosedb.DefaultOptions.AutoMergeCronExpr,
+			},
+		)
 	}
 	app := NewApp(pref.NewPrefs(store))
 

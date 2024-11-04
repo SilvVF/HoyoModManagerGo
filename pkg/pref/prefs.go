@@ -7,7 +7,7 @@ import (
 
 const (
 	OUT_BUFFER_SIZE   = 5
-	WATCH_BUFFER_SIZE = 10
+	WATCH_BUFFER_SIZE = 5
 )
 
 type Prefs struct {
@@ -15,8 +15,8 @@ type Prefs struct {
 }
 
 type PrefrenceDb interface {
-	PutWatcher(chan<- []byte)
-	RemoveWatcher(chan<- []byte)
+	PutWatcher(key []byte, update chan<- struct{})
+	RemoveWatcher(key []byte, update chan<- struct{})
 	Put(key []byte, value []byte) error
 	Get(key []byte) ([]byte, error)
 	Delete(key []byte) error
@@ -47,31 +47,27 @@ type PreferenceStore interface {
 func createSliceWatcher[S ~[]E, E comparable](db PrefrenceDb, p Preference[S]) (<-chan S, func()) {
 
 	out := make(chan S, OUT_BUFFER_SIZE)
-	watch := make(chan []byte, WATCH_BUFFER_SIZE)
+	watch := make(chan struct{}, WATCH_BUFFER_SIZE)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	db.PutWatcher([]byte(p.Key()), watch)
 
 	go func() {
-
 		defer close(out)
 
-		db.PutWatcher(watch)
-
 		var prev S
-
 		for {
 			select {
-			case key, ok := <-watch:
-				if ok && string(key) == p.Key() {
-					if new := p.Get(); !slices.Equal(new, prev) {
-						out <- new
-						prev = new
-					}
-				} else {
+			case _, ok := <-watch:
+				if !ok {
 					return
 				}
+				if new := p.Get(); !slices.Equal(new, prev) {
+					out <- new
+					prev = new
+				}
 			case <-ctx.Done():
-				db.RemoveWatcher(watch)
+				db.RemoveWatcher([]byte(p.Key()), watch)
 				close(watch)
 				return
 			}
@@ -84,31 +80,27 @@ func createSliceWatcher[S ~[]E, E comparable](db PrefrenceDb, p Preference[S]) (
 func createWatcher[T comparable](db PrefrenceDb, p Preference[T]) (<-chan T, func()) {
 
 	out := make(chan T, OUT_BUFFER_SIZE)
-	watch := make(chan []byte, WATCH_BUFFER_SIZE)
+	watch := make(chan struct{}, WATCH_BUFFER_SIZE)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	db.PutWatcher([]byte(p.Key()), watch)
 
 	go func() {
-
 		defer close(out)
 
-		db.PutWatcher(watch)
-
 		var prev T
-
 		for {
 			select {
-			case key, ok := <-watch:
-				if ok && string(key) == p.Key() {
-					if new := p.Get(); new != prev {
-						out <- new
-						prev = new
-					}
-				} else {
+			case _, ok := <-watch:
+				if !ok {
 					return
 				}
+				if new := p.Get(); new != prev {
+					out <- new
+					prev = new
+				}
 			case <-ctx.Done():
-				db.RemoveWatcher(watch)
+				db.RemoveWatcher([]byte(p.Key()), watch)
 				close(watch)
 				return
 			}
