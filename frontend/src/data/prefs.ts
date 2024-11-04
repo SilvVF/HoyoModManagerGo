@@ -30,7 +30,6 @@ const darkThemePref = DarkThemePref as GoPref<string>
 const startScreenPref = StartScreenPref as GoPref<string>
 
 const serverPortPref = ServerPortPref as GoPref<number>
-
 const honkaiDirPref = HonkaiDirPref as GoPref<string>
 const zzzDirPref = ZZZDirPref as GoPref<string>
 const genshinDirPref = GenshinDirPref as GoPref<string>
