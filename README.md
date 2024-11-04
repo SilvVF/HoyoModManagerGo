@@ -1,11 +1,16 @@
 # Skin mod manager for Hoyo games and Wuthering Waves.
-* Browse Game Banana mod listsings from the app.
+* Browse Game Banana mod listsings.
 * Direct downloads of .rar .zip and .7zip files.
+* Use alternative textures for mods.
+* Http server to manage enabled mod state.
+* Companion Android app.
 * Create and load playlists.
 * Runs skin fix .exe automatically when regenerating the mod folder if exists.
 * Dark and light themes using Catapuccin Mocha and Latte.
 
-### Building and running
+### Building and running.
+
+uses C go for sqlite3 and sqlc. to run on windows you can use mingw https://www.mingw-w64.org/
 
 ```console
 cd frontend
@@ -27,13 +32,23 @@ npx shadcn-ui@latest add [component]
 
 ## Live Development
 
-To run in live development mode, run `wails dev` in the project directory. In another terminal, go into the `frontend`
-directory and run `npm run dev`. The frontend dev server will run on http://localhost:34115. Connect to this in your
-browser and connect to your application.
+To run in live development mode, run `wails dev` in the project directory
+for hot reload when editing go code use to avoid rosedb single process issues `wails dev -appargs "debug"`.
 
 ## Building
 
 To build a redistributable, production mode package, use `wails build`.
+
+## Android 
+
+select import project and choose dir `android/Hoyomod`
+requires android studio version compatible with AGP version 8.4.2
+
+sync gradle and hit run button or 
+```console
+./gradlew build run
+```
+
 
 ## Libs / Tech stack
 - [WAILS](https://wails.io/)
@@ -61,6 +76,8 @@ To build a redistributable, production mode package, use `wails build`.
 ![image](https://github.com/user-attachments/assets/73c857f4-0bc1-4479-9be0-d474529b3bc0)
 ![image](https://github.com/user-attachments/assets/f4750b77-a329-4a54-91d0-02ac77dceb1d)
 ![image](https://github.com/user-attachments/assets/be452e6a-e1f9-4099-88e8-9a264a08ca7a)
+<img src="https://github.com/user-attachments/assets/bcf701fe-7d33-4a61-852c-393a819fc457" width="200">
+<img src="https://github.com/user-attachments/assets/b6dd73c9-af38-4009-9787-5b11294f2a71" width="200">
 
 
 
