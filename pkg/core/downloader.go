@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"hmm/pkg/log"
+	"hmm/pkg/pref"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
 	"io"
@@ -59,12 +60,12 @@ type DLItem struct {
 type Downloader struct {
 	db    *DbHelper
 	Ctx   context.Context
-	count Preference[int]
+	count pref.Preference[int]
 	pool  *pond.WorkerPool
 	Queue ConcurrentMap[string, *DLItem]
 }
 
-func NewDownloader(db *DbHelper, count Preference[int]) *Downloader {
+func NewDownloader(db *DbHelper, count pref.Preference[int]) *Downloader {
 	return &Downloader{
 		db:    db,
 		count: count,

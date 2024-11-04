@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"hmm/pkg/log"
+	"hmm/pkg/pref"
 
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -10,12 +11,15 @@ import (
 
 // App struct
 type App struct {
-	ctx context.Context
+	prefs pref.PreferenceStore
+	ctx   context.Context
 }
 
 // NewApp creates a new App application struct
-func NewApp() *App {
-	return &App{}
+func NewApp(prefs pref.PreferenceStore) *App {
+	return &App{
+		prefs: prefs,
+	}
 }
 
 // startup is called at application startup
@@ -24,6 +28,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
 	log.InitLogging(ctx)
+	log.LogDebug("Started")
 	runtime.LogSetLogLevel(ctx, logger.TRACE)
 }
 
@@ -36,6 +41,10 @@ func (a App) domReady(ctx context.Context) {
 // either by clicking the window close button or calling runtime.Quit.
 // Returning true will cause the application to continue, false will continue shutdown as normal.
 func (a *App) beforeClose(ctx context.Context) (prevent bool) {
+	err := a.prefs.Close()
+	if err != nil {
+		log.LogError(err.Error())
+	}
 	return false
 }
 

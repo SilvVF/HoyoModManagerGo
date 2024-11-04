@@ -1,6 +1,7 @@
 package core
 
 import (
+	"hmm/pkg/pref"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
 	"io/fs"
@@ -10,10 +11,10 @@ import (
 )
 
 type Stats struct {
-	outputDirs map[types.Game]Preference[string]
+	outputDirs map[types.Game]pref.Preference[string]
 }
 
-func NewStats(outputDirs map[types.Game]Preference[string]) *Stats {
+func NewStats(outputDirs map[types.Game]pref.Preference[string]) *Stats {
 	return &Stats{
 		outputDirs: outputDirs,
 	}

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hmm/pkg/core"
+	"hmm/pkg/pref"
 	"hmm/pkg/types"
 	"io"
 	"net/http"
@@ -19,9 +20,9 @@ import (
 type Server struct {
 	port     int
 	db       *core.DbHelper
-	authType core.Preference[int]
-	username core.Preference[string]
-	password core.Preference[string]
+	authType pref.Preference[int]
+	username pref.Preference[string]
+	password pref.Preference[string]
 	ctx      context.Context
 }
 

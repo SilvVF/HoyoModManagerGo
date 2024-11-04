@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"hmm/pkg/log"
+	"hmm/pkg/pref"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
 	"io/fs"
@@ -20,14 +21,14 @@ var ErrStopWalkingDirError = errors.New("stop walking normally")
 
 type Generator struct {
 	db         *DbHelper
-	outputDirs map[types.Game]Preference[string]
-	ignored    Preference[[]string]
+	outputDirs map[types.Game]pref.Preference[string]
+	ignored    pref.Preference[[]string]
 }
 
 func NewGenerator(
 	db *DbHelper,
-	outputDirs map[types.Game]Preference[string],
-	ignoredDirPref Preference[[]string],
+	outputDirs map[types.Game]pref.Preference[string],
+	ignoredDirPref pref.Preference[[]string],
 ) *Generator {
 	return &Generator{
 		db:         db,

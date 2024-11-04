@@ -1,6 +1,7 @@
 package core
 
 import (
+	"hmm/pkg/pref"
 	"hmm/pkg/types"
 )
 
@@ -27,7 +28,7 @@ type AppPrefs struct {
 	ServerPasswordPref     *ServerPasswordPref
 }
 
-func NewAppPrefs(store PreferenceStore) *AppPrefs {
+func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 	return &AppPrefs{
 		&DarkThemePref{
 			Preference: store.GetString("darktheme", "system"),
@@ -93,32 +94,32 @@ func NewAppPrefs(store PreferenceStore) *AppPrefs {
 	}
 }
 
-type DarkThemePref struct{ Preference[string] }
+type DarkThemePref struct{ pref.Preference[string] }
 
-type StartScreenPref struct{ Preference[string] }
+type StartScreenPref struct{ pref.Preference[string] }
 
-type SortModPref struct{ Preference[string] }
+type SortModPref struct{ pref.Preference[string] }
 
-type ModsAvailablePref struct{ Preference[bool] }
+type ModsAvailablePref struct{ pref.Preference[bool] }
 
-type MaxDownloadWorkersPref struct{ Preference[int] }
+type MaxDownloadWorkersPref struct{ pref.Preference[int] }
 
-type GenshinElementPref struct{ Preference[[]string] }
-type HonkaiElementPref struct{ Preference[[]string] }
-type ZenlessElementPref struct{ Preference[[]string] }
-type WuwaElementPref struct{ Preference[[]string] }
+type GenshinElementPref struct{ pref.Preference[[]string] }
+type HonkaiElementPref struct{ pref.Preference[[]string] }
+type ZenlessElementPref struct{ pref.Preference[[]string] }
+type WuwaElementPref struct{ pref.Preference[[]string] }
 
-type HonkaiDirPref struct{ Preference[string] }
-type GenshinDirPref struct{ Preference[string] }
-type ZZZDirPref struct{ Preference[string] }
-type WuwaDirPref struct{ Preference[string] }
+type HonkaiDirPref struct{ pref.Preference[string] }
+type GenshinDirPref struct{ pref.Preference[string] }
+type ZZZDirPref struct{ pref.Preference[string] }
+type WuwaDirPref struct{ pref.Preference[string] }
 
-type IgnoreDirPref struct{ Preference[[]string] }
+type IgnoreDirPref struct{ pref.Preference[[]string] }
 
-type PlaylistGamePref struct{ Preference[int] }
-type DiscoverGamePref struct{ Preference[string] }
+type PlaylistGamePref struct{ pref.Preference[int] }
+type DiscoverGamePref struct{ pref.Preference[string] }
 
-type ServerPortPref struct{ Preference[int] }
-type ServerUsernamePref struct{ Preference[string] }
-type ServerPasswordPref struct{ Preference[string] }
-type ServerAuthTypePref struct{ Preference[int] }
+type ServerPortPref struct{ pref.Preference[int] }
+type ServerUsernamePref struct{ pref.Preference[string] }
+type ServerPasswordPref struct{ pref.Preference[string] }
+type ServerAuthTypePref struct{ pref.Preference[int] }

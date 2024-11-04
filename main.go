@@ -7,6 +7,7 @@ import (
 	"hmm/db"
 	"hmm/pkg/api"
 	"hmm/pkg/core"
+	"hmm/pkg/pref"
 	"hmm/pkg/server"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
@@ -34,15 +35,16 @@ var icon []byte
 var ddl string
 
 func main() {
-	// Create an instance of the app structure
-	app := NewApp()
-	debug := false
+	// // Create an instance of the app structure
+	// debug := false
 
-	argsWithoutProg := os.Args[1:]
-	if len(argsWithoutProg) >= 1 {
-		debug = argsWithoutProg[0] == "debug"
-	}
+	// argsWithoutProg := os.Args[1:]
+	// if len(argsWithoutProg) >= 1 {
+	// 	debug = argsWithoutProg[0] == "debug"
+	// }
+
 	ctx := context.Background()
+	app := NewApp(pref.NewPrefs(context.Background()))
 
 	genshinApi := api.ApiList[types.Genshin]
 	starRailApi := api.ApiList[types.StarRail]
@@ -68,10 +70,9 @@ func main() {
 	}
 
 	queries := db.New(dbSql)
-	prefs := core.NewPrefs(debug)
-	appPrefs := core.NewAppPrefs(prefs)
+	appPrefs := core.NewAppPrefs(app.prefs)
 
-	preferenceDirs := map[types.Game]core.Preference[string]{
+	preferenceDirs := map[types.Game]pref.Preference[string]{
 		types.Genshin:  appPrefs.GenshinDirPref.Preference,
 		types.ZZZ:      appPrefs.ZZZDirPref.Preference,
 		types.StarRail: appPrefs.HonkaiDirPref.Preference,
