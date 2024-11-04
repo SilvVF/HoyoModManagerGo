@@ -76,8 +76,8 @@ sync gradle and hit run button or
 ![image](https://github.com/user-attachments/assets/73c857f4-0bc1-4479-9be0-d474529b3bc0)
 ![image](https://github.com/user-attachments/assets/f4750b77-a329-4a54-91d0-02ac77dceb1d)
 ![image](https://github.com/user-attachments/assets/be452e6a-e1f9-4099-88e8-9a264a08ca7a)
-![Screenshot_20241103_192022_Hoyomod](https://github.com/user-attachments/assets/bcf701fe-7d33-4a61-852c-393a819fc457)
-![Screenshot_20241103_192011_Hoyomod](https://github.com/user-attachments/assets/b6dd73c9-af38-4009-9787-5b11294f2a71)
+<img src="https://github.com/user-attachments/assets/bcf701fe-7d33-4a61-852c-393a819fc457" width="200">
+<img src="https://github.com/user-attachments/assets/b6dd73c9-af38-4009-9787-5b11294f2a71" width="200">
 
 
 
