@@ -24,7 +24,6 @@ type Generator struct {
 	db         *DbHelper
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
-	mutex      sync.Mutex
 	outputDirs map[types.Game]pref.Preference[string]
 	ignored    pref.Preference[[]string]
 }
@@ -37,7 +36,6 @@ func NewGenerator(
 	return &Generator{
 		db:         db,
 		wg:         sync.WaitGroup{},
-		mutex:      sync.Mutex{},
 		outputDirs: outputDirs,
 		ignored:    ignoredDirPref,
 	}
@@ -76,9 +74,6 @@ func (g *Generator) Reload(game types.Game) error {
 	if !g.outputDirs[game].IsSet() {
 		return errors.New("output dir not set")
 	}
-
-	g.mutex.Lock()
-	defer g.mutex.Unlock()
 
 	// Cancel any ongoing task
 	if g.cancel != nil {
