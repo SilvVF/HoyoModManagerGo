@@ -24,6 +24,7 @@ type Generator struct {
 	db         *DbHelper
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
+	mutex      sync.Mutex
 	outputDirs map[types.Game]pref.Preference[string]
 	ignored    pref.Preference[[]string]
 }
@@ -36,6 +37,7 @@ func NewGenerator(
 	return &Generator{
 		db:         db,
 		wg:         sync.WaitGroup{},
+		mutex:      sync.Mutex{},
 		outputDirs: outputDirs,
 		ignored:    ignoredDirPref,
 	}
@@ -75,6 +77,8 @@ func (g *Generator) Reload(game types.Game) error {
 		return errors.New("output dir not set")
 	}
 
+	g.mutex.Lock()
+
 	// Cancel any ongoing task
 	if g.cancel != nil {
 		fmt.Println("Cancelling previous task and waiting for it to finish current step")
@@ -89,6 +93,8 @@ func (g *Generator) Reload(game types.Game) error {
 	g.cancel = cancel
 	errCh := make(chan error, 1)
 	g.wg.Add(1)
+
+	g.mutex.Unlock()
 
 	go func() {
 		defer g.wg.Done()
