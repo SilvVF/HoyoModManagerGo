@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,9 @@ var ErrStopWalkingDirError = errors.New("stop walking normally")
 
 type Generator struct {
 	db         *DbHelper
+	cancel     context.CancelFunc
+	wg         sync.WaitGroup
+	mutex      sync.Mutex
 	outputDirs map[types.Game]pref.Preference[string]
 	ignored    pref.Preference[[]string]
 }
@@ -32,6 +36,8 @@ func NewGenerator(
 ) *Generator {
 	return &Generator{
 		db:         db,
+		wg:         sync.WaitGroup{},
+		mutex:      sync.Mutex{},
 		outputDirs: outputDirs,
 		ignored:    ignoredDirPref,
 	}
@@ -67,9 +73,51 @@ func dateSorter() func(a, b string) int {
 }
 
 func (g *Generator) Reload(game types.Game) error {
-
 	if !g.outputDirs[game].IsSet() {
 		return errors.New("output dir not set")
+	}
+
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	// Cancel any ongoing task
+	if g.cancel != nil {
+		fmt.Println("Cancelling previous task and waiting for it to finish current step")
+		g.cancel()  // Signal cancellation
+		g.wg.Wait() // Wait for the task to finish its current step
+		fmt.Println("Previous task finished its current step")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	g.cancel = cancel
+	errCh := make(chan error, 1)
+	g.wg.Add(1)
+
+	go func() {
+		defer g.wg.Done()
+		errCh <- moveModsToOutputDir(g, game, ctx)
+	}()
+
+	select {
+	case err := <-errCh:
+		close(errCh)
+		return err
+	case <-ctx.Done():
+		return context.Canceled
+	}
+}
+
+func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) error {
+
+	isActive := func() error {
+		select {
+		case <-ctx.Done():
+			return errors.New("execution was cancelled")
+		default:
+			return nil
+		}
 	}
 
 	ignored := g.ignored.Get()
@@ -97,6 +145,11 @@ func (g *Generator) Reload(game types.Game) error {
 	log.LogDebug(strings.Join(exported, "\n - "))
 
 	for _, file := range exported {
+
+		if err := isActive(); err != nil {
+			return err
+		}
+
 		stat, err := os.Stat(filepath.Join(outputDir, file))
 		if err != nil {
 			log.LogDebug("couldnt stat file" + file)
@@ -131,6 +184,10 @@ func (g *Generator) Reload(game types.Game) error {
 
 	for _, mod := range selected {
 
+		if err := isActive(); err != nil {
+			return err
+		}
+
 		modDir := util.GetModDir(mod)
 		outputDir := filepath.Join(outputDir, fmt.Sprintf("%d_%s", mod.Id, mod.Filename))
 
@@ -156,6 +213,10 @@ func (g *Generator) Reload(game types.Game) error {
 		if err != nil {
 			log.LogError(err.Error())
 		}
+	}
+
+	if err := isActive(); err != nil {
+		return err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
