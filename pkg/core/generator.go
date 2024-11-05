@@ -98,11 +98,11 @@ func (g *Generator) Reload(game types.Game) error {
 	go func() {
 		defer g.wg.Done()
 		errCh <- moveModsToOutputDir(g, game, ctx)
+		close(errCh)
 	}()
 
 	select {
 	case err := <-errCh:
-		close(errCh)
 		return err
 	case <-ctx.Done():
 		return context.Canceled
@@ -114,7 +114,7 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 	isActive := func() error {
 		select {
 		case <-ctx.Done():
-			return errors.New("execution was cancelled")
+			return context.Canceled
 		default:
 			return nil
 		}
