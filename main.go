@@ -101,13 +101,13 @@ func main() {
 	stats := core.NewStats(preferenceDirs)
 	keymapper := core.NewKeymapper(dbHelper)
 
-	serverManager := server.NewServerManager(appPrefs, dbHelper)
-
 	generator := core.NewGenerator(
 		dbHelper,
 		preferenceDirs,
 		appPrefs.IgnoreDirPref.Preference,
 	)
+
+	serverManager := server.NewServerManager(appPrefs, dbHelper, generator)
 
 	// Create application with options
 	err = wails.Run(&options.App{

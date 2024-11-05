@@ -14,31 +14,56 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
+type Job struct {
+	err         error
+	startedAt   time.Time
+	completedAt time.Time
+}
+
+var jobs = map[int]*Job{}
+var jobId = &atomic.Int32{}
+
+func (j *Job) Status() string {
+	if j.startedAt.IsZero() {
+		return "pending"
+	} else if j.completedAt.IsZero() {
+		return "in progress"
+	} else if j.err != nil {
+		return "failed"
+	} else {
+		return "completed"
+	}
+}
+
 type Server struct {
-	port     int
-	db       *core.DbHelper
-	authType pref.Preference[int]
-	username pref.Preference[string]
-	password pref.Preference[string]
-	ctx      context.Context
+	port      int
+	db        *core.DbHelper
+	generator *core.Generator
+	authType  pref.Preference[int]
+	username  pref.Preference[string]
+	password  pref.Preference[string]
+	ctx       context.Context
 }
 
 func newServer(
 	ctx context.Context,
 	port int,
 	db *core.DbHelper,
+	generator *core.Generator,
 	prefs *core.AppPrefs,
 ) *Server {
 	return &Server{
-		port:     port,
-		db:       db,
-		ctx:      ctx,
-		authType: prefs.ServerAuthTypePref,
-		username: prefs.ServerUsernamePref,
-		password: prefs.ServerPasswordPref,
+		port:      port,
+		db:        db,
+		ctx:       ctx,
+		generator: generator,
+		authType:  prefs.ServerAuthTypePref,
+		username:  prefs.ServerUsernamePref,
+		password:  prefs.ServerPasswordPref,
 	}
 }
 
@@ -76,7 +101,6 @@ func (s *Server) run() error {
 	case <-s.ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-
 		fmt.Println("Shutting down the server...")
 		err := server.Shutdown(shutdownCtx)
 		if err != nil {
@@ -94,13 +118,16 @@ type DataResponse struct {
 	Data []types.CharacterWithModsAndTags `json:"data"`
 }
 
+type GeneratePostRequest struct {
+	Game int `json:"game"`
+}
+
 type TogglePostRequest struct {
 	Id      int  `json:"mod_id"`
 	Enabled bool `json:"enabled"`
 }
 
 func (s *Server) registerHandlers(mux *http.ServeMux) {
-
 	basicAuthMiddleware := func(next func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			if s.authType.Get() != int(types.AUTH_BASIC) {
@@ -145,25 +172,57 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 		}
 	}
 
-	validateGame := func(w http.ResponseWriter, r *http.Request) (types.Game, error) {
-		game, err := strconv.Atoi(r.PathValue("game"))
+	mux.HandleFunc("GET /data", basicAuthMiddleware(dataHandler(s.db)))
+	mux.HandleFunc("GET /data/{game}", basicAuthMiddleware(gameDataHandler(s.db)))
 
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Bad Request: Invalid game"))
-			return 0, err
-		}
+	mux.HandleFunc("POST /update/mod", basicAuthMiddleware(updateModHandler(s.db)))
 
-		if !slices.Contains(validGame, game) {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(fmt.Sprintf("Bad Request: Invalid game %d acceptable values %s", game, joinIntSlice(validGame, ", "))))
-			return 0, err
-		}
+	mux.HandleFunc("POST /generate", basicAuthMiddleware(generateHandler(s.generator)))
 
-		return types.Game(game), nil
+	mux.HandleFunc("GET /poll-generation", basicAuthMiddleware(pollGenerationHandler()))
+}
+func validateGame(w http.ResponseWriter, r *http.Request) (types.Game, error) {
+	game, err := strconv.Atoi(r.PathValue("game"))
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Bad Request: Invalid game"))
+		return 0, err
 	}
 
-	mux.HandleFunc("GET /data", basicAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	if !slices.Contains(validGame, game) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("Bad Request: Invalid game %d acceptable values %s", game, joinIntSlice(validGame, ", "))))
+		return 0, err
+	}
+
+	return types.Game(game), nil
+}
+
+func gameDataHandler(db *core.DbHelper) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		game, err := validateGame(w, r)
+		if err != nil {
+			return
+		}
+
+		cwmt := db.SelectCharacterWithModsTagsAndTextures(game, "", "", "")
+
+		bytes, err := json.Marshal(cwmt)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Server encountered an error"))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(bytes)
+	}
+}
+
+func dataHandler(db *core.DbHelper) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 		results := make([]DataResponse, 0, 4)
 
@@ -171,7 +230,7 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 
 			data := DataResponse{
 				Game: game,
-				Data: s.db.SelectCharacterWithModsTagsAndTextures(types.Game(game), "", "", ""),
+				Data: db.SelectCharacterWithModsTagsAndTextures(types.Game(game), "", "", ""),
 			}
 
 			results = append(results, data)
@@ -187,28 +246,11 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 
 		w.WriteHeader(http.StatusOK)
 		w.Write(bytes)
-	}))
-	mux.HandleFunc("GET /data/{game}", basicAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		game, err := validateGame(w, r)
-		if err != nil {
-			return
-		}
+	}
+}
 
-		cwmt := s.db.SelectCharacterWithModsTagsAndTextures(game, "", "", "")
-
-		bytes, err := json.Marshal(cwmt)
-
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Server encountered an error"))
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write(bytes)
-	}))
-
-	mux.HandleFunc("POST /update/mod", basicAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+func updateModHandler(db *core.DbHelper) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -223,7 +265,7 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 			return
 		}
 
-		err = s.db.EnableModById(t.Enabled, t.Id)
+		err = db.EnableModById(t.Enabled, t.Id)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Bad Request: unable to update mod"))
@@ -231,5 +273,93 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-	}))
+	}
+}
+
+func generateHandler(g *core.Generator) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Bad Request: unable to read body"))
+			return
+		}
+		var t GeneratePostRequest
+		err = json.Unmarshal(body, &t)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Bad Request: unable to unmarshal body"))
+			return
+		}
+
+		if !slices.Contains(validGame, t.Game) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Bad Request: invalid game"))
+			return
+		}
+
+		jobId := jobId.Add(1)
+
+		go func() {
+			job := &Job{startedAt: time.Now()}
+			jobs[int(jobId)] = job
+
+			err := g.Reload(types.Game(t.Game))
+			job.completedAt = time.Now()
+			job.err = err
+		}()
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"job_id": "%d"}`, jobId)
+	}
+}
+
+func pollGenerationHandler() func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(r.URL.Query().Get("jobId"))
+		if err != nil {
+			http.Error(w, "Bad Request: Invalid job id", http.StatusBadRequest)
+			return
+		}
+
+		job, ok := jobs[id]
+		if !ok {
+			http.Error(w, "Bad Request: job does not exist", http.StatusBadRequest)
+			return
+		}
+
+		timeout := time.After(5 * time.Second)
+		ticker := time.NewTicker(500 * time.Millisecond)
+
+		var status string
+	outer:
+		for {
+			select {
+			case <-timeout:
+				status = job.Status()
+				break outer
+			case <-ticker.C:
+				status = job.Status()
+				if status == "completed" || status == "failed" {
+					break outer
+				}
+			}
+		}
+		response := map[string]interface{}{
+			"jobId":  id,
+			"status": status,
+		}
+		if status == "completed" {
+			response["completedAt"] = job.completedAt
+		} else if status == "failed" {
+			response["error"] = job.err.Error()
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if status == "in progress" {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+		json.NewEncoder(w).Encode(response)
+	}
 }

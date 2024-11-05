@@ -25,18 +25,25 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -122,6 +129,63 @@ fun MainScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        floatingActionButton = {
+            FloatingActionButton(onClick = { mainViewModel.startGenerateJob(pagerState.currentPage + 1) }) {
+                Text(text = "Generate")
+            }
+        },
+        snackbarHost = {
+            Column {
+                mainViewModel.jobs.forEach { (id, job) ->
+                    Snackbar(
+                        dismissAction = {
+                            when(job) {
+                                is MainViewModel.Job.Complete -> {
+                                    if (job.error != null) {
+                                        Row {
+                                            Button(
+                                                onClick = {
+                                                    mainViewModel.jobs.remove(job.id)
+                                                    mainViewModel.startGenerateJob(job.game)
+                                                }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Refresh,
+                                                    contentDescription = null
+                                                )
+                                            }
+                                            Button(onClick = { mainViewModel.jobs.remove(job.id) }) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Close,
+                                                    contentDescription = null
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        Button(onClick = { mainViewModel.jobs.remove(job.id) }) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Check,
+                                                contentDescription = null
+                                            )
+                                        }
+                                    }
+                                }
+                                is MainViewModel.Job.Loading -> CircularProgressIndicator()
+                            }
+                        }
+                    ) {
+                        when(job) {
+                            is MainViewModel.Job.Complete -> if (job.error != null){
+                                Text("${job.id} job failed ${job.error}")
+                            } else {
+                                Text("${job.id} job completed")
+                            }
+                            is MainViewModel.Job.Loading -> Text(text = "${job.id} job in progress")
+                        }
+                    }
+                }
+            }
+        },
         topBar = {
             Column {
                 TopAppBar(

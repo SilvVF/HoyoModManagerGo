@@ -28,10 +28,11 @@ type CancelableServer struct {
 type ServCmd int
 
 type ServerManager struct {
-	server *CancelableServer
-	prefs  *core.AppPrefs
-	db     *core.DbHelper
-	events chan ServCmd
+	server    *CancelableServer
+	prefs     *core.AppPrefs
+	generator *core.Generator
+	db        *core.DbHelper
+	events    chan ServCmd
 }
 
 func (*ServerManager) GetLocalIp() (string, error) {
@@ -71,12 +72,13 @@ func (*ServerManager) GetLocalIp() (string, error) {
 	return "", errors.New("are you connected to the network?")
 }
 
-func NewServerManager(prefs *core.AppPrefs, db *core.DbHelper) *ServerManager {
+func NewServerManager(prefs *core.AppPrefs, db *core.DbHelper, g *core.Generator) *ServerManager {
 	return &ServerManager{
-		server: nil,
-		prefs:  prefs,
-		db:     db,
-		events: make(chan ServCmd),
+		server:    nil,
+		prefs:     prefs,
+		db:        db,
+		generator: g,
+		events:    make(chan ServCmd),
 	}
 }
 
@@ -167,7 +169,7 @@ func (sm *ServerManager) startCancellableServer(port int) {
 
 	sm.server = &CancelableServer{
 		cancel,
-		newServer(ctx, port, sm.db, sm.prefs),
+		newServer(ctx, port, sm.db, sm.generator, sm.prefs),
 	}
 
 	go func() {

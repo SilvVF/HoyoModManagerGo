@@ -22,9 +22,9 @@ var ErrStopWalkingDirError = errors.New("stop walking normally")
 
 type Generator struct {
 	db         *DbHelper
-	cancel     context.CancelFunc
-	wg         sync.WaitGroup
-	mutex      sync.Mutex
+	cancel     map[types.Game]context.CancelFunc
+	wg         map[types.Game]*sync.WaitGroup
+	mutex      map[types.Game]*sync.Mutex
 	outputDirs map[types.Game]pref.Preference[string]
 	ignored    pref.Preference[[]string]
 }
@@ -35,9 +35,25 @@ func NewGenerator(
 	ignoredDirPref pref.Preference[[]string],
 ) *Generator {
 	return &Generator{
-		db:         db,
-		wg:         sync.WaitGroup{},
-		mutex:      sync.Mutex{},
+		db: db,
+		cancel: map[types.Game]context.CancelFunc{
+			types.Genshin:  func() {},
+			types.StarRail: func() {},
+			types.ZZZ:      func() {},
+			types.WuWa:     func() {},
+		},
+		wg: map[types.Game]*sync.WaitGroup{
+			types.Genshin:  {},
+			types.StarRail: {},
+			types.ZZZ:      {},
+			types.WuWa:     {},
+		},
+		mutex: map[types.Game]*sync.Mutex{
+			types.Genshin:  {},
+			types.StarRail: {},
+			types.ZZZ:      {},
+			types.WuWa:     {},
+		},
 		outputDirs: outputDirs,
 		ignored:    ignoredDirPref,
 	}
@@ -77,27 +93,27 @@ func (g *Generator) Reload(game types.Game) error {
 		return errors.New("output dir not set")
 	}
 
-	g.mutex.Lock()
+	g.mutex[game].Lock()
 
 	// Cancel any ongoing task
-	if g.cancel != nil {
+	if g.cancel[game] != nil {
 		fmt.Println("Cancelling previous task and waiting for it to finish current step")
-		g.cancel()  // Signal cancellation
-		g.wg.Wait() // Wait for the task to finish its current step
+		g.cancel[game]()  // Signal cancellation
+		g.wg[game].Wait() // Wait for the task to finish its current step
 		fmt.Println("Previous task finished its current step")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	g.cancel = cancel
+	g.cancel[game] = cancel
 	errCh := make(chan error, 1)
-	g.wg.Add(1)
+	g.wg[game].Add(1)
 
-	g.mutex.Unlock()
+	g.mutex[game].Unlock()
 
 	go func() {
-		defer g.wg.Done()
+		defer g.wg[game].Done()
 		errCh <- moveModsToOutputDir(g, game, ctx)
 		close(errCh)
 	}()
@@ -234,11 +250,9 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 	cmder.WithOutFn(func(b []byte) (int, error) {
 		value := string(b)
 		log.LogDebug(fmt.Sprintf("%s len: %d", value, len(value)))
-		if strings.HasSuffix(value, "Done!") {
-			log.LogDebug("Cancelling")
-			cmder.WriteLine(b)
-			cancel()
-		}
+		log.LogDebug("Cancelling")
+		cmder.WriteLine(b)
+		cancel()
 		return len(b), nil
 	})
 	cmder.Run(make([]string, 0))
