@@ -28,7 +28,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
 	log.InitLogging(ctx)
-	log.LogDebug("Started")
+	log.LogDebug("app startup")
 	runtime.LogSetLogLevel(ctx, logger.TRACE)
 }
 

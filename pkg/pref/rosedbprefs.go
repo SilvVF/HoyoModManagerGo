@@ -1,30 +1,28 @@
 package pref
 
 import (
-	"context"
 	"hmm/pkg/assert"
 	"log"
 	"sync"
-	"time"
+	"sync/atomic"
 
 	"github.com/rosedblabs/rosedb/v2"
 )
 
 type RoseDbPrefs struct {
 	*rosedb.DB
+	closed   *atomic.Bool
 	watchers map[string][]chan<- struct{}
 	mutex    sync.RWMutex
 }
 
 func (r *RoseDbPrefs) Close() error {
-	// give time for the watch channel to broadcast any remaining values to stop panic
-	// doesnt matter if this panics when the app is closed
-	ctx, cncl := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cncl()
-
-	<-ctx.Done()
-
+	r.closed.Swap(true)
 	return r.DB.Close()
+}
+
+func (r *RoseDbPrefs) Closed() bool {
+	return r.closed.Load()
 }
 
 func (r *RoseDbPrefs) PutWatcher(key []byte, watch chan<- struct{}) {
@@ -61,22 +59,18 @@ func NewRosePrefDb(options rosedb.Options) PrefrenceDb {
 	if err != nil {
 		panic(err)
 	}
-	eventCh, err := rose.Watch()
-	if err != nil {
-		panic(err)
-	}
-
 	db := &RoseDbPrefs{
 		DB:       rose,
 		watchers: map[string][]chan<- struct{}{},
 		mutex:    sync.RWMutex{},
+		closed:   &atomic.Bool{},
 	}
 
 	go func() {
+		eventCh, err := rose.Watch()
 		if err != nil {
 			return
 		}
-
 		defer func() {
 			db.mutex.Lock()
 			for _, watchers := range db.watchers {
@@ -87,10 +81,10 @@ func NewRosePrefDb(options rosedb.Options) PrefrenceDb {
 			db.watchers = map[string][]chan<- struct{}{}
 			db.mutex.Unlock()
 		}()
-
-		for event := range eventCh {
+		for {
+			event, ok := <-eventCh
 			// when db closed, the event will receive nil.
-			if event == nil {
+			if event == nil || !ok || db.closed.Load() {
 				log.Println("The db is closed, so the watch channel is closed.")
 				return
 			}
@@ -100,6 +94,7 @@ func NewRosePrefDb(options rosedb.Options) PrefrenceDb {
 
 			go func() {
 				defer db.mutex.RUnlock()
+
 				watchers := db.watchers[string(event.Key)]
 				for _, watcher := range watchers {
 					watcher <- struct{}{}

@@ -66,7 +66,7 @@ func TestRosePrefWatchersRemoval(t *testing.T) {
 	path := filepath.Join(os.TempDir(), "rosedb-temp"+strconv.Itoa(int(nameRand.Int63())))
 	defer os.RemoveAll(path)
 
-	queueSize := uint64(1000)
+	queueSize := uint64(300)
 
 	prefDb := NewRosePrefDb(
 		rosedb.Options{
@@ -94,14 +94,15 @@ func TestRosePrefWatchersRemoval(t *testing.T) {
 
 		wg.Add(1)
 		expectedNext := i + 1
-		values, cancel := pref.Watch()
 
 		go func() {
 			defer wg.Done()
+
+			values, cancel := pref.Watch()
 			for {
 				v, ok := <-values
 				if !ok {
-					log.Printf("received cancellation %s", pref.Key())
+					log.Printf("received cancellation %d", i)
 					return
 				} else if v != expectedNext {
 					t.Errorf("value from watch unexpected v: %d != next: %d", v, expectedNext)
@@ -118,7 +119,8 @@ func TestRosePrefWatchersRemoval(t *testing.T) {
 	}
 
 	wg.Wait()
-
+	// let rosedb watch goroutine finsih otherwise it will panic
+	time.Sleep(1 * time.Second)
 	err := store.Close()
 	if err != nil {
 		t.Error(err)

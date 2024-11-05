@@ -5,10 +5,12 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"sync/atomic"
 )
 
 type MemoryPrefs struct {
 	cancel    context.CancelFunc
+	closed    *atomic.Bool
 	watchers  map[string][]chan<- struct{}
 	events    chan<- []byte
 	prefs     map[string][]byte
@@ -26,6 +28,7 @@ func NewMemoryPrefs(ctx context.Context) PrefrenceDb {
 		prefs:     map[string][]byte{},
 		watchers:  map[string][]chan<- struct{}{},
 		prefMutex: sync.Mutex{},
+		closed:    &atomic.Bool{},
 		mutex:     sync.RWMutex{},
 	}
 
@@ -70,6 +73,10 @@ func NewMemoryPrefs(ctx context.Context) PrefrenceDb {
 
 }
 
+func (mp *MemoryPrefs) Closed() bool {
+	return mp.closed.Load()
+}
+
 func (mp *MemoryPrefs) Delete(key []byte) error {
 	mp.prefMutex.Lock()
 	defer mp.prefMutex.Unlock()
@@ -111,6 +118,7 @@ func (mp *MemoryPrefs) Put(key, value []byte) error {
 }
 
 func (mp *MemoryPrefs) Close() error {
+	mp.closed.Swap(true)
 	mp.cancel()
 	return nil
 }

@@ -15,6 +15,7 @@ type Prefs struct {
 }
 
 type PrefrenceDb interface {
+	Closed() bool
 	PutWatcher(key []byte, update chan<- struct{})
 	RemoveWatcher(key []byte, update chan<- struct{})
 	Put(key []byte, value []byte) error
@@ -45,7 +46,6 @@ type PreferenceStore interface {
 }
 
 func createSliceWatcher[S ~[]E, E comparable](db PrefrenceDb, p Preference[S]) (<-chan S, func()) {
-
 	out := make(chan S, OUT_BUFFER_SIZE)
 	watch := make(chan struct{}, WATCH_BUFFER_SIZE)
 
@@ -59,7 +59,7 @@ func createSliceWatcher[S ~[]E, E comparable](db PrefrenceDb, p Preference[S]) (
 		for {
 			select {
 			case _, ok := <-watch:
-				if !ok {
+				if !ok || db.Closed() {
 					return
 				}
 				if new := p.Get(); !slices.Equal(new, prev) {
@@ -78,7 +78,6 @@ func createSliceWatcher[S ~[]E, E comparable](db PrefrenceDb, p Preference[S]) (
 }
 
 func createWatcher[T comparable](db PrefrenceDb, p Preference[T]) (<-chan T, func()) {
-
 	out := make(chan T, OUT_BUFFER_SIZE)
 	watch := make(chan struct{}, WATCH_BUFFER_SIZE)
 
@@ -92,7 +91,7 @@ func createWatcher[T comparable](db PrefrenceDb, p Preference[T]) (<-chan T, fun
 		for {
 			select {
 			case _, ok := <-watch:
-				if !ok {
+				if !ok || db.Closed() {
 					return
 				}
 				if new := p.Get(); new != prev {
