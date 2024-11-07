@@ -11,7 +11,7 @@ import (
 type MemoryPrefs struct {
 	cancel    context.CancelFunc
 	closed    *atomic.Bool
-	watchers  map[string][]chan<- struct{}
+	watchers  map[string][]chan struct{}
 	events    chan<- []byte
 	prefs     map[string][]byte
 	prefMutex sync.Mutex
@@ -26,7 +26,7 @@ func NewMemoryPrefs(ctx context.Context) PrefrenceDb {
 	db := &MemoryPrefs{
 		cancel:    cancel,
 		prefs:     map[string][]byte{},
-		watchers:  map[string][]chan<- struct{}{},
+		watchers:  map[string][]chan struct{}{},
 		prefMutex: sync.Mutex{},
 		closed:    &atomic.Bool{},
 		mutex:     sync.RWMutex{},
@@ -40,7 +40,7 @@ func NewMemoryPrefs(ctx context.Context) PrefrenceDb {
 					close(watcher)
 				}
 			}
-			db.watchers = map[string][]chan<- struct{}{}
+			db.watchers = map[string][]chan struct{}{}
 			db.mutex.Unlock()
 		}()
 
@@ -70,7 +70,6 @@ func NewMemoryPrefs(ctx context.Context) PrefrenceDb {
 	}()
 
 	return db
-
 }
 
 func (mp *MemoryPrefs) Closed() bool {
@@ -123,19 +122,30 @@ func (mp *MemoryPrefs) Close() error {
 	return nil
 }
 
-func (mp *MemoryPrefs) PutWatcher(key []byte, watch chan<- struct{}) {
+func (mp *MemoryPrefs) CreateWatcher(key []byte) <-chan struct{} {
 	mp.mutex.Lock()
-	mp.watchers[string(key)] = append(mp.watchers[string(key)], watch)
-	mp.mutex.Unlock()
+	defer mp.mutex.Unlock()
+
+	watcher := make(chan struct{}, WATCH_BUFFER_SIZE)
+	mp.watchers[string(key)] = append(mp.watchers[string(key)], watcher)
+
+	return watcher
 }
 
-func (mp *MemoryPrefs) RemoveWatcher(key []byte, watch chan<- struct{}) {
+func (mp *MemoryPrefs) RemoveWatcher(key []byte, watcher <-chan struct{}) {
 	mp.mutex.Lock()
+	defer mp.mutex.Unlock()
+
 	values := mp.watchers[string(key)]
 	if len(values) == 1 {
 		delete(mp.watchers, string(key))
+		close(values[0])
 	} else {
-		mp.watchers[string(key)] = removeElement(values, watch)
+		for i, v := range values {
+			if v == watcher {
+				mp.watchers[string(key)] = append(values[:i], values[i+1:]...)
+				close(v)
+			}
+		}
 	}
-	mp.mutex.Unlock()
 }

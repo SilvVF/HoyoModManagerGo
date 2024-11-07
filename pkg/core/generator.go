@@ -236,11 +236,11 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	cmdCtx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 
 	fixExe := getModFixExe(exported)
-	cmder := util.NewCmder(filepath.Join(outputDir, fixExe), ctx)
+	cmder := util.NewCmder(filepath.Join(outputDir, fixExe), cmdCtx)
 	cmder.SetDir(outputDir)
 
 	if fixExe == "" {
@@ -250,9 +250,10 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 	cmder.WithOutFn(func(b []byte) (int, error) {
 		value := string(b)
 		log.LogDebug(fmt.Sprintf("%s len: %d", value, len(value)))
-		log.LogDebug("Cancelling")
-		cmder.WriteLine(b)
-		cancel()
+		if strings.Contains(value, "Done!") || strings.HasSuffix(value, "quit...") {
+			log.LogDebug("Cancelling")
+			cancel()
+		}
 		return len(b), nil
 	})
 	cmder.Run(make([]string, 0))

@@ -12,7 +12,7 @@ import (
 type RoseDbPrefs struct {
 	*rosedb.DB
 	closed   *atomic.Bool
-	watchers map[string][]chan<- struct{}
+	watchers map[string][]chan struct{}
 	mutex    sync.RWMutex
 }
 
@@ -25,30 +25,34 @@ func (r *RoseDbPrefs) Closed() bool {
 	return r.closed.Load()
 }
 
-func (r *RoseDbPrefs) PutWatcher(key []byte, watch chan<- struct{}) {
+func (r *RoseDbPrefs) CreateWatcher(key []byte) <-chan struct{} {
 	r.mutex.Lock()
-	r.watchers[string(key)] = append(r.watchers[string(key)], watch)
-	r.mutex.Unlock()
+	defer r.mutex.Unlock()
+
+	watcher := make(chan struct{}, WATCH_BUFFER_SIZE)
+	r.watchers[string(key)] = append(r.watchers[string(key)], watcher)
+
+	return watcher
 }
 
-func removeElement[T comparable](slice []T, element T) []T {
-	for i, v := range slice {
-		if v == element {
-			return append(slice[:i], slice[i+1:]...)
+func (r *RoseDbPrefs) RemoveWatcher(key []byte, watcher <-chan struct{}) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	k := string(key)
+	values := r.watchers[k]
+
+	for i, v := range values {
+		if v == watcher {
+			new := append(values[:i], values[i+1:]...)
+			if len(new) == 0 {
+				delete(r.watchers, k)
+			} else {
+				r.watchers[string(key)] = new
+			}
+			close(v)
 		}
 	}
-	return slice
-}
-
-func (r *RoseDbPrefs) RemoveWatcher(key []byte, watch chan<- struct{}) {
-	r.mutex.Lock()
-	values := r.watchers[string(key)]
-	if len(values) == 1 {
-		delete(r.watchers, string(key))
-	} else {
-		r.watchers[string(key)] = removeElement(values, watch)
-	}
-	r.mutex.Unlock()
 }
 
 func NewRosePrefDb(options rosedb.Options) PrefrenceDb {
@@ -61,7 +65,7 @@ func NewRosePrefDb(options rosedb.Options) PrefrenceDb {
 	}
 	db := &RoseDbPrefs{
 		DB:       rose,
-		watchers: map[string][]chan<- struct{}{},
+		watchers: map[string][]chan struct{}{},
 		mutex:    sync.RWMutex{},
 		closed:   &atomic.Bool{},
 	}
@@ -78,7 +82,7 @@ func NewRosePrefDb(options rosedb.Options) PrefrenceDb {
 					close(watcher)
 				}
 			}
-			db.watchers = map[string][]chan<- struct{}{}
+			db.watchers = map[string][]chan struct{}{}
 			db.mutex.Unlock()
 		}()
 		for {
@@ -91,7 +95,6 @@ func NewRosePrefDb(options rosedb.Options) PrefrenceDb {
 			log.Printf("Get a new event: key%s \n", event.Key)
 
 			db.mutex.RLock()
-
 			go func() {
 				defer db.mutex.RUnlock()
 

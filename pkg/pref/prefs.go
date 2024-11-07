@@ -16,8 +16,8 @@ type Prefs struct {
 
 type PrefrenceDb interface {
 	Closed() bool
-	PutWatcher(key []byte, update chan<- struct{})
-	RemoveWatcher(key []byte, update chan<- struct{})
+	CreateWatcher(key []byte) <-chan struct{}
+	RemoveWatcher(key []byte, watcher <-chan struct{})
 	Put(key []byte, value []byte) error
 	Get(key []byte) ([]byte, error)
 	Delete(key []byte) error
@@ -47,28 +47,26 @@ type PreferenceStore interface {
 
 func createSliceWatcher[S ~[]E, E comparable](db PrefrenceDb, p Preference[S]) (<-chan S, func()) {
 	out := make(chan S, OUT_BUFFER_SIZE)
-	watch := make(chan struct{}, WATCH_BUFFER_SIZE)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	db.PutWatcher([]byte(p.Key()), watch)
+	watcher := db.CreateWatcher([]byte(p.Key()))
 
 	go func() {
 		defer close(out)
 
-		var prev S
+		var prev *S = nil
 		for {
 			select {
-			case _, ok := <-watch:
+			case _, ok := <-watcher:
 				if !ok || db.Closed() {
 					return
 				}
-				if new := p.Get(); !slices.Equal(new, prev) {
+				if new := p.Get(); prev == nil || !slices.Equal(new, *prev) {
 					out <- new
-					prev = new
+					prev = &new
 				}
 			case <-ctx.Done():
-				db.RemoveWatcher([]byte(p.Key()), watch)
-				close(watch)
+				db.RemoveWatcher([]byte(p.Key()), watcher)
 				return
 			}
 		}
@@ -79,28 +77,26 @@ func createSliceWatcher[S ~[]E, E comparable](db PrefrenceDb, p Preference[S]) (
 
 func createWatcher[T comparable](db PrefrenceDb, p Preference[T]) (<-chan T, func()) {
 	out := make(chan T, OUT_BUFFER_SIZE)
-	watch := make(chan struct{}, WATCH_BUFFER_SIZE)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	db.PutWatcher([]byte(p.Key()), watch)
+	watcher := db.CreateWatcher([]byte(p.Key()))
 
 	go func() {
 		defer close(out)
 
-		var prev T
+		var prev *T = nil
 		for {
 			select {
-			case _, ok := <-watch:
+			case _, ok := <-watcher:
 				if !ok || db.Closed() {
 					return
 				}
-				if new := p.Get(); new != prev {
+				if new := p.Get(); prev == nil || new != *prev {
 					out <- new
-					prev = new
+					prev = &new
 				}
 			case <-ctx.Done():
-				db.RemoveWatcher([]byte(p.Key()), watch)
-				close(watch)
+				db.RemoveWatcher([]byte(p.Key()), watcher)
 				return
 			}
 		}
