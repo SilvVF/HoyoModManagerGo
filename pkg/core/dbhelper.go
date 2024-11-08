@@ -46,10 +46,14 @@ func characterFromDb(c db.Character) types.Character {
 }
 
 func textureFromDb(t db.Texture) types.Texture {
+
+	previewImages := strings.Split(t.PreviewImages, "<seperator>")
+	previewImages = slices.DeleteFunc(previewImages, func(i string) bool { return i == "" })
+
 	return types.Texture{
 		Filename:       t.Fname,
 		Enabled:        t.Selected,
-		PreviewImages:  strings.Split(t.PreviewImages, ","),
+		PreviewImages:  previewImages,
 		GbId:           int(t.GbID.Int64),
 		ModLink:        t.ModLink.String,
 		GbFileName:     t.GbFileName.String,
@@ -60,13 +64,17 @@ func textureFromDb(t db.Texture) types.Texture {
 }
 
 func modFromDb(m db.Mod) types.Mod {
+
+	previewImages := strings.Split(m.PreviewImages, "<seperator>")
+	previewImages = slices.DeleteFunc(previewImages, func(i string) bool { return i == "" })
+
 	return types.Mod{
 		Filename:       m.Fname,
 		Game:           types.Game(m.Game),
 		Character:      m.CharName,
 		CharacterId:    int(m.CharID),
 		Enabled:        m.Selected,
-		PreviewImages:  strings.Split(m.PreviewImages, ","),
+		PreviewImages:  previewImages,
 		GbId:           int(m.GbID.Int64),
 		ModLink:        m.ModLink.String,
 		GbFileName:     m.GbFileName.String,
@@ -231,7 +239,7 @@ func (h *DbHelper) InsertTexture(t types.Texture) (int64, error) {
 		ModFilename:    t.Filename,
 		ModId:          int64(t.ModId),
 		Selected:       t.Enabled,
-		PreviewImages:  "",
+		PreviewImages:  strings.Join(t.PreviewImages, "<seperator>"),
 		GbId:           sql.NullInt64{Valid: t.GbId != 0, Int64: int64(t.GbId)},
 		ModLink:        sql.NullString{Valid: t.ModLink != "", String: t.ModLink},
 		GbFilename:     sql.NullString{Valid: t.GbFileName != "", String: t.GbFileName},
@@ -246,7 +254,7 @@ func (h *DbHelper) InsertMod(m types.Mod) (int64, error) {
 		CharName:       m.Character,
 		CharId:         int64(m.CharacterId),
 		Selected:       m.Enabled,
-		PreviewImages:  strings.Join(m.PreviewImages, ","),
+		PreviewImages:  strings.Join(m.PreviewImages, "<seperator>"),
 		GbId:           sql.NullInt64{Valid: m.GbId != 0, Int64: int64(m.GbId)},
 		ModLink:        sql.NullString{Valid: m.ModLink != "", String: m.ModLink},
 		GbFilename:     sql.NullString{Valid: m.GbFileName != "", String: m.GbFileName},

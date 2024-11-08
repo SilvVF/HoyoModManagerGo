@@ -60,7 +60,7 @@ function App() {
 
     const interval = setInterval(() => {
       updateQueue().catch();
-    }, 100);
+    }, 500);
     return () => {
       clearInterval(interval);
     };

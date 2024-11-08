@@ -29,16 +29,18 @@ var (
 	ErrConfigNotFound        = errors.New("config was not found")
 	ErrFileFoundShortcircuit = errors.New("found merged.ini file")
 	ErrModNotFound           = errors.New("mod was not found")
+	ErrInvalidConfigName     = errors.New("config name was invalid")
 )
 
 type KeyBind struct {
-	Name string `json:"name"`
-	Key  string `json:"key"`
+	Name       string `json:"name"`
+	SectionKey string `json:"sectionKey"`
+	Key        string `json:"key"`
 }
 
 type KeyMapper struct {
 	db    *DbHelper
-	mutex sync.Mutex
+	mutex *sync.Mutex
 
 	cfg    *ini.File
 	path   string
@@ -49,7 +51,7 @@ type KeyMapper struct {
 func NewKeymapper(db *DbHelper) *KeyMapper {
 	return &KeyMapper{
 		db:     db,
-		mutex:  sync.Mutex{},
+		mutex:  &sync.Mutex{},
 		cfg:    nil,
 		path:   "",
 		mod:    nil,
@@ -57,14 +59,55 @@ func NewKeymapper(db *DbHelper) *KeyMapper {
 	}
 }
 
+func sortKeyConfigsByDate() func(a, b string) int {
+	return func(a, b string) int {
+		dateA, errA := util.ExtractDateFromFilename(a)
+		dateB, errB := util.ExtractDateFromFilename(b)
+
+		if errA != nil {
+			log.LogError(errA.Error())
+			return 0
+		}
+		if errB != nil {
+			log.LogError(errB.Error())
+			return 0
+		}
+		switch {
+		case dateA.Before(dateB):
+			return 1
+		case dateA.After(dateB):
+			return -1
+		default:
+			return 0
+		}
+	}
+}
+
+func resetState(k *KeyMapper) {
+	k.cfg = nil
+	k.mod = nil
+	k.keymap = []KeyBind{}
+	k.path = ""
+}
+
 func (k *KeyMapper) Unload() {
 
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
-	k.mod = nil
-	k.keymap = []KeyBind{}
-	k.cfg = nil
+	resetState(k)
+}
+
+func (k *KeyMapper) DeleteKeymap(file string) error {
+
+	k.mutex.Lock()
+	defer k.mutex.Unlock()
+
+	if k.mod == nil {
+		return ErrNotLoaded
+	}
+
+	return os.Remove(filepath.Join(util.GetModDir(*k.mod), "keymaps", file))
 }
 
 func (k *KeyMapper) GetKeyMap() ([]KeyBind, error) {
@@ -77,6 +120,34 @@ func (k *KeyMapper) GetKeyMap() ([]KeyBind, error) {
 	}
 
 	return generateKeyBinds(k.cfg), nil
+}
+
+func (k *KeyMapper) LoadPrevious(file string) error {
+	k.mutex.Lock()
+	defer k.mutex.Unlock()
+
+	if k.mod == nil || k.cfg == nil {
+		return ErrNotLoaded
+	}
+
+	modDir := util.GetModDir(*k.mod)
+	path := filepath.Join(modDir, "keymaps", file)
+	time := time.Now().Format(dateFormat)
+
+	segs := strings.Split(file, "_")
+
+	if len(segs) == 0 {
+		return ErrInvalidConfigName
+	}
+
+	name := strings.Join(segs[0:len(segs)-2], "")
+
+	keymapFile := filepath.Join(
+		filepath.Dir(path),
+		fmt.Sprintf("%s_%s.ini", name, time),
+	)
+
+	return os.Rename(path, keymapFile)
 }
 
 func (k *KeyMapper) GetKeymaps() ([]string, error) {
@@ -95,11 +166,12 @@ func (k *KeyMapper) GetKeymaps() ([]string, error) {
 	for _, file := range files {
 		paths = append(paths, file.Name())
 	}
+	slices.SortFunc(paths, sortKeyConfigsByDate())
 
 	return paths, nil
 }
 
-func (k *KeyMapper) SaveConfig() error {
+func (k *KeyMapper) SaveConfig(name string) error {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
@@ -107,11 +179,15 @@ func (k *KeyMapper) SaveConfig() error {
 		return ErrNotLoaded
 	}
 
+	if strings.TrimSpace(name) == "" {
+		return ErrInvalidConfigName
+	}
+
 	time := time.Now().Format(dateFormat)
 	keymapFile := filepath.Join(
 		util.GetModDir(*k.mod),
 		"keymaps",
-		fmt.Sprintf("keymap_%s.ini", time),
+		fmt.Sprintf("%s_%s.ini", name, time),
 	)
 	log.LogDebug(keymapFile)
 
@@ -133,7 +209,7 @@ func (k *KeyMapper) SaveConfig() error {
 	return err
 }
 
-func (k *KeyMapper) Write(section string, keycode int) error {
+func (k *KeyMapper) Write(section string, sectionKey string, keys []string) error {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
@@ -143,32 +219,32 @@ func (k *KeyMapper) Write(section string, keycode int) error {
 		return err
 	}
 
-	key, err := sec.GetKey("key")
+	key, err := sec.GetKey(sectionKey)
 
 	if err != nil {
 		return err
 	}
 
-	var bind *string
-	vkcode, ok := virtualKeyCodeMap[keycode]
-	if ok {
-		str, ok := virtualKeysReversed[vkcode]
-		if ok {
-			bind = &str
+	binds := make([]string, 0, len(keys))
+
+	for _, k := range keys {
+		var bind string
+		code, codeOk := KeyCodeMap[k]
+		vkcode, vkOk := GetVirtualKey(code)
+		if vkOk {
+			vkname := VirtualKeyNames[vkcode]
+			bind = vkname
 		}
-	}
-	if bind == nil {
-		keyname, ok := alphanumericKeyCodeMap[keycode]
-		if ok {
-			bind = &keyname
+		if codeOk && bind == "" {
+			bind = k
 		}
+		if bind == "" {
+			return errors.New("invalid keycode " + fmt.Sprint(k))
+		}
+		binds = append(binds, bind)
 	}
 
-	if bind == nil {
-		return errors.New("invalid keycode " + fmt.Sprint(keycode))
-	}
-
-	key.SetValue(*bind)
+	key.SetValue(strings.Join(binds, " "))
 
 	return nil
 }
@@ -178,9 +254,7 @@ func (k *KeyMapper) Load(modId int) error {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
-	k.cfg = nil
-	k.mod = nil
-	k.path = ""
+	resetState(k)
 
 	mod, err := k.db.SelectModById(modId)
 	if err != nil {
@@ -210,22 +284,8 @@ func (k *KeyMapper) Load(modId int) error {
 	for _, file := range files {
 		paths = append(paths, file.Name())
 	}
-	slices.SortFunc(paths, func(a, b string) int {
-		dateA, errA := util.ExtractDateFromFilename(a)
-		dateB, errB := util.ExtractDateFromFilename(b)
-
-		if errA != nil || errB != nil {
-			return 0
-		}
-		switch {
-		case dateA.Before(dateB):
-			return 1
-		case dateA.After(dateB):
-			return -1
-		default:
-			return 0
-		}
-	})
+	slices.SortFunc(paths, sortKeyConfigsByDate())
+	log.LogDebugf("paths %v", paths)
 
 	var cfg *ini.File
 	configPath := k.path
@@ -233,6 +293,7 @@ func (k *KeyMapper) Load(modId int) error {
 	if len(paths) > 0 {
 		configPath = filepath.Join(modDir, "keymaps", paths[0])
 	}
+
 	inputFile, err := os.Open(configPath)
 	if err != nil {
 		return err
@@ -284,9 +345,8 @@ func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
 	reader := bufio.NewReader(file)
 
 	var iniString strings.Builder
-
 	inConstantsSection := false
-	targetAdded := false
+	inTargetSection := false
 
 	regex := regexp.MustCompile(`\[(\w+)\]`)
 
@@ -296,29 +356,28 @@ func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
 			if err.Error() != "EOF" {
 				fmt.Println("Error reading file:", err)
 			}
-			iniString.WriteString(line)
-			break // Stop at the end of the file (EOF)
+			break
 		}
 
-		if line == "[Constants]" {
+		if strings.Contains(line, "[Present]") {
+			inConstantsSection = false
+			inTargetSection = false
+			cfg.WriteTo(&iniString)
+			iniString.WriteString("\n")
+		}
+
+		if inConstantsSection {
+			if regex.Match([]byte(line)) {
+				inTargetSection = true
+			}
+		}
+		if strings.Contains(line, "[Constants]") {
 			inConstantsSection = true
 		}
 
-		if inConstantsSection && !targetAdded {
-			sections := regex.FindAllStringSubmatch(line, -1)
-			if len(sections) > 0 && cfg.HasSection(sections[0][0]) {
-
-				targetAdded = true
-				inConstantsSection = false
-
-				iniString.WriteString("\n")
-				var str strings.Builder
-				cfg.WriteTo(&str)
-				iniString.WriteString(str.String())
-				continue
-			}
+		if !inTargetSection {
+			iniString.WriteString(line)
 		}
-		iniString.WriteString(line)
 	}
 	return iniString.String()
 }
@@ -363,10 +422,33 @@ func generateKeyBinds(cfg *ini.File) []KeyBind {
 		// Check if the section name starts with "Key"
 		if strings.HasPrefix(section.Name(), "Key") {
 			// Check if the section contains a "key" entry
+
+			if key, err := section.GetKey("Back"); err == nil {
+				keybinds = append(keybinds, KeyBind{
+					Name:       section.Name(),
+					SectionKey: "Back",
+					Key:        key.Value(),
+				})
+			}
+			if key, err := section.GetKey("back"); err == nil {
+				keybinds = append(keybinds, KeyBind{
+					Name:       section.Name(),
+					SectionKey: "back",
+					Key:        key.Value(),
+				})
+			}
+			if key, err := section.GetKey("Key"); err == nil {
+				keybinds = append(keybinds, KeyBind{
+					Name:       section.Name(),
+					SectionKey: "Key",
+					Key:        key.Value(),
+				})
+			}
 			if key, err := section.GetKey("key"); err == nil {
 				keybinds = append(keybinds, KeyBind{
-					Name: section.Name(),
-					Key:  key.Value(),
+					Name:       section.Name(),
+					SectionKey: "key",
+					Key:        key.Value(),
 				})
 			}
 		}
@@ -374,247 +456,229 @@ func generateKeyBinds(cfg *ini.File) []KeyBind {
 	return keybinds
 }
 
-// GPT Generated
-// var virtualKeys = map[string]int{
-// 	"VK_LBUTTON":   0x01, // Left mouse button
-// 	"VK_RBUTTON":   0x02, // Right mouse button
-// 	"VK_CANCEL":    0x03, // Control-break processing
-// 	"VK_MBUTTON":   0x04, // Middle mouse button
-// 	"VK_XBUTTON1":  0x05, // X1 mouse button
-// 	"VK_XBUTTON2":  0x06, // X2 mouse button
-// 	"VK_BACK":      0x08, // Backspace key
-// 	"VK_TAB":       0x09, // Tab key
-// 	"VK_CLEAR":     0x0C, // Clear key
-// 	"VK_RETURN":    0x0D, // Enter key
-// 	"VK_SHIFT":     0x10, // Shift key
-// 	"VK_CONTROL":   0x11, // Ctrl key
-// 	"VK_MENU":      0x12, // Alt key
-// 	"VK_PAUSE":     0x13, // Pause key
-// 	"VK_CAPITAL":   0x14, // Caps Lock key
-// 	"VK_ESCAPE":    0x1B, // Esc key
-// 	"VK_SPACE":     0x20, // Spacebar
-// 	"VK_PRIOR":     0x21, // Page Up key
-// 	"VK_NEXT":      0x22, // Page Down key
-// 	"VK_END":       0x23, // End key
-// 	"VK_HOME":      0x24, // Home key
-// 	"VK_LEFT":      0x25, // Left arrow key
-// 	"VK_UP":        0x26, // Up arrow key
-// 	"VK_RIGHT":     0x27, // Right arrow key
-// 	"VK_DOWN":      0x28, // Down arrow key
-// 	"VK_SELECT":    0x29, // Select key
-// 	"VK_PRINT":     0x2A, // Print key
-// 	"VK_EXECUTE":   0x2B, // Execute key
-// 	"VK_SNAPSHOT":  0x2C, // Print Screen key
-// 	"VK_INSERT":    0x2D, // Insert key
-// 	"VK_DELETE":    0x2E, // Delete key
-// 	"VK_HELP":      0x2F, // Help key
-// 	"VK_LWIN":      0x5B, // Left Windows key
-// 	"VK_RWIN":      0x5C, // Right Windows key
-// 	"VK_APPS":      0x5D, // Applications key
-// 	"VK_SLEEP":     0x5F, // Sleep key
-// 	"VK_NUMPAD0":   0x60, // Numpad 0 key
-// 	"VK_NUMPAD1":   0x61, // Numpad 1 key
-// 	"VK_NUMPAD2":   0x62, // Numpad 2 key
-// 	"VK_NUMPAD3":   0x63, // Numpad 3 key
-// 	"VK_NUMPAD4":   0x64, // Numpad 4 key
-// 	"VK_NUMPAD5":   0x65, // Numpad 5 key
-// 	"VK_NUMPAD6":   0x66, // Numpad 6 key
-// 	"VK_NUMPAD7":   0x67, // Numpad 7 key
-// 	"VK_NUMPAD8":   0x68, // Numpad 8 key
-// 	"VK_NUMPAD9":   0x69, // Numpad 9 key
-// 	"VK_MULTIPLY":  0x6A, // Numpad Multiply key
-// 	"VK_ADD":       0x6B, // Numpad Add key
-// 	"VK_SEPARATOR": 0x6C, // Numpad Separator key
-// 	"VK_SUBTRACT":  0x6D, // Numpad Subtract key
-// 	"VK_DECIMAL":   0x6E, // Numpad Decimal key
-// 	"VK_DIVIDE":    0x6F, // Numpad Divide key
-// 	"VK_F1":        0x70, // F1 key
-// 	"VK_F2":        0x71, // F2 key
-// 	"VK_F3":        0x72, // F3 key
-// 	"VK_F4":        0x73, // F4 key
-// 	"VK_F5":        0x74, // F5 key
-// 	"VK_F6":        0x75, // F6 key
-// 	"VK_F7":        0x76, // F7 key
-// 	"VK_F8":        0x77, // F8 key
-// 	"VK_F9":        0x78, // F9 key
-// 	"VK_F10":       0x79, // F10 key
-// 	"VK_F11":       0x7A, // F11 key
-// 	"VK_F12":       0x7B, // F12 key
-// 	"VK_NUMLOCK":   0x90, // Num Lock key
-// 	"VK_SCROLL":    0x91, // Scroll Lock key
-// }
+var KeyCodeMap = map[string]int{
+	// Letters
+	"a": 65, "A": 65,
+	"b": 66, "B": 66,
+	"c": 67, "C": 67,
+	"d": 68, "D": 68,
+	"e": 69, "E": 69,
+	"f": 70, "F": 70,
+	"g": 71, "G": 71,
+	"h": 72, "H": 72,
+	"i": 73, "I": 73,
+	"j": 74, "J": 74,
+	"k": 75, "K": 75,
+	"l": 76, "L": 76,
+	"m": 77, "M": 77,
+	"n": 78, "N": 78,
+	"o": 79, "O": 79,
+	"p": 80, "P": 80,
+	"q": 81, "Q": 81,
+	"r": 82, "R": 82,
+	"s": 83, "S": 83,
+	"t": 84, "T": 84,
+	"u": 85, "U": 85,
+	"v": 86, "V": 86,
+	"w": 87, "W": 87,
+	"x": 88, "X": 88,
+	"y": 89, "Y": 89,
+	"z": 90, "Z": 90,
 
-var virtualKeyCodeMap = map[int]int{
+	// Numbers
+	"0": 48, ")": 48,
+	"1": 49, "!": 49,
+	"2": 50, "@": 50,
+	"3": 51, "#": 51,
+	"4": 52, "$": 52,
+	"5": 53, "%": 53,
+	"6": 54, "^": 54,
+	"7": 55, "&": 55,
+	"8": 56, "*": 56,
+	"9": 57, "(": 57,
 
-	37: 0x25, // Arrow Left
-	38: 0x26, // Arrow Up
-	39: 0x27, // Arrow Right
-	40: 0x28, // Arrow Down
+	// Special Keys
+	"Backspace":  8,
+	"Tab":        9,
+	"Enter":      13,
+	"Shift":      16,
+	"Control":    17,
+	"Alt":        18,
+	"Pause":      19,
+	"CapsLock":   20,
+	"Escape":     27,
+	"Space":      32,
+	"PageUp":     33,
+	"PageDown":   34,
+	"End":        35,
+	"Home":       36,
+	"ArrowLeft":  37,
+	"Left":       37,
+	"ArrowUp":    38,
+	"Up":         38,
+	"ArrowRight": 39,
+	"Right":      39,
+	"ArrowDown":  40,
+	"Down":       40,
+	"Insert":     45,
+	"Delete":     46,
 
-	8:   0x08, // Backspace
-	9:   0x09, // Tab
-	13:  0x0D, // Enter
-	16:  0x10, // Shift
-	17:  0x11, // Control
-	18:  0x12, // Alt
-	20:  0x14, // Caps Lock
-	27:  0x1B, // Escape
-	32:  0x20, // Spacebar
-	33:  0x22, // Page Up
-	34:  0x22, // Page Down
-	35:  0x23, // End
-	36:  0x24, // Home
-	45:  0x2D, // Insert
-	46:  0x2E, // Delete
-	144: 0x90, // Num Lock
+	// Function Keys
+	"F1":  112,
+	"F2":  113,
+	"F3":  114,
+	"F4":  115,
+	"F5":  116,
+	"F6":  117,
+	"F7":  118,
+	"F8":  119,
+	"F9":  120,
+	"F10": 121,
+	"F11": 122,
+	"F12": 123,
 
-	96:  0x60, // Numpad 0
-	97:  0x61, // Numpad 1
-	98:  0x62, // Numpad 2
-	99:  0x63, // Numpad 3
-	100: 0x64, // Numpad 4
-	101: 0x65, // Numpad 5
-	102: 0x66, // Numpad 6
-	103: 0x67, // Numpad 7
-	104: 0x68, // Numpad 8
-	105: 0x69, // Numpad 9
-	106: 0x6A, // Numpad *
-	107: 0x6B, // Numpad +
-	109: 0x6D, // Numpad -
-	110: 0x6E, // Numpad .
-	111: 0x6F, // Numpad /
+	// Symbols
+	";": 186, ":": 186,
+	"=": 187, "+": 187,
+	",": 188, "<": 188,
+	"-": 189, "_": 189,
+	".": 190, ">": 190,
+	"/": 191, "?": 191,
+	"`": 192, "~": 192,
+	"[": 219, "{": 219,
+	"\\": 220, "|": 220,
+	"]": 221, "}": 221,
+	"'": 222, "\"": 222,
 }
 
-var virtualKeysReversed = map[int]string{
-	0x01: "VK_LBUTTON",   // Left mouse button
-	0x02: "VK_RBUTTON",   // Right mouse button
-	0x03: "VK_CANCEL",    // Control-break processing
-	0x04: "VK_MBUTTON",   // Middle mouse button
-	0x05: "VK_XBUTTON1",  // X1 mouse button
-	0x06: "VK_XBUTTON2",  // X2 mouse button
-	0x08: "VK_BACK",      // Backspace key
-	0x09: "VK_TAB",       // Tab key
-	0x0C: "VK_CLEAR",     // Clear key
-	0x0D: "VK_RETURN",    // Enter key
-	0x10: "VK_SHIFT",     // Shift key
-	0x11: "VK_CONTROL",   // Ctrl key
-	0x12: "VK_MENU",      // Alt key
-	0x13: "VK_PAUSE",     // Pause key
-	0x14: "VK_CAPITAL",   // Caps Lock key
-	0x1B: "VK_ESCAPE",    // Esc key
-	0x20: "VK_SPACE",     // Spacebar
-	0x21: "VK_PRIOR",     // Page Up key
-	0x22: "VK_NEXT",      // Page Down key
-	0x23: "VK_END",       // End key
-	0x24: "VK_HOME",      // Home key
-	0x25: "VK_LEFT",      // Left arrow key
-	0x26: "VK_UP",        // Up arrow key
-	0x27: "VK_RIGHT",     // Right arrow key
-	0x28: "VK_DOWN",      // Down arrow key
-	0x29: "VK_SELECT",    // Select key
-	0x2A: "VK_PRINT",     // Print key
-	0x2B: "VK_EXECUTE",   // Execute key
-	0x2C: "VK_SNAPSHOT",  // Print Screen key
-	0x2D: "VK_INSERT",    // Insert key
-	0x2E: "VK_DELETE",    // Delete key
-	0x2F: "VK_HELP",      // Help key
-	0x5B: "VK_LWIN",      // Left Windows key
-	0x5C: "VK_RWIN",      // Right Windows key
-	0x5D: "VK_APPS",      // Applications key
-	0x5F: "VK_SLEEP",     // Sleep key
-	0x60: "VK_NUMPAD0",   // Numpad 0 key
-	0x61: "VK_NUMPAD1",   // Numpad 1 key
-	0x62: "VK_NUMPAD2",   // Numpad 2 key
-	0x63: "VK_NUMPAD3",   // Numpad 3 key
-	0x64: "VK_NUMPAD4",   // Numpad 4 key
-	0x65: "VK_NUMPAD5",   // Numpad 5 key
-	0x66: "VK_NUMPAD6",   // Numpad 6 key
-	0x67: "VK_NUMPAD7",   // Numpad 7 key
-	0x68: "VK_NUMPAD8",   // Numpad 8 key
-	0x69: "VK_NUMPAD9",   // Numpad 9 key
-	0x6A: "VK_MULTIPLY",  // Numpad Multiply key
-	0x6B: "VK_ADD",       // Numpad Add key
-	0x6C: "VK_SEPARATOR", // Numpad Separator key
-	0x6D: "VK_SUBTRACT",  // Numpad Subtract key
-	0x6E: "VK_DECIMAL",   // Numpad Decimal key
-	0x6F: "VK_DIVIDE",    // Numpad Divide key
-	0x70: "VK_F1",        // F1 key
-	0x71: "VK_F2",        // F2 key
-	0x72: "VK_F3",        // F3 key
-	0x73: "VK_F4",        // F4 key
-	0x74: "VK_F5",        // F5 key
-	0x75: "VK_F6",        // F6 key
-	0x76: "VK_F7",        // F7 key
-	0x77: "VK_F8",        // F8 key
-	0x78: "VK_F9",        // F9 key
-	0x79: "VK_F10",       // F10 key
-	0x7A: "VK_F11",       // F11 key
-	0x7B: "VK_F12",       // F12 key
-	0x90: "VK_NUMLOCK",   // Num Lock key
-	0x91: "VK_SCROLL",    // Scroll Lock key
+var VirtualKeyMap = map[int]int{
+	// Letters (JavaScript keyCode to VK)
+	65: 0x41, // A
+	66: 0x42, // B
+	67: 0x43, // C
+	68: 0x44, // D
+	69: 0x45, // E
+	70: 0x46, // F
+	71: 0x47, // G
+	72: 0x48, // H
+	73: 0x49, // I
+	74: 0x4A, // J
+	75: 0x4B, // K
+	76: 0x4C, // L
+	77: 0x4D, // M
+	78: 0x4E, // N
+	79: 0x4F, // O
+	80: 0x50, // P
+	81: 0x51, // Q
+	82: 0x52, // R
+	83: 0x53, // S
+	84: 0x54, // T
+	85: 0x55, // U
+	86: 0x56, // V
+	87: 0x57, // W
+	88: 0x58, // X
+	89: 0x59, // Y
+	90: 0x5A, // Z
+
+	// Numbers
+	48: 0x30, // 0
+	49: 0x31, // 1
+	50: 0x32, // 2
+	51: 0x33, // 3
+	52: 0x34, // 4
+	53: 0x35, // 5
+	54: 0x36, // 6
+	55: 0x37, // 7
+	56: 0x38, // 8
+	57: 0x39, // 9
+
+	// Function Keys
+	112: 0x70, // F1
+	113: 0x71, // F2
+	114: 0x72, // F3
+	115: 0x73, // F4
+	116: 0x74, // F5
+	117: 0x75, // F6
+	118: 0x76, // F7
+	119: 0x77, // F8
+	120: 0x78, // F9
+	121: 0x79, // F10
+	122: 0x7A, // F11
+	123: 0x7B, // F12
+
+	// Special Keys
+	8:  0x08, // BACKSPACE
+	9:  0x09, // TAB
+	13: 0x0D, // ENTER
+	16: 0x10, // SHIFT
+	17: 0x11, // CTRL
+	18: 0x12, // ALT
+	19: 0x13, // PAUSE
+	20: 0x14, // CAPS LOCK
+	27: 0x1B, // ESC
+	32: 0x20, // SPACE
+	33: 0x21, // PAGE UP
+	34: 0x22, // PAGE DOWN
+	35: 0x23, // END
+	36: 0x24, // HOME
+	37: 0x25, // LEFT
+	38: 0x26, // UP
+	39: 0x27, // RIGHT
+	40: 0x28, // DOWN
+	45: 0x2D, // INSERT
+	46: 0x2E, // DELETE
+
+	// Numpad
+	96:  0x60, // NUMPAD 0
+	97:  0x61, // NUMPAD 1
+	98:  0x62, // NUMPAD 2
+	99:  0x63, // NUMPAD 3
+	100: 0x64, // NUMPAD 4
+	101: 0x65, // NUMPAD 5
+	102: 0x66, // NUMPAD 6
+	103: 0x67, // NUMPAD 7
+	104: 0x68, // NUMPAD 8
+	105: 0x69, // NUMPAD 9
+	106: 0x6A, // MULTIPLY
+	107: 0x6B, // ADD
+	109: 0x6D, // SUBTRACT
+	110: 0x6E, // DECIMAL
+	111: 0x6F, // DIVIDE
+
+	// Symbols
+	186: 0xBA, // SEMICOLON
+	187: 0xBB, // EQUALS
+	188: 0xBC, // COMMA
+	189: 0xBD, // MINUS
+	190: 0xBE, // PERIOD
+	191: 0xBF, // FORWARD SLASH
+	192: 0xC0, // BACK QUOTE
+	219: 0xDB, // OPEN BRACKET
+	220: 0xDC, // BACK SLASH
+	221: 0xDD, // CLOSE BRACKET
+	222: 0xDE, // SINGLE QUOTE
 }
 
-var alphanumericKeyCodeMap = map[int]string{
-	48:  "0", // Key code for 0
-	49:  "1", // Key code for 1
-	50:  "2", // Key code for 2
-	51:  "3", // Key code for 3
-	52:  "4", // Key code for 4
-	53:  "5", // Key code for 5
-	54:  "6", // Key code for 6
-	55:  "7", // Key code for 7
-	56:  "8", // Key code for 8
-	57:  "9", // Key code for 9
-	65:  "A", // Key code for A
-	66:  "B", // Key code for B
-	67:  "C", // Key code for C
-	68:  "D", // Key code for D
-	69:  "E", // Key code for E
-	70:  "F", // Key code for F
-	71:  "G", // Key code for G
-	72:  "H", // Key code for H
-	73:  "I", // Key code for I
-	74:  "J", // Key code for J
-	75:  "K", // Key code for K
-	76:  "L", // Key code for L
-	77:  "M", // Key code for M
-	78:  "N", // Key code for N
-	79:  "O", // Key code for O
-	80:  "P", // Key code for P
-	81:  "Q", // Key code for Q
-	82:  "R", // Key code for R
-	83:  "S", // Key code for S
-	84:  "T", // Key code for T
-	85:  "U", // Key code for U
-	86:  "V", // Key code for V
-	87:  "W", // Key code for W
-	88:  "X", // Key code for X
-	89:  "Y", // Key code for Y
-	90:  "Z", // Key code for Z
-	97:  "a", // Key code for a
-	98:  "b", // Key code for b
-	99:  "c", // Key code for c
-	100: "d", // Key code for d
-	101: "e", // Key code for e
-	102: "f", // Key code for f
-	103: "g", // Key code for g
-	104: "h", // Key code for h
-	105: "i", // Key code for i
-	106: "j", // Key code for j
-	107: "k", // Key code for k
-	108: "l", // Key code for l
-	109: "m", // Key code for m
-	110: "n", // Key code for n
-	111: "o", // Key code for o
-	112: "p", // Key code for p
-	113: "q", // Key code for q
-	114: "r", // Key code for r
-	115: "s", // Key code for s
-	116: "t", // Key code for t
-	117: "u", // Key code for u
-	118: "v", // Key code for v
-	119: "w", // Key code for w
-	120: "x", // Key code for x
-	121: "y", // Key code for y
-	122: "z", // Key code for z
+// VirtualKeyNames provides human-readable names for virtual key codes
+var VirtualKeyNames = map[int]string{
+	0x08: "VK_BACK",
+	0x09: "VK_TAB",
+	0x0D: "VK_RETURN",
+	0x10: "VK_SHIFT",
+	0x11: "VK_CONTROL",
+	0x12: "VK_MENU", // ALT
+	0x13: "VK_PAUSE",
+	0x14: "VK_CAPITAL", // CAPS LOCK
+	0x1B: "VK_ESCAPE",
+	0x20: "VK_SPACE",
+	0x25: "VK_LEFT",
+	0x26: "VK_UP",
+	0x27: "VK_RIGHT",
+	0x28: "VK_DOWN",
+}
+
+// GetVirtualKey converts a JavaScript keyCode to a Windows Virtual Key code
+func GetVirtualKey(keyCode int) (int, bool) {
+	vk, exists := VirtualKeyMap[keyCode]
+	return vk, exists
 }

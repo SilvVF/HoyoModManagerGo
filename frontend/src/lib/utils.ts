@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx"
 import {  useEffect, useState } from "react"
 import { twMerge } from "tailwind-merge"
-import { LogError } from "../../wailsjs/runtime/runtime"
+import { LogError } from "wailsjs/runtime/runtime"
  
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -108,6 +108,7 @@ Array.prototype.firstNotNullOf = firstNotNullOf
 Array.prototype.firstNotNullOfOrNull = firstNotNullOfOrNull
 String.prototype.ifEmpty = ifEmpty
 
+export const objString = (obj: any) => JSON.stringify(obj, null, 2);
 
 export function formatBytes(bytes: number, decimals: number = 2): string {
   if (!+bytes) return "0 Bytes";

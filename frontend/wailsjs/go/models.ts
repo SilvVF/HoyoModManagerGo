@@ -480,6 +480,7 @@ export namespace core {
 	
 	export class KeyBind {
 	    name: string;
+	    sectionKey: string;
 	    key: string;
 	
 	    static createFrom(source: any = {}) {
@@ -489,6 +490,7 @@ export namespace core {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
+	        this.sectionKey = source["sectionKey"];
 	        this.key = source["key"];
 	    }
 	}

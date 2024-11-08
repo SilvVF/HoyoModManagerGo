@@ -86,6 +86,14 @@ export function ModViewScreen() {
     [id]
   );
 
+  const images = useMemo(() => {
+    return (
+      content?._aPreviewMedia?._aImages
+        ?.map((it) => `${it._sBaseUrl}/${it._sFile}`)
+        ?.filter((it) => it !== undefined) ?? []
+    );
+  }, [content]);
+
   const deleteMod = async (id: number) => {
     Downloader.Delete(id).then(() => refresh());
   };
@@ -101,7 +109,7 @@ export function ModViewScreen() {
   ) => {
     if (character !== undefined && content?._idRow !== undefined) {
       LogPrint(modId.toString());
-      Downloader.DownloadTexture(link, filename, modId, content?._idRow);
+      Downloader.DownloadTexture(link, filename, modId, content?._idRow, images);
     }
   };
 
@@ -113,7 +121,8 @@ export function ModViewScreen() {
         character.name,
         character.id,
         character.game,
-        content?._idRow
+        content?._idRow,
+        images
       );
     }
   };
@@ -131,14 +140,6 @@ export function ModViewScreen() {
       }
     })();
   }, [content, dataApi]);
-
-  const images = useMemo(() => {
-    return (
-      content?._aPreviewMedia?._aImages
-        ?.map((it) => `${it._sBaseUrl}/${it._sFile}`)
-        ?.filter((it) => it !== undefined) ?? []
-    );
-  }, [content]);
 
   return (
     <div className="flex flex-col min-w-screen h-full items-center">

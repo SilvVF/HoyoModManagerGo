@@ -10,12 +10,12 @@ export function DeleteTexture(arg1) {
   return window['go']['core']['Downloader']['DeleteTexture'](arg1);
 }
 
-export function Download(arg1, arg2, arg3, arg4, arg5, arg6) {
-  return window['go']['core']['Downloader']['Download'](arg1, arg2, arg3, arg4, arg5, arg6);
+export function Download(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
+  return window['go']['core']['Downloader']['Download'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
-export function DownloadTexture(arg1, arg2, arg3, arg4) {
-  return window['go']['core']['Downloader']['DownloadTexture'](arg1, arg2, arg3, arg4);
+export function DownloadTexture(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['core']['Downloader']['DownloadTexture'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function GetQueue() {

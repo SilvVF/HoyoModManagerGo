@@ -40,12 +40,13 @@ var (
 )
 
 type DLMeta struct {
-	character   string
-	characterId int
-	game        types.Game
-	gbId        int
-	texture     bool
-	modId       int
+	character     string
+	characterId   int
+	game          types.Game
+	gbId          int
+	texture       bool
+	modId         int
+	previewImages []string
 }
 
 type DLItem struct {
@@ -142,7 +143,7 @@ func (d *Downloader) Retry(link string) error {
 		return errors.New("item not found")
 	}
 	d.Queue.Remove(item.Link)
-	return d.Download(item.Link, item.Filename, item.meta.character, item.meta.characterId, item.meta.game, item.meta.gbId)
+	return d.Download(item.Link, item.Filename, item.meta.character, item.meta.characterId, item.meta.game, item.meta.gbId, item.meta.previewImages)
 }
 
 func (d *Downloader) restart() {
@@ -160,7 +161,7 @@ func (d *Downloader) restart() {
 	}
 }
 
-func (d *Downloader) DownloadTexture(link, filename string, modId, gbId int) error {
+func (d *Downloader) DownloadTexture(link, filename string, modId, gbId int, previewImages []string) error {
 	if _, ok := d.Queue.Get(link); ok {
 		return errors.New("already downloading")
 	}
@@ -201,7 +202,7 @@ func (d *Downloader) DownloadTexture(link, filename string, modId, gbId int) err
 	return nil
 }
 
-func (d *Downloader) Download(link, filename, character string, characterId int, game types.Game, gbId int) error {
+func (d *Downloader) Download(link, filename, character string, characterId int, game types.Game, gbId int, previewImages []string) error {
 
 	if _, ok := d.Queue.Get(link); ok {
 		return errors.New("already downloading")
@@ -211,10 +212,11 @@ func (d *Downloader) Download(link, filename, character string, characterId int,
 		d.restart()
 	}
 	meta := DLMeta{
-		character:   character,
-		characterId: characterId,
-		game:        game,
-		gbId:        gbId,
+		character:     character,
+		characterId:   characterId,
+		game:          game,
+		gbId:          gbId,
+		previewImages: previewImages,
 	}
 	d.Queue.Set(link, &DLItem{
 		Filename: filename,
@@ -347,7 +349,7 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 		d.db.InsertTexture(types.Texture{
 			Filename:       filename[:dotIdx],
 			Enabled:        false,
-			PreviewImages:  []string{},
+			PreviewImages:  meta.previewImages,
 			GbId:           meta.gbId,
 			ModLink:        link,
 			GbFileName:     filename,
@@ -361,8 +363,8 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 			Game:           meta.game,
 			Character:      meta.character,
 			CharacterId:    meta.characterId,
+			PreviewImages:  meta.previewImages,
 			Enabled:        false,
-			PreviewImages:  []string{},
 			GbId:           meta.gbId,
 			ModLink:        link,
 			GbFileName:     filename,

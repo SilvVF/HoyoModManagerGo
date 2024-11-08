@@ -1,17 +1,20 @@
 import * as KeyMapper from "wailsjs/go/core/KeyMapper";
 import { core } from "wailsjs/go/models";
+import { LogDebug } from "wailsjs/runtime/runtime";
 import { create } from "zustand";
 
 export interface KeymapperState {
   keymappings: core.KeyBind[];
   backups: string[];
   load: (modId: number) => Promise<void>;
+  loadPrevious: (modId: number, file: string) => Promise<void>;
   unload: () => void;
-  write: (section: string, keycode: number) => Promise<void>;
-  save: () => Promise<void>;
+  deleteKeymap: (file: string) => Promise<void>;
+  write: (section: string, sectionKey: string,  keys: string[]) => Promise<void>;
+  save: (modId: number, name: string) => Promise<void>;
 }
 
-export const useKeyMapperStore = create<KeymapperState>((set) => ({
+export const useKeyMapperStore = create<KeymapperState>((set, get) => ({
   keymappings: [],
   backups: [],
   load: async (modId) => {
@@ -28,8 +31,17 @@ export const useKeyMapperStore = create<KeymapperState>((set) => ({
       });
     });
   },
-  write: async (section: string, keycode: number) => {
-    return KeyMapper.Write(section, keycode).then(() => {
+  deleteKeymap: async (file: string) => {
+    KeyMapper.DeleteKeymap(file).then(() => {
+      KeyMapper.GetKeymaps().then((keymaps) => set({backups: keymaps}));
+    })
+  },
+  loadPrevious: async (modId: number, file: string) => {
+    KeyMapper.LoadPrevious(file).then(() => { get().load(modId) })
+  },
+  write: async (section: string, sectionKey: string, keys: string[]) => {
+    LogDebug(`section: ${section}, sectionKey: ${sectionKey}, keys: ${keys}`)
+    return KeyMapper.Write(section, sectionKey,  keys).then(() => {
         KeyMapper.GetKeyMap().then((mappings) => {
             set({
                 keymappings: mappings
@@ -37,10 +49,7 @@ export const useKeyMapperStore = create<KeymapperState>((set) => ({
         })
     });
   },
-  save: async () => KeyMapper.SaveConfig().then(async () => {
-    KeyMapper.GetKeymaps().then((keymaps) => set({backups: keymaps}));
-    KeyMapper.GetKeyMap().then((keymap) => set({keymappings: keymap}));
-  })
+  save: async ( modId: number, name: string) => KeyMapper.SaveConfig(name).then(() => get().load(modId))
 }));
 
 

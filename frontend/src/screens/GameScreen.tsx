@@ -252,14 +252,14 @@ function OverlayOptions({
       />
       {!reloading ? (
         <Button
-          className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+          className="mx-2 rounded-full backdrop-blur-md bg-primary/30"
           variant={"ghost"}
           onClick={reload}
         >
           Generate
         </Button>
       ) : (
-        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/20 mx-2">
+        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
           <svg
             className="h-4 w-4 animate-spin"
             xmlns="http://www.w3.org/2000/svg"
@@ -280,14 +280,14 @@ function OverlayOptions({
       {!syncing ? (
         <div>
           <Button
-            className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+            className="mx-2 rounded-full backdrop-blur-md bg-primary/30"
             variant={"ghost"}
             onClick={() => sync(SyncType.SyncRequestLocal)}
           >
             Refresh Local
           </Button>
           <Button
-            className="mx-2 rounded-full backdrop-blur-md bg-primary/20"
+            className="mx-2 rounded-full backdrop-blur-md bg-primary/30"
             variant={"ghost"}
             onClick={() => sync(SyncType.SyncRequestForceNetwork)}
           >
@@ -296,7 +296,7 @@ function OverlayOptions({
         </div>
       ) : (
         <>
-        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/20 mx-2">
+        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
           <svg
             className="h-4 w-4 animate-spin"
             xmlns="http://www.w3.org/2000/svg"
@@ -313,7 +313,7 @@ function OverlayOptions({
           </svg>
           Syncing...
         </div>
-        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/20 mx-2">
+        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
           <svg
             className="h-4 w-4 animate-spin"
             xmlns="http://www.w3.org/2000/svg"
