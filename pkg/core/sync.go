@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/alitto/pond"
+	"github.com/alitto/pond/v2"
 )
 
 const (
@@ -24,7 +24,7 @@ type SyncRequest int
 
 type SyncHelper struct {
 	db              *DbHelper
-	running         map[types.Game]*pond.WorkerPool
+	running         map[types.Game]pond.Pool
 	initialComplete map[types.Game]bool
 	rootDir         string
 }
@@ -32,11 +32,11 @@ type SyncHelper struct {
 func NewSyncHelper(db *DbHelper) *SyncHelper {
 
 	m := map[types.Game]bool{types.Genshin: false, types.StarRail: false, types.ZZZ: false, types.WuWa: false}
-	pools := map[types.Game]*pond.WorkerPool{
-		types.Genshin:  pond.New(1, 1),
-		types.StarRail: pond.New(1, 1),
-		types.ZZZ:      pond.New(1, 1),
-		types.WuWa:     pond.New(1, 1),
+	pools := map[types.Game]pond.Pool{
+		types.Genshin:  pond.NewPool(1),
+		types.StarRail: pond.NewPool(1),
+		types.ZZZ:      pond.NewPool(1),
+		types.WuWa:     pond.NewPool(1),
 	}
 
 	return &SyncHelper{
@@ -66,7 +66,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 		return
 	}
 
-	pool.Submit(func() {
+	task := pool.Submit(func() {
 
 		seenMods := []string{}
 		seenTextures := []Pair[int, string]{}
@@ -178,4 +178,5 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 		s.initialComplete[game] = true
 	})
 
+	task.Wait()
 }

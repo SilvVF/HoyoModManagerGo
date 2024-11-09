@@ -3,7 +3,7 @@ module hmm
 go 1.22.4
 
 require (
-	github.com/alitto/pond v1.9.1
+	github.com/alitto/pond/v2 v2.0.4
 	github.com/anaskhan96/soup v1.2.5
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/nwaples/rardecode v1.1.3

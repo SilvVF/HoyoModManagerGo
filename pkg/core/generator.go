@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/alitto/pond/v2"
 )
 
 var ErrStopWalkingDirError = errors.New("stop walking normally")
@@ -128,6 +130,9 @@ func (g *Generator) Reload(game types.Game) error {
 
 func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) error {
 
+	genPond := pond.NewPool(4)
+	defer genPond.StopAndWait()
+
 	isActive := func() error {
 		select {
 		case <-ctx.Done():
@@ -161,78 +166,97 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 
 	log.LogDebug(strings.Join(exported, "\n - "))
 
+	exportPool := genPond.NewGroup()
 	for _, file := range exported {
+		exportPool.Submit(func() {
+			if err := isActive(); err != nil {
+				return
+			}
 
-		if err := isActive(); err != nil {
-			return err
-		}
+			stat, err := os.Stat(filepath.Join(outputDir, file))
+			if err != nil {
+				log.LogDebug("couldnt stat file" + file)
+				log.LogError(err.Error())
+				return
+			}
+			if !stat.IsDir() || file == "BufferValues" || slices.Contains(ignored, file) {
+				log.LogDebug("skipping file" + file)
+				return
+			}
 
-		stat, err := os.Stat(filepath.Join(outputDir, file))
-		if err != nil {
-			log.LogDebug("couldnt stat file" + file)
-			log.LogError(err.Error())
-			continue
-		}
-		if !stat.IsDir() || file == "BufferValues" || slices.Contains(ignored, file) {
-			log.LogDebug("skipping file" + file)
-			continue
-		}
+			parts := strings.SplitN(file, "_", 2)
+			log.LogDebug(strings.Join(parts, ","))
 
-		parts := strings.SplitN(file, "_", 2)
-		log.LogDebug(strings.Join(parts, ","))
-
-		if len(parts) == 2 {
-			enabled := slices.ContainsFunc(selected, areModsSame(parts))
-			if !enabled {
+			if len(parts) == 2 {
+				enabled := slices.ContainsFunc(selected, areModsSame(parts))
+				if !enabled {
+					log.LogDebug("Removing" + file)
+					err := os.RemoveAll(filepath.Join(outputDir, file))
+					if err != nil {
+						log.LogError(err.Error())
+					}
+				}
+			} else {
 				log.LogDebug("Removing" + file)
 				err := os.RemoveAll(filepath.Join(outputDir, file))
 				if err != nil {
 					log.LogError(err.Error())
 				}
 			}
-		} else {
-			log.LogDebug("Removing" + file)
-			err := os.RemoveAll(filepath.Join(outputDir, file))
-			if err != nil {
-				log.LogError(err.Error())
-			}
-		}
-	}
-
-	for _, mod := range selected {
-
-		if err := isActive(); err != nil {
-			return err
-		}
-
-		modDir := util.GetModDir(mod)
-		outputDir := filepath.Join(outputDir, fmt.Sprintf("%d_%s", mod.Id, mod.Filename))
-
-		textures, err := g.db.SelectTexturesByModId(mod.Id)
-
-		if err != nil {
-			continue
-		}
-
-		err = copyModWithTextures(
-			modDir,
-			outputDir,
-			len(textures) > 0,
-			slices.DeleteFunc(textures, func(e types.Texture) bool {
-				return !e.Enabled
-			}),
-		)
-		if err != nil {
-			log.LogError(err.Error())
-		}
-
-		err = copyKeyMapToMergedIni(modDir, outputDir)
-		if err != nil {
-			log.LogError(err.Error())
-		}
+		})
 	}
 
 	if err := isActive(); err != nil {
+		return err
+	}
+
+	exportPool.Wait()
+
+	if err := isActive(); err != nil {
+		genPond.StopAndWait()
+		return err
+	}
+
+	modPool := genPond.NewGroup()
+	for _, mod := range selected {
+
+		genPond.Submit(func() {
+			if err := isActive(); err != nil {
+				return
+			}
+
+			modDir := util.GetModDir(mod)
+			outputDir := filepath.Join(outputDir, fmt.Sprintf("%d_%s", mod.Id, mod.Filename))
+
+			textures, err := g.db.SelectTexturesByModId(mod.Id)
+
+			if err != nil {
+				return
+			}
+
+			err = copyModWithTextures(
+				modDir,
+				outputDir,
+				len(textures) > 0,
+				slices.DeleteFunc(textures, func(e types.Texture) bool {
+					return !e.Enabled
+				}),
+			)
+			if err != nil {
+				log.LogError(err.Error())
+			}
+
+			err = copyKeyMapToMergedIni(modDir, outputDir)
+			if err != nil {
+				log.LogError(err.Error())
+			}
+		})
+	}
+
+	modPool.Wait()
+
+	if err := isActive(); err != nil {
+		genPond.StopAndWait()
 		return err
 	}
 
@@ -283,12 +307,11 @@ func copyKeyMapToMergedIni(modDir, outputDir string) error {
 				return err
 			}
 
-			// Check if the file is named "merged.ini"
 			if d.IsDir() {
-				return nil // Continue if it's a directory
+				return nil
 			}
 
-			if d.Name() == "merged.ini" {
+			if strings.HasSuffix(d.Name(), ".ini") && !strings.HasPrefix(d.Name(), "DISABLED") {
 				// Overwrite the file with new content
 				log.LogDebug("Found and overwriting:" + path)
 				os.WriteFile(path, ini, os.ModePerm)

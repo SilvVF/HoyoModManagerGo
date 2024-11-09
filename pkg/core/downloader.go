@@ -14,8 +14,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
-	"github.com/alitto/pond"
+	"github.com/alitto/pond/v2"
 	"github.com/nwaples/rardecode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -61,18 +63,36 @@ type DLItem struct {
 type Downloader struct {
 	db    *DbHelper
 	Ctx   context.Context
-	count pref.Preference[int]
-	pool  *pond.WorkerPool
+	count int
+	pool  pond.Pool
 	Queue ConcurrentMap[string, *DLItem]
+	m     sync.Mutex
 }
 
 func NewDownloader(db *DbHelper, count pref.Preference[int]) *Downloader {
-	return &Downloader{
+
+	downloader := &Downloader{
 		db:    db,
-		count: count,
-		pool:  pond.New(count.Get(), 100),
+		count: count.Get(),
+		pool:  pond.NewPool(count.Get()),
 		Queue: NewCMap[*DLItem](),
+		m:     sync.Mutex{},
 	}
+
+	watcher, _ := count.Watch()
+
+	go func() {
+		for {
+			v, ok := <-watcher
+			if !ok {
+				return
+			}
+			downloader.count = v
+			downloader.restart()
+		}
+	}()
+
+	return downloader
 }
 
 func (d *Downloader) GetQueue() map[string]*DLItem {
@@ -147,15 +167,24 @@ func (d *Downloader) Retry(link string) error {
 }
 
 func (d *Downloader) restart() {
-	d.pool = pond.New(d.count.Get(), 100)
+	if !d.m.TryLock() {
+		return
+	}
+	defer d.m.Unlock()
+
+	d.pool.StopAndWait()
+	d.pool = pond.NewPool(d.count)
 
 	for _, item := range d.Queue.Items() {
 		if item.State != TYPE_FINISHED {
+
 			item.State = TYPE_QUEUED
+
 			item.Fetch = DataProgress{}
 			item.Unzip = DataProgress{}
-			d.pool.Submit(func() {
-				d.internalDonwload(item.Link, item.Filename, item.meta)
+
+			d.pool.SubmitErr(func() error {
+				return d.internalDonwload(item.Link, item.Filename, item.meta)
 			})
 		}
 	}
@@ -171,9 +200,6 @@ func (d *Downloader) DownloadTexture(link, filename string, modId, gbId int, pre
 		return err
 	}
 
-	if d.pool.Stopped() {
-		d.restart()
-	}
 	meta := DLMeta{
 		character:   mod.Character,
 		characterId: mod.CharacterId,
@@ -195,21 +221,18 @@ func (d *Downloader) DownloadTexture(link, filename string, modId, gbId int, pre
 		TYPE_QUEUED,
 	)
 
-	d.pool.Submit(func() {
-		d.internalDonwload(link, filename, meta)
-	})
+	if !d.pool.Stopped() {
+		d.pool.SubmitErr(func() error {
+			return d.internalDonwload(link, filename, meta)
+		})
+	}
 
 	return nil
 }
 
 func (d *Downloader) Download(link, filename, character string, characterId int, game types.Game, gbId int, previewImages []string) error {
-
 	if _, ok := d.Queue.Get(link); ok {
 		return errors.New("already downloading")
-	}
-
-	if d.pool.Stopped() {
-		d.restart()
 	}
 	meta := DLMeta{
 		character:     character,
@@ -231,9 +254,12 @@ func (d *Downloader) Download(link, filename, character string, characterId int,
 		TYPE_QUEUED,
 	)
 
-	d.pool.Submit(func() {
-		d.internalDonwload(link, filename, meta)
-	})
+	if !d.pool.Stopped() {
+		d.pool.Submit(func() {
+			d.internalDonwload(link, filename, meta)
+		})
+
+	}
 
 	return nil
 }
@@ -255,6 +281,8 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 			runtime.EventsEmit(d.Ctx, "download", TYPE_FINISHED)
 		}
 	}()
+
+	time.Sleep(10 * time.Second)
 
 	updateProgress := func(state string, dp DataProgress) {
 		item, ok := d.Queue.Get(link)

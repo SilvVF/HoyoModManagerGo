@@ -268,7 +268,7 @@ func (k *KeyMapper) Load(modId int) error {
 			return nil
 		}
 
-		if d.Name() == "merged.ini" {
+		if strings.HasSuffix(d.Name(), ".ini") && !strings.HasPrefix(d.Name(), "DISABLED") {
 			k.path = path
 			return ErrFileFoundShortcircuit
 		}
