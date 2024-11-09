@@ -1,13 +1,19 @@
 package ios.silv.hoyomod.net
 
+import ios.silv.hoyomod.MainViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.serializer
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
 import kotlin.coroutines.resume
@@ -53,7 +59,7 @@ suspend fun Call.await(): Response {
 /**
  * @since extensions-lib 1.5
  */
-suspend fun Call.awaitSuccess(): Response {
+suspend fun Call.awaitSuccess(): Response  {
     val callStack = Exception().stackTrace.run { copyOfRange(1, size) }
     val response = await(callStack)
     if (!response.isSuccessful) {
@@ -68,6 +74,21 @@ inline fun <reified T> Response.parseAs(): T {
         Json.decodeFromStream(it.inputStream())
     }
 }
+
+fun OkHttpClient.GET(url: String) = newCall(
+    Request.Builder().url(url).build()
+)
+
+inline fun <reified T> OkHttpClient.POST(url: String, body: T) = newCall(
+    Request.Builder()
+        .url(url)
+        .post(
+            body = Json.encodeToString(body)
+                .toRequestBody(
+                    "application/json".toMediaType()
+                )
+        ).build()
+)
 
 /**
  * Exception that handles HTTP codes considered not successful by OkHttp.

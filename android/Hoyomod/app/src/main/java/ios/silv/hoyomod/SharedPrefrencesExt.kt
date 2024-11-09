@@ -8,6 +8,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -18,6 +19,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
@@ -33,7 +35,7 @@ object PrefKeys {
     const val ADDR = "addr_pref"
     const val USERNAME = "username_pref"
     const val PASSWORD = "password_pref"
-
+    const val MODS_AVAILABLE = "mods_available_pref"
 }
 
 suspend inline fun <reified T> SharedPreferences.set(key: String, value: T): Boolean {
@@ -68,43 +70,51 @@ suspend inline fun <reified T> SharedPreferences.get(key: String, default: T): T
         .getOrDefault(default)
 }
 
+inline fun <reified T> SharedPreferences.changesAsFlow(watchKey: String, default: T) = callbackFlow {
+    val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+        if (key == watchKey) {
+            runBlocking {
+                prefs.get<T>(watchKey, default)?.let {
+                    send(it)
+                }
+            }
+        }
+    }
+    try {
+        registerOnSharedPreferenceChangeListener(listener)
+        awaitCancellation()
+    } finally {
+        unregisterOnSharedPreferenceChangeListener(listener)
+    }
+}
+
 @Composable
 inline fun <reified T> CompositionLocal<SharedPreferences>.collectPreferenceAsState(key: String, default: T): State<T> {
 
     val lifecycle = LocalLifecycleOwner.current
     val preferences = this.current
 
-    val scope = rememberCoroutineScope()
-
-    val value = remember { mutableStateOf(default) }
-
-    DisposableEffect(lifecycle, preferences) {
-        scope.launch {
-            value.value = preferences.get(key, default)
-            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                callbackFlow {
-                    val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, prefKey ->
+    return produceState(initialValue = default) {
+        value = preferences.get(key, default)
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            callbackFlow {
+                val listener =
+                    SharedPreferences.OnSharedPreferenceChangeListener { prefs, prefKey ->
                         if (prefKey == key) {
                             runBlocking {
                                 send(prefs.get<T>(prefKey, default))
                             }
                         }
                     }
-                    try {
-                        preferences.registerOnSharedPreferenceChangeListener(listener)
-                        awaitCancellation()
-                    } finally {
-                        preferences.unregisterOnSharedPreferenceChangeListener(listener)
-                    }
+                try {
+                    preferences.registerOnSharedPreferenceChangeListener(listener)
+                    awaitCancellation()
+                } finally {
+                    preferences.unregisterOnSharedPreferenceChangeListener(listener)
                 }
-                    .flowOn(Dispatchers.IO)
-                    .collect { value.value = it }
             }
-        }
-        onDispose {
-            scope.cancel()
+                .flowOn(Dispatchers.IO)
+                .collect { value = it }
         }
     }
-
-    return value
 }

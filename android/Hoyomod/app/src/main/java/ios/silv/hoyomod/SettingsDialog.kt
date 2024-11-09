@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -159,6 +160,14 @@ private fun ColumnScope.SettingsPanel() {
             supportingText = "",
             default = "",
         )
+        val modsAvailable by LocalSharedPreferences.collectPreferenceAsState(PrefKeys.MODS_AVAILABLE,false)
+        SettingsDialogCheckboxRow(
+            text = "only show characters with mods",
+            selected = modsAvailable,
+            onClick = {
+                scope.launch { sharedPreferences.set(PrefKeys.MODS_AVAILABLE, !modsAvailable) }
+            }
+        )
     }
     SettingsDialogSectionTitle(text = "Theme")
     Column(Modifier.selectableGroup()) {
@@ -266,7 +275,6 @@ private fun SettingsEditTextItem(
             snapshotFlow { preferenceValue },
             ::Pair
         ).collect { (edit, pref) ->
-            Log.d("edit", "Received $preferenceValue, $editing")
             if (!edit) {
                 textFieldValue = textFieldValue.copy(text = pref)
             }
@@ -349,6 +357,32 @@ private fun SettingsDialogSectionTitle(text: String) {
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
     )
+}
+
+@Composable
+fun SettingsDialogCheckboxRow(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = selected,
+                role = Role.Checkbox,
+                onClick = onClick,
+            )
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = selected,
+            onCheckedChange = null,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(text)
+    }
 }
 
 @Composable

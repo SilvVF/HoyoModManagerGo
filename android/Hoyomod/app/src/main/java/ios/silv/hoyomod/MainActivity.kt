@@ -37,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeFloatingActionButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -114,7 +115,7 @@ fun MainScreen(
     val state by mainViewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val tabs = rememberMutableStateListOf {
-        listOf("Genshin", "Star Rail", "Zenless Zone Zero", "Wuthering Waves")
+        listOf("Genshin Impact", "Honkai Star Rail", "Zenless Zone Zero", "Wuthering Waves")
     }
 
     val pagerState = rememberPagerState { tabs.size }
@@ -130,7 +131,7 @@ fun MainScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
-            FloatingActionButton(onClick = { mainViewModel.startGenerateJob(pagerState.currentPage + 1) }) {
+            LargeFloatingActionButton(onClick = { mainViewModel.startGenerateJob(pagerState.currentPage + 1) }) {
                 Text(text = "Generate")
             }
         },
@@ -138,6 +139,7 @@ fun MainScreen(
             Column {
                 mainViewModel.jobs.forEach { (id, job) ->
                     Snackbar(
+                        modifier = Modifier.padding(1.dp),
                         dismissAction = {
                             when(job) {
                                 is MainViewModel.Job.Complete -> {
@@ -262,12 +264,27 @@ fun MainScreen(
                         message = s.msg
                     )
                     MainViewModel.State.Loading -> LoadingScreen()
-                    is MainViewModel.State.Success ->  SuccessScreen(
-                        data =  s.data[page + 1].orEmpty(),
-                        onEnableMod = { id, enabled ->
-                            mainViewModel.toggleMod(page + 1, id, enabled)
+                    is MainViewModel.State.Success ->  {
+                        val data = s.data[page + 1].orEmpty()
+                        
+                        if (data.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Text(text = "No characters found for game ${tabs.getOrNull(page)}")
+                                if (s.modsAvailable) {
+                                    Button(onClick = { mainViewModel.toggleHasModsFilter() }) {
+                                        Text(text = "Show all characters")
+                                    }   
+                                }
+                            }
+                        } else {
+                            SuccessScreen(
+                                data =  data    ,
+                                onEnableMod = { id, enabled ->
+                                    mainViewModel.toggleMod(page + 1, id, enabled)
+                                }
+                            )   
                         }
-                    )
+                    }
                 }
             }
         }

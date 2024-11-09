@@ -6,7 +6,9 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ios.silv.hoyomod.net.GET
 import ios.silv.hoyomod.net.ModsWithTagsAndTextures
+import ios.silv.hoyomod.net.POST
 import ios.silv.hoyomod.net.await
 import ios.silv.hoyomod.net.awaitSuccess
 import ios.silv.hoyomod.net.parseAs
@@ -18,7 +20,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -43,45 +47,32 @@ import kotlin.time.Duration.Companion.seconds
 
 class MainViewModel(
     savedStateHandle: SavedStateHandle,
-    preferences: SharedPreferences
+    private val preferences: SharedPreferences
 ): ViewModel() {
 
     val jobs = mutableStateMapOf<Int, Job>()
 
-    private val ipAddressFlow = callbackFlow {
-        val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
-            if (key == PrefKeys.ADDR) {
-                prefs.getString(key, null)?.let {
-                    trySend(it)
-                }
-            }
-        }
-        try {
-            preferences.registerOnSharedPreferenceChangeListener(listener)
-            awaitCancellation()
-        } finally {
-            preferences.unregisterOnSharedPreferenceChangeListener(listener)
-        }
-    }
+    private val ipAddressFlow = preferences.changesAsFlow(PrefKeys.ADDR, "")
+        .onStart { emit(preferences.get(PrefKeys.ADDR, "")) }
         .stateIn(
             viewModelScope,
             SharingStarted.Lazily,
-            preferences.getString(PrefKeys.ADDR, null).orEmpty()
+            null
         )
+
+    private val modsAvailable = preferences
+        .changesAsFlow(PrefKeys.MODS_AVAILABLE, false)
+        .onStart { emit(preferences.get(PrefKeys.MODS_AVAILABLE, false)) }
 
     val search = MutableSavedState(savedStateHandle, "search", "")
 
     private val _state: MutableStateFlow<State> = MutableStateFlow(State.Loading)
     val state: StateFlow<State> get() = _state
 
-    private val dataFlow = ipAddressFlow.mapLatest { addr ->
+    private val dataFlow = ipAddressFlow.filterNotNull().mapLatest { addr ->
         runCatching {
             val resp = withContext(Dispatchers.IO) {
-                App.client.newCall(
-                    Request.Builder()
-                        .url("http://$addr$DATA_ROUTE")
-                        .build()
-                )
+                App.client.GET("http://$addr$DATA_ROUTE")
                     .awaitSuccess()
                     .parseAs<List<ModsWithTagsAndTextures>>()
             }
@@ -102,8 +93,9 @@ class MainViewModel(
             combine(
                 dataFlow,
                 search.asFlow(),
-                ::Pair
-            ).collect { (data, query) ->
+                modsAvailable,
+                ::Triple
+            ).collect { (data, query, hasMods) ->
                 _state.update {
                     data?.fold(
                         onSuccess = {
@@ -112,9 +104,13 @@ class MainViewModel(
                                    if (query.isBlank()) {
                                        mwt
                                    } else {
-                                       mwt.filter { item -> item.characters.name.contains(query, true) }
+                                       mwt.filter { item ->
+                                           (if (hasMods) item.modWithTags.isNotEmpty() else true) &&
+                                           item.characters.name.contains(query, true)
+                                       }
                                    }
-                               }
+                               },
+                                modsAvailable = hasMods
                             )
                         },
                         onFailure = { State.Failure(it.localizedMessage) }
@@ -128,20 +124,20 @@ class MainViewModel(
         search.value = text
     }
 
+    fun toggleHasModsFilter() {
+        viewModelScope.launch {
+            preferences.set(PrefKeys.MODS_AVAILABLE, !preferences.get(PrefKeys.MODS_AVAILABLE, false))
+        }
+    }
+
     fun toggleMod(game: Int, id: Int, enabled: Boolean) {
         viewModelScope.launch {
             runCatching {
                 val addr = ipAddressFlow.value
                 val res = withContext(Dispatchers.IO) {
-                    App.client.newCall(
-                        Request.Builder()
-                            .url("http://$addr$UPDATE_MOD")
-                            .post(
-                                body = Json.encodeToString(
-                                    TogglePostRequest(id, enabled)
-                                ).toRequestBody("application/json".toMediaType())
-                            )
-                            .build()
+                    App.client.POST(
+                        "http://$addr$UPDATE_MOD",
+                           body = TogglePostRequest(id, enabled)
                     )
                         .awaitSuccess()
                 }
@@ -157,19 +153,16 @@ class MainViewModel(
         App.applicationScope.launch(Dispatchers.IO) {
             kotlin.runCatching {
                 val addr = ipAddressFlow.value
-                val request = Request.Builder()
-                    .url("http://$addr/generate")
-                    .post(body = Json.encodeToString(GeneratePostRequest(game)).toRequestBody("application/json".toMediaType()))
-                    .build()
-
-                val res = App.client
-                    .newCall(request)
+                val res = App.client.POST(
+                    "http://$addr/generate",
+                    body = GeneratePostRequest(game)
+                )
                     .awaitSuccess()
                     .parseAs<GenerateResponse>()
                 jobs[res.jobId] = Job.Loading(res.jobId, game)
 
                runCatching {
-                    withTimeout(60.seconds) {
+                    withTimeout(45.seconds) {
                         pollJobStatus(res.jobId, game, App.client)
                     }
                 }
@@ -177,7 +170,7 @@ class MainViewModel(
                    .onFailure {
                        jobs[res.jobId] = when {
                            it is TimeoutCancellationException -> Job.Complete(res.jobId, game, "polling timed out")
-                           jobs[res.jobId] is Job.Loading -> Job.Complete(res.jobId, game, "unkown error")
+                           jobs[res.jobId] is Job.Loading -> Job.Complete(res.jobId, game, "unknown error")
                            else -> jobs[res.jobId] ?: return@launch
                        }
                    }
@@ -193,9 +186,9 @@ class MainViewModel(
         if (response.isSuccessful) {
             val status = response.parseAs<JobStatus>()
             if (status.isComplete) {
-                jobs[status.jobId] = Job.Complete(status.jobId, game, status.error)
+                jobs[jobId] = Job.Complete(jobId, game, status.error)
             } else {
-                jobs[status.jobId] = Job.Loading(status.jobId, game)
+                jobs[jobId] = Job.Loading(jobId, game)
                 pollJobStatus(jobId, game, client)
             }
         } else if (response.code == 204) {
@@ -246,8 +239,8 @@ class MainViewModel(
 
     @Serializable
     data class JobStatus(
-        val jobId: Int,
-        val status: String,
+        val jobId: Int? = null,
+        val status: String? = null,
         val completedAt: String? = null,
         val error: String? = null
     ) {
@@ -283,7 +276,8 @@ class MainViewModel(
         data object Loading: State()
         data class Failure(val msg: String?): State()
         data class Success(
-            val data: Map<Int, List<ModsWithTagsAndTextures.Data>>
+            val data: Map<Int, List<ModsWithTagsAndTextures.Data>>,
+            val modsAvailable: Boolean,
         ): State()
     }
 

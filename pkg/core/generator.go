@@ -274,7 +274,7 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 	cmder.WithOutFn(func(b []byte) (int, error) {
 		value := string(b)
 		log.LogDebug(fmt.Sprintf("%s len: %d", value, len(value)))
-		if strings.Contains(value, "Done!") || strings.HasSuffix(value, "quit...") {
+		if err := isActive(); err != nil || strings.Contains(value, "Done!") || strings.HasSuffix(value, "quit...") {
 			log.LogDebug("Cancelling")
 			cancel()
 		}
