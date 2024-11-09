@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/alitto/pond/v2"
 	"github.com/nwaples/rardecode"
@@ -88,7 +87,7 @@ func NewDownloader(db *DbHelper, count pref.Preference[int]) *Downloader {
 				return
 			}
 			downloader.count = v
-			downloader.restart()
+			go downloader.restart()
 		}
 	}()
 
@@ -167,9 +166,7 @@ func (d *Downloader) Retry(link string) error {
 }
 
 func (d *Downloader) restart() {
-	if !d.m.TryLock() {
-		return
-	}
+	d.m.Lock()
 	defer d.m.Unlock()
 
 	d.pool.StopAndWait()
@@ -281,8 +278,6 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 			runtime.EventsEmit(d.Ctx, "download", TYPE_FINISHED)
 		}
 	}()
-
-	time.Sleep(10 * time.Second)
 
 	updateProgress := func(state string, dp DataProgress) {
 		item, ok := d.Queue.Get(link)
