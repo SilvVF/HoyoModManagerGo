@@ -70,12 +70,16 @@ sync gradle and hit run button or
 - [prydwen](https://www.prydwen.gg)
   
 ## Showcase
-![image](https://github.com/user-attachments/assets/699d67ea-fc63-4bee-863f-6c02fc09005e)
-![image](https://github.com/user-attachments/assets/e8e2047b-3f8e-489b-ad55-95730760e6e2)
-![image](https://github.com/user-attachments/assets/c6b17060-450a-4405-9a79-1774129c2b82)
-![image](https://github.com/user-attachments/assets/73c857f4-0bc1-4479-9be0-d474529b3bc0)
-![image](https://github.com/user-attachments/assets/f4750b77-a329-4a54-91d0-02ac77dceb1d)
-![image](https://github.com/user-attachments/assets/be452e6a-e1f9-4099-88e8-9a264a08ca7a)
+### Desktop
+![image](https://github.com/user-attachments/assets/2e1d1883-8f49-421d-b4b2-4e6f1f0f36c9)
+![image](https://github.com/user-attachments/assets/47a606a8-9cb6-4ad0-9e94-fce8f501fc40)
+![image](https://github.com/user-attachments/assets/c0a9629f-4a89-4c22-8956-1c7f62aad726)
+![image](https://github.com/user-attachments/assets/ca3013d5-176c-4827-b8fa-5a885ae46264)
+![image](https://github.com/user-attachments/assets/b2b9f9df-805f-481c-8f96-90b98f7a170d)
+![image](https://github.com/user-attachments/assets/6bd7c07d-df9f-4c52-be1e-2657ab235f41)
+![image](https://github.com/user-attachments/assets/65be9010-42b2-4c9a-b50c-4f97ffd055a0)
+![image](https://github.com/user-attachments/assets/61cb2762-6aa4-4b17-928a-48a8ee0822db)
+### Android
 <img src="https://github.com/user-attachments/assets/bcf701fe-7d33-4a61-852c-393a819fc457" width="200">
 <img src="https://github.com/user-attachments/assets/b6dd73c9-af38-4009-9787-5b11294f2a71" width="200">
 
