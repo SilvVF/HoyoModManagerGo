@@ -101,10 +101,9 @@ class MainViewModel(
                         onSuccess = {
                             State.Success(
                                data = it.mapValues { (_, mwt) ->
-                                   mwt.filter { item ->
-                                       (if (hasMods) item.modWithTags.isNotEmpty() else true) &&
-                                       (if (query.isNotBlank()) item.characters.name.contains(query, true) else true)
-                                   }
+                                   mwt
+                                       .filterIf(hasMods) { item -> item.modWithTags.isNotEmpty() }
+                                       .filterIf(query.isNotBlank()) {item -> item.characters.name.contains(query, ignoreCase = true) }
                                },
                                 modsAvailable = hasMods
                             )
@@ -212,6 +211,12 @@ class MainViewModel(
                         data = buildMap {
                             putAll(state.data)
                             put(game, res)
+                        }.mapValues { (_, mwt) ->
+                            mwt
+                                .filterIf(state.modsAvailable) { item -> item.modWithTags.isNotEmpty() }
+                                .filterIf(search.value.isNotBlank()) { item ->
+                                    item.characters.name.contains(search.value, ignoreCase = true)
+                                }
                         }
                     )
                     else -> state

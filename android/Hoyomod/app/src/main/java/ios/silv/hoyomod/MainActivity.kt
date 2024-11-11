@@ -2,7 +2,6 @@ package ios.silv.hoyomod
 
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.preference.PreferenceManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -36,21 +34,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFloatingActionButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -67,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
@@ -80,12 +74,13 @@ import ios.silv.hoyomod.lib.toStableFlow
 import ios.silv.hoyomod.net.ModsWithTagsAndTextures
 import ios.silv.hoyomod.theme.MyApplicationTheme
 import kotlinx.coroutines.launch
-val LocalSharedPreferences = staticCompositionLocalOf<SharedPreferences> { error("SharedPrefrences not provided in scope") }
+
+val LocalSharedPreferences = staticCompositionLocalOf<SharedPreferences> { error("SharedPreferences not provided in scope") }
 
 class MainActivity : ComponentActivity() {
 
     private val mainViewmodel by viewModels<MainViewModel> {
-        SavedStateViewModelFactory<MainViewModel> { savedStateHandle ->
+        savedStateViewModelFactory<MainViewModel> { savedStateHandle ->
             MainViewModel(
                 savedStateHandle,
                 App.sharedPreferences
@@ -145,7 +140,7 @@ fun MainScreen(
         },
         snackbarHost = {
             Column {
-                mainViewModel.jobs.forEach { (id, job) ->
+                mainViewModel.jobs.forEach { (_, job) ->
                     Snackbar(
                         modifier = Modifier.padding(1.dp),
                         dismissAction = {
@@ -275,8 +270,15 @@ fun MainScreen(
                     is MainViewModel.State.Success ->  {
                         val data = s.data[page + 1].orEmpty()
                         if (data.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                Text(text = "No characters found for game ${tabs.getOrNull(page)}")
+                            Column(
+                                modifier = Modifier.fillMaxSize().padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "No characters found for game ${tabs.getOrNull(page)} query: ${mainViewModel.search.state}",
+                                    textAlign = TextAlign.Center
+                                )
                                 if (s.modsAvailable) {
                                     Button(onClick = { mainViewModel.toggleHasModsFilter() }) {
                                         Text(text = "Show all characters")
