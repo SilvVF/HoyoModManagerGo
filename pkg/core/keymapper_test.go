@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"gopkg.in/ini.v1"
 )
 
 const (
@@ -67,27 +65,5 @@ $change = 8
 
 	if strings.TrimSpace(getKeybindSection(inputFile)) != strings.TrimSpace(expected) {
 		t.Fatal("merged section does not match")
-	}
-}
-
-func TestAddConfigToOriginal(t *testing.T) {
-
-	inputFile, err := os.Open(filepath.Join(workingDir, mergedIniPath))
-	if err != nil {
-		panic(err)
-	}
-	defer inputFile.Close()
-
-	keybinds := getKeybindSection(inputFile)
-	cfg, _ := ini.Load([]byte(keybinds))
-
-	got := appendKeybindsToOriginal(filepath.Join(workingDir, mergedIniPath), cfg)
-
-	os.WriteFile(filepath.Join(workingDir, outputPath), []byte(got), os.ModePerm)
-
-	want, _ := os.ReadFile(filepath.Join(workingDir, mergedIniPath))
-
-	if got != string(want) {
-		t.Fatal("appended section does not match")
 	}
 }

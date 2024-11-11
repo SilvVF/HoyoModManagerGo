@@ -249,7 +249,15 @@ export function ModViewScreen() {
           }) ?? <></>}
         </TableBody>
       </Table>
-      <div dangerouslySetInnerHTML={{ __html: content?._sText ?? "" }}></div>
+      <div 
+        dangerouslySetInnerHTML={{ __html: content?._sText ?? "" }}
+        onClick={(e) => {
+          const anchor = (e.target as HTMLElement).closest('a');
+          if (anchor) {
+            e.preventDefault();
+          }
+        }}
+      ></div>
     </div>
   );
 }

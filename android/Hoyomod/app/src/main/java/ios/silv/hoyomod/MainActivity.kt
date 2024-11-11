@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,6 +35,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -115,7 +117,7 @@ fun MainScreen(
     val state by mainViewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val tabs = rememberMutableStateListOf {
-        listOf("Genshin Impact", "Honkai Star Rail", "Zenless Zone Zero", "Wuthering Waves")
+        listOf("Genshin", "Star Rail", "Zenless", "Wuthering Waves")
     }
 
     val pagerState = rememberPagerState { tabs.size }
@@ -131,9 +133,15 @@ fun MainScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
-            LargeFloatingActionButton(onClick = { mainViewModel.startGenerateJob(pagerState.currentPage + 1) }) {
-                Text(text = "Generate")
-            }
+            ExtendedFloatingActionButton(
+                onClick = { mainViewModel.startGenerateJob(pagerState.currentPage + 1) },
+                icon = {
+                    Icon(imageVector = Icons.Filled.Refresh, null)
+                },
+                text = {
+                    Text(text = "Generate")
+                }
+            )
         },
         snackbarHost = {
             Column {
@@ -251,7 +259,7 @@ fun MainScreen(
     ) { innerPadding ->
         PullToRefreshBox(
             isRefreshing = state is MainViewModel.State.Loading,
-            onRefresh = { mainViewModel.restart() }
+            onRefresh = { mainViewModel.restart() },
         ) {
             HorizontalPager(
                 state = pagerState,
@@ -266,14 +274,13 @@ fun MainScreen(
                     MainViewModel.State.Loading -> LoadingScreen()
                     is MainViewModel.State.Success ->  {
                         val data = s.data[page + 1].orEmpty()
-                        
                         if (data.isEmpty()) {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 Text(text = "No characters found for game ${tabs.getOrNull(page)}")
                                 if (s.modsAvailable) {
                                     Button(onClick = { mainViewModel.toggleHasModsFilter() }) {
                                         Text(text = "Show all characters")
-                                    }   
+                                    }
                                 }
                             }
                         } else {
@@ -282,7 +289,7 @@ fun MainScreen(
                                 onEnableMod = { id, enabled ->
                                     mainViewModel.toggleMod(page + 1, id, enabled)
                                 }
-                            )   
+                            )
                         }
                     }
                 }
@@ -353,6 +360,7 @@ fun SuccessScreen(
                 }
             }
         }
+        item { Spacer(modifier = Modifier.height(64.dp)) }
     }
 }
 

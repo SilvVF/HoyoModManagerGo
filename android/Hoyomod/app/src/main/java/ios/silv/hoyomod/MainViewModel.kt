@@ -101,13 +101,9 @@ class MainViewModel(
                         onSuccess = {
                             State.Success(
                                data = it.mapValues { (_, mwt) ->
-                                   if (query.isBlank()) {
-                                       mwt
-                                   } else {
-                                       mwt.filter { item ->
-                                           (if (hasMods) item.modWithTags.isNotEmpty() else true) &&
-                                           item.characters.name.contains(query, true)
-                                       }
+                                   mwt.filter { item ->
+                                       (if (hasMods) item.modWithTags.isNotEmpty() else true) &&
+                                       (if (query.isNotBlank()) item.characters.name.contains(query, true) else true)
                                    }
                                },
                                 modsAvailable = hasMods

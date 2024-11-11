@@ -356,10 +356,11 @@ func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
 			if err.Error() != "EOF" {
 				fmt.Println("Error reading file:", err)
 			}
+			iniString.WriteString(line)
 			break
 		}
 
-		if strings.Contains(line, "[Present]") {
+		if strings.Contains(line, "[Present]") || inTargetSection && strings.HasPrefix(line, ";") {
 			inConstantsSection = false
 			inTargetSection = false
 			cfg.WriteTo(&iniString)
@@ -399,7 +400,7 @@ func getKeybindSection(r io.Reader) string {
 			continue
 		}
 
-		if str == "[Present]" {
+		if str == "[Present]" || inTargetSection && strings.HasPrefix(str, ";") {
 			break
 		}
 

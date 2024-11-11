@@ -123,7 +123,7 @@ func main() {
 		Frameless:         false,
 		StartHidden:       false,
 		HideWindowOnClose: false,
-		BackgroundColour:  &options.RGBA{R: 255, G: 255, B: 255, A: 255},
+		BackgroundColour:  options.NewRGB(255, 255, 255),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
