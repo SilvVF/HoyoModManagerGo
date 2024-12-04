@@ -1,5 +1,5 @@
 import { darkThemePref, usePrefrenceAsState } from "@/data/prefs"
-import { createContext, useContext, useEffect } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
  
 type Theme = "dark" | "light" | "system"
  
@@ -11,11 +11,13 @@ type ThemeProviderProps = {
  
 type ThemeProviderState = {
   theme: Theme
+  isDark: boolean
   setTheme: (theme: Theme) => void
 }
  
 const initialState: ThemeProviderState = {
   theme: "system",
+  isDark: false,
   setTheme: () => null,
 }
  
@@ -28,6 +30,7 @@ export function ThemeProvider({
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = usePrefrenceAsState(darkThemePref)
+  const [isDark, setIsDark] = useState(false)
  
   useEffect(() => {
     if (theme === undefined) return
@@ -40,17 +43,18 @@ export function ThemeProvider({
         .matches
         ? "dark"
         : "light"
- 
+      setIsDark(systemTheme === "dark")
       root.classList.add(systemTheme)
       return
     }
- 
+    setIsDark(theme === "dark")
     root.classList.add(theme)
   }, [theme])
  
   const value = {
     theme: (theme ?? defaultTheme) as Theme,
     setTheme: (theme: Theme) => setTheme(theme),
+    isDark: isDark
   }
  
   return (

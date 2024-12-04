@@ -97,74 +97,75 @@ export function KeymappingScreen() {
     write(section, sectionKey, keys).finally(() => setHeld([]));
   };
 
-
   return (
-    <div className="min-w-full min-h-full flex flex-col pb-12 pt-6 px-12 items-start">
-      <div className="flex flex-row items-end justify-start space-y-4">
-        <img
-          src={character?.avatarUrl}
-          className="object-contain aspect-square h-32"
-        />
-        <div className="flex flex-col">
-          <text className="text-xl font-semibold text-muted-foreground">
-            Editing:
-          </text>
-          <text className="text-3xl font-semibold">{mod?.filename}</text>
+    <div className="flex flex-grow">
+      <div className="min-h-screen w-full flex flex-col pb-12 pt-6 px-12 items-start">
+        <div className="flex flex-row items-end justify-start space-y-4">
+          <img
+            src={character?.avatarUrl}
+            className="object-contain aspect-square h-32"
+          />
+          <div className="flex flex-col">
+            <text className="text-xl font-semibold text-muted-foreground">
+              Editing:
+            </text>
+            <text className="text-3xl font-semibold">{mod?.filename}</text>
+          </div>
         </div>
-      </div>
-      <ModPreviewImages mod={mod} />
-      <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10 space-x-2">
-        <NameDialog 
+        <ModPreviewImages mod={mod} />
+        <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10 space-x-2">
+          <NameDialog
             title="Keymap name"
-            description="name the current keymap to load later"     
+            description="name the current keymap to load later"
             onSuccess={(text) => save(Number(modId), text)}
-        />
-        <Button
-          onClick={() => load(Number(modId))}
-          className="rounded-full backdrop-blur-md bg-primary/30"
-          size={"lg"}
-          variant={"ghost"}
-        >
-          Reset
-        </Button>
-        <SelectKeymapDialog 
-            keymaps={saved} 
+          />
+          <Button
+            onClick={() => load(Number(modId))}
+            className="rounded-full backdrop-blur-md bg-primary/30"
+            size={"lg"}
+            variant={"ghost"}
+          >
+            Reset
+          </Button>
+          <SelectKeymapDialog
+            keymaps={saved}
             onSelected={(file) => loadPrevious(Number(modId), file)}
-            onDelete={(file) =>  deleteKeymap(file)}
-         />
-      </div>
-      <div className="w-fit flex flex-col py-4 space-y-3">
-        {keymap.map((bind) => {
-          return (
-            <div className="flex flex-col" key={bind.name + bind.sectionKey}>
-              <div className="flex flex-row items-center space-x-4 m-2">
-                <div className="flex-grow text-left text-xl me-12">
-                  {bind.name}
-                </div>
-                <div className="flex flex-row space-x-4 items-center">
-                  <div className="flex-grow text-lg text-muted-foreground">
-                    {bind.sectionKey}
+            onDelete={(file) => deleteKeymap(file)}
+          />
+        </div>
+        <div className="w-fit flex flex-col py-4 space-y-3">
+          {keymap.map((bind) => {
+            return (
+              <div className="flex flex-col" key={bind.name + bind.sectionKey}>
+                <div className="flex flex-row items-center space-x-4 m-2">
+                  <div className="flex-grow text-left text-xl me-12">
+                    {bind.name}
                   </div>
-                  <Input
-                    value={bind.key.replaceAll(" ", " + ")}
-                    className="w-96"
-                    tabIndex={-1}
-                    onKeyDown={(event) => {
-                      if (!held.includes(event.key)) {
-                        setHeld((p) => [...p, event.key]);
+                  <div className="flex flex-row space-x-4 items-center">
+                    <div className="flex-grow text-lg text-muted-foreground">
+                      {bind.sectionKey}
+                    </div>
+                    <Input
+                      value={bind.key.replaceAll(" ", " + ")}
+                      className="w-96"
+                      tabIndex={-1}
+                      onKeyDown={(event) => {
+                        if (!held.includes(event.key)) {
+                          setHeld((p) => [...p, event.key]);
+                        }
+                      }}
+                      onKeyUp={() =>
+                        writeKeyMap(bind.name, bind.sectionKey, held)
                       }
-                    }}
-                    onKeyUp={() =>
-                      writeKeyMap(bind.name, bind.sectionKey, held)
-                    }
-                    readOnly
-                  />
+                      readOnly
+                    />
+                  </div>
                 </div>
+                <Separator />
               </div>
-              <Separator />
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -197,31 +198,31 @@ function SelectKeymapDialog(props: {
           {props.keymaps.map((keymap) => {
             const split = keymap.split("_");
             return (
-                <div className="flex flex-row w-full justify-between">
+              <div className="flex flex-row w-full justify-between">
                 <DialogTrigger asChild>
-                        <Button
-                        className="w-full"
-                        variant={"ghost"}
-                        onPointerDown={() => props.onSelected(keymap)}
-                        >
-                            <div className="flex flex-row min-w-full justify-between items-center">
-                                <text className="text-lg">{split[0]}</text>
-                                <text className="text-muted-foreground overflow-ellipsis">
-                                {formatDate(
-                                    split[split.length - 2] +
-                                    "_" +
-                                    split[split.length - 1].replace(".ini", "")
-                                )}
-                                </text>
-                            </div>
-                        </Button>
+                  <Button
+                    className="w-full"
+                    variant={"ghost"}
+                    onPointerDown={() => props.onSelected(keymap)}
+                  >
+                    <div className="flex flex-row min-w-full justify-between items-center">
+                      <text className="text-lg">{split[0]}</text>
+                      <text className="text-muted-foreground overflow-ellipsis">
+                        {formatDate(
+                          split[split.length - 2] +
+                            "_" +
+                            split[split.length - 1].replace(".ini", "")
+                        )}
+                      </text>
+                    </div>
+                  </Button>
                 </DialogTrigger>
                 <Button
-                    size={"icon"}
-                    variant={'outline'}
-                    onPointerDown={() => props.onDelete(keymap)}
+                  size={"icon"}
+                  variant={"outline"}
+                  onPointerDown={() => props.onDelete(keymap)}
                 >
-                        <TrashIcon/>
+                  <TrashIcon />
                 </Button>
               </div>
             );
@@ -233,18 +234,18 @@ function SelectKeymapDialog(props: {
 }
 
 export function NameDialog(props: {
-    title: string;
-    description: string;
-    onSuccess: (name: string) => void;
-  }) {
-    const [inputValue, setInputValue] = useState("");
-    const handleChange = (event: any) => {
-      setInputValue(event.target.value);
-    };
-  
-    return (
-      <Dialog>
-         <DialogTrigger asChild>
+  title: string;
+  description: string;
+  onSuccess: (name: string) => void;
+}) {
+  const [inputValue, setInputValue] = useState("");
+  const handleChange = (event: any) => {
+    setInputValue(event.target.value);
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
         <Button
           className="rounded-full backdrop-blur-md bg-primary/30"
           size={"lg"}
@@ -253,78 +254,81 @@ export function NameDialog(props: {
           Save
         </Button>
       </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{props.title}</DialogTitle>
-            <DialogDescription>{props.description}</DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center space-x-2">
-            <div className="grid flex-1 gap-2">
-              <Input
-                value={inputValue}
-                onChange={handleChange}
-                defaultValue="Playlist"
-              />
-            </div>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{props.title}</DialogTitle>
+          <DialogDescription>{props.description}</DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center space-x-2">
+          <div className="grid flex-1 gap-2">
+            <Input
+              value={inputValue}
+              onChange={handleChange}
+              defaultValue="Playlist"
+            />
           </div>
-          <DialogFooter className="sm:justify-end">
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Cancel
-              </Button>
-            </DialogClose>
-            <DialogClose asChild>
-              <Button
-               type="button" 
-               variant="default" 
-                onPointerDown={() => props.onSuccess(inputValue)}>
-                Save
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
+        </div>
+        <DialogFooter className="sm:justify-end">
+          <DialogClose asChild>
+            <Button type="button" variant="secondary">
+              Cancel
+            </Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="default"
+              onPointerDown={() => props.onSuccess(inputValue)}
+            >
+              Save
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const formatDate = (dateString: string): string => {
-    const [date, time] = dateString.split('_');
-    const [year, month, day] = date.split('-');
-    const [hours, minutes, seconds] = time.split('-');
-    
-    // Create a Date object
-    const dateObj = new Date(`${year}-${month}-${day}T${hours}:${minutes}:${seconds}`);
-    
-    // Format using Intl.DateTimeFormat for localization
-    return new Intl.DateTimeFormat('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric',
-        hour12: true
-    }).format(dateObj);
-}
+  const [date, time] = dateString.split("_");
+  const [year, month, day] = date.split("-");
+  const [hours, minutes, seconds] = time.split("-");
+
+  // Create a Date object
+  const dateObj = new Date(
+    `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+  );
+
+  // Format using Intl.DateTimeFormat for localization
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: true,
+  }).format(dateObj);
+};
 
 function ModPreviewImages(props: { mod: types.Mod | undefined }) {
   if (props.mod === undefined || props.mod.previewImages.length === 0) {
     return (
-      <div className="p-6 w-full flex items-center justify-center">
+      <div className="p-6 flex items-center justify-center">
         <text className="text-lg text-muted-foreground">No preview images</text>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-end space-y-1 my-4">
+    <div className="w-full flex flex-col items-end space-y-1 my-4">
       <Carousel className="w-full">
         <CarouselContent>
           {props.mod?.previewImages.map((url, index) => (
             <CarouselItem key={index} className="basis-1/4">
               <div className="">
                 <img
-                  className="object-cover aspect-square h-[300px]"
+                  className="object-cover aspect-square"
                   src={url}
                 />
               </div>

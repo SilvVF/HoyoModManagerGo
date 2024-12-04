@@ -357,8 +357,8 @@ function BreadCrumbListItem({
       <div className="flex flex-row items-center">
         <BreadcrumbItem className="font-semibold text-foreground hover:underline text-base p-2">
           <DropdownMenu>
+            <text onClick={() => onSelected(item.path)} >{item.name}</text>
             <DropdownMenuTrigger className="flex items-center gap-1">
-              {item.name}
               <ChevronDownIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">

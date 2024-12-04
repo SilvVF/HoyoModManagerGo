@@ -97,7 +97,7 @@ function PlaylistScreenContent({game, setGame}: {
 
   return (
     <div className="flex flex-col">
-      <div className={`flex flex-row justify-between sticky top-0 z-10 backdrop-blur-md`}>
+      <div className={`flex flex-row justify-between sticky top-0 z-10 backdrop-blur-md w-full`}>
         <div className="flex flex-row">
         {ids.map((id) => {
           return (
@@ -120,8 +120,8 @@ function PlaylistScreenContent({game, setGame}: {
         </Button>
         </div>
       </div>
-      <div className="static">
-        <div className="grid grid-cols-2 divide-y">
+      <div className="static w-full">
+        <div className="grid grid-cols-2 divide-y min-w-full">
           {mods.map((cwmt) => {
             return cwmt.modWithTags.map(({ mod }) => {
               return (

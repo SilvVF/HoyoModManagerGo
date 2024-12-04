@@ -1,19 +1,15 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import {
-  useEffect,
-  useRef,
-} from "react";
+import { useEffect, useRef } from "react";
 import { ThemeProvider } from "./components/theme-provider";
 import { cn } from "./lib/utils";
-import { Sidebar } from "./components/sidebar";
-import {
-  useDownloadStore,
-} from "./state/downloadStore";
+import { AppSidebar } from "./components/app-sidebar";
+import { useDownloadStore } from "./state/downloadStore";
 import { useShallow } from "zustand/shallow";
 import { usePlaylistStore } from "./state/playlistStore";
 import { useServerStore } from "./state/serverStore";
 import { ScrollProvider } from "./ScrollContext";
 import { DownloadOverlay } from "./components/DownloadOverlay";
+import { SidebarInset, SidebarProvider } from "./components/ui/sidebar";
 
 function App() {
   const navigate = useNavigate();
@@ -72,31 +68,28 @@ function App() {
     <ThemeProvider defaultTheme="dark">
       <div className="bg-background max-h-screen overflow-hidden flex flex-col">
         <DownloadOverlay />
-        <div className="grid lg:grid-cols-5">
-          <Sidebar
+        <SidebarProvider>
+          <AppSidebar
             refreshPlaylist={refreshAllPlaylists}
             playlists={playlists}
             onDeletePlaylist={deletePlaylist}
-            className="hidden lg:block max-h-screen overflow-hidden"
           />
-          <div
-            className={cn(
-              `col-span-3 lg:col-span-4 lg:border-l`,
-              !expanded && downloadsInQueue >= 1
-                ? "max-h-[calc(100vh-30px)]"
-                : "max-h-[calc(100vh)]"
-            )}
-          >
-            <div
-              ref={scrollAreaRef}
-              className={`h-full overflow-y-auto overflow-x-hidden`}
-            >
-              <ScrollProvider provideRef={scrollAreaRef}>
-                <Outlet />
-              </ScrollProvider>
-            </div>
-          </div>
-        </div>
+          <SidebarInset className="overflow-hidden">
+            <ScrollProvider provideRef={scrollAreaRef}>
+                <div
+                  ref={scrollAreaRef}
+                  className={cn(
+                    !expanded && downloadsInQueue >= 1
+                      ? "max-h-[calc(100vh-30px)]"
+                      : "max-h-[calc(100vh)]",
+                      "overflow-y-auto overflow-x-hidden"
+                  )}
+                >
+                  <Outlet />
+                </div>
+            </ScrollProvider>
+          </SidebarInset>
+        </SidebarProvider>
       </div>
     </ThemeProvider>
   );

@@ -271,7 +271,9 @@ fun MainScreen(
                         val data = s.data[page + 1].orEmpty()
                         if (data.isEmpty()) {
                             Column(
-                                modifier = Modifier.fillMaxSize().padding(12.dp),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {

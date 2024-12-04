@@ -15,7 +15,7 @@ import {
   GetExclusionPaths,
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
-import { cn, useStateProducer } from "@/lib/utils";
+import { cn, range, useStateProducer } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -33,14 +33,30 @@ import { NameDialog } from "./GameScreen";
 import { useServerStore } from "@/state/serverStore";
 import { useShallow } from "zustand/shallow";
 import { LogDebug } from "wailsjs/runtime/runtime";
+import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Helper function to generate random HSL color
-function getRandomColor(): string {
-  const hue = Math.floor(Math.random() * 360); // Random hue value between 0 and 360
-  const saturation = Math.floor(Math.random() * 100); // Random saturation value between 0 and 100
-  const lightness = Math.floor(Math.random() * 80) + 20; // Lightness between 20 and 100 to avoid very dark or very light colors
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+
+const stringToColour = (str: string) => {
+  let hash = 0;
+  str.split('').forEach(char => {
+    hash = char.charCodeAt(0) + ((hash << 5) - hash)
+  })
+  let colour = '#'
+  for (let i = 0; i < 3; i++) {
+    const value = (hash >> (i * 8)) & 0xff
+    colour += value.toString(16).padStart(2, '0')
+  }
+  return colour
 }
+
+// // Helper function to generate random HSL color
+// function getRandomColor(): string {
+//   const hue = Math.floor(Math.random() * 360); // Random hue value between 0 and 360
+//   const saturation = Math.floor(Math.random() * 100); // Random saturation value between 0 and 100
+//   const lightness = Math.floor(Math.random() * 80) + 20; // Lightness between 20 and 100 to avoid very dark or very light colors
+//   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+// }
 
 function bytesToMB(bytes: number): number {
   return bytes / (1024 * 1024); // 1024 * 1024 = 1,048,576
@@ -53,7 +69,7 @@ function transformDownloadStatsToChartData(data: types.FileInfo[]) {
     return {
       file: split[split.length - 1],
       size: bytesToMB(fileInfo.bytes),
-      fill: getRandomColor(),
+      fill: stringToColour (fileInfo.file),
     };
   });
 
@@ -203,7 +219,7 @@ export default function SettingsScreen() {
       onSuccess: (port: string) => {
         try {
           const pNum = Math.min(Math.max(1024, Number(port.trim())), 49151);
-          LogDebug(`setting port to ${pNum}`)
+          LogDebug(`setting port to ${pNum}`);
           setServerPort(pNum);
         } catch {}
       },
@@ -214,7 +230,7 @@ export default function SettingsScreen() {
     dialog !== undefined ? dialogSettings[dialog] : undefined;
 
   return (
-    <div className="w-full px-4 overflow-hidden mb-12">
+    <div className="flex flex-col w-full h-full px-4">
       <NameDialog
         title={dialogSetting?.title ?? ""}
         description={dialogSetting?.description ?? ""}
@@ -222,12 +238,19 @@ export default function SettingsScreen() {
         onOpenChange={() => setDialog(undefined)}
         onSuccess={(n) => dialogSetting!!.onSuccess(n)}
       />
-      <h1 className="text-2xl font-bold my-4">Settings</h1>
-      <div className="max-w-screen w-full h-full flex flex-row overflow-x-scroll">
-        {stats?.map((data) => {
-          return <SizeChart item={data} />;
-        })}
-      </div>
+      <h1 className="text-2xl font-bold my-4 ">Settings</h1>
+      <ScrollArea className="max-w-[600]">
+        <div className="flex flex-row overflow-x-scroll space-x-2">
+          {stats?.map((data) => {
+            return <SizeChart item={data} />;
+          }) ??
+            range(1, 4).map(() => {
+              return (
+                <Skeleton className="min-w-[400px] aspect-square"/>
+              );
+            })}
+        </div>
+      </ScrollArea>
       <h2 className="text-lg font-semibold tracking-tight">Export Locations</h2>
       {items.map((item) => {
         return (
@@ -250,9 +273,6 @@ export default function SettingsScreen() {
       <h2 className="text-lg font-semibold tracking-tight mt-4">
         Max download workers
       </h2>
-      <div className="text-zinc-500  m-2">
-        Requires restart for change to take effect
-      </div>
       <div className="px-4 flex flex-row justify-between">
         {maxDownloadWorkers ? (
           <Slider
@@ -270,7 +290,7 @@ export default function SettingsScreen() {
       <h2 className="text-lg font-semibold tracking-tight mt-4">Http server</h2>
       <div className="px-4 flex flex-row justify-between">
         <div className="flex flex-col">
-          <div className="text-zinc-500  m-1">{`to connect go to https://${ipAddr}:${serverPort}`}</div>
+          <div className="text-zinc-500  m-1">{`to connect go to http://${ipAddr}:${serverPort}`}</div>
           <div className="text-zinc-500  m-1">{`Port: ${serverPort}`}</div>
         </div>
         <Button size={"icon"} onPointerDown={() => setDialog("edit_port")}>
@@ -281,7 +301,7 @@ export default function SettingsScreen() {
       <h2 className="text-lg font-semibold tracking-tight mt-4">
         Saved discover path
       </h2>
-      <div className="px-4 flex flex-row justify-between">
+      <div className="px-4 flex flex-row justify-between pb-6">
         <div className="text-zinc-500  m-2">{`Path: ${discover}`}</div>
         <Button size={"icon"} onPointerDown={() => setDiscover(undefined)}>
           <UndoIcon />
@@ -322,7 +342,7 @@ function ServerActions() {
 
 function SizeChart({ item }: { item: ChartItem }) {
   return (
-    <div className="min-w-[400px]">
+    <div className="flex flex-col min-w-[400px] aspect-square bg-card justify-center rounded-md border-card">
       <ModSizeChart
         config={item.config}
         title={item.game}
