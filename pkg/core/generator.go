@@ -219,8 +219,7 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 
 	modPool := genPond.NewGroup()
 	for _, mod := range selected {
-
-		genPond.Submit(func() {
+		modPool.Submit(func() {
 			if err := isActive(); err != nil {
 				return
 			}
@@ -260,7 +259,7 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 		return err
 	}
 
-	cmdCtx, cancel := context.WithTimeout(ctx, time.Second*30)
+	cmdCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	fixExe := getModFixExe(exported)

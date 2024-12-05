@@ -56,7 +56,7 @@ function SidebarItem(props: {
   const { open } = useSidebar();
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton onClick={props.onClick} className="w-full h-full">
+      <SidebarMenuButton variant={props.selected ? 'outline' : 'default'} onClick={props.onClick} className="w-full h-full">
         <props.icon />
         <text
           className={cn(

@@ -66,6 +66,8 @@ type Downloader struct {
 	pool  pond.Pool
 	Queue ConcurrentMap[string, *DLItem]
 	m     sync.Mutex
+
+	spaceSaver pref.Preference[bool]
 }
 
 func NewDownloader(db *DbHelper, count pref.Preference[int]) *Downloader {
@@ -368,6 +370,20 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 		}
 	}
 
+	if d.spaceSaver.Get() {
+		out, err := os.Open(outputDir)
+		if err != nil {
+			log.LogError(err.Error())
+		}
+		defer out.Close()
+		dir, err := out.Readdir(1)
+		if err != nil {
+			log.LogError(err.Error())
+		} else {
+			ZipFolder(filepath.Join(outputDir, dir[0].Name()))
+		}
+	}
+
 	if meta.texture {
 		d.db.InsertTexture(types.Texture{
 			Filename:       filename[:dotIdx],
@@ -436,6 +452,7 @@ func extract(archivePath, path string, onProgress func(progress int64, total int
 
 	onProgress(progress, total)
 
+	basePath := ""
 	for {
 		e := a.Entry()
 		if e != nil {
@@ -454,8 +471,15 @@ func extract(archivePath, path string, onProgress func(progress int64, total int
 			err = e
 			return
 		}
+		// always write to a dir if the files are zipped with no root
+		if basePath == "" {
+			basePath = path
+			if filepath.Dir(name) == "." {
+				path = filepath.Join(filepath.Base(path))
+			}
+		}
 
-		dirname := filepath.Join(path, filepath.Dir(name))
+		dirname := filepath.Join(basePath, filepath.Dir(name))
 		_ = os.MkdirAll(dirname, 0755)
 
 		e = os.WriteFile(filepath.Join(dirname, filepath.Base(name)), data, 0644)
@@ -552,7 +576,7 @@ func unrar(x *XFile, rarReader *rardecode.ReadCloser, onProgress func(progress i
 	}
 
 	onProgress(0, total)
-
+	basePath := ""
 	for {
 		header, err := rarReader.Next()
 
@@ -563,6 +587,15 @@ func unrar(x *XFile, rarReader *rardecode.ReadCloser, onProgress func(progress i
 			return size, files, fmt.Errorf("rarReader.Next: %w", err)
 		case header == nil:
 			return size, files, fmt.Errorf("%w: %s", ErrInvalidHead, x.FilePath)
+		}
+
+		// always write to a dir if the files are zipped with no root
+		if basePath == "" {
+			basePath = x.OutputDir
+			if filepath.Dir(header.Name) == "." {
+				basePath = filepath.Join(basePath, filepath.Base(x.OutputDir))
+			}
+			x.OutputDir = basePath
 		}
 
 		wfile := clean(x, header.Name)

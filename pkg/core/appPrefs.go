@@ -26,6 +26,7 @@ type AppPrefs struct {
 	ServerAuthTypePref     *ServerAuthTypePref
 	ServerUsernamePref     *ServerUsernamePref
 	ServerPasswordPref     *ServerPasswordPref
+	SpaceSaverPref         *SpaceSaverPref
 }
 
 func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
@@ -91,6 +92,9 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 		&ServerPasswordPref{
 			Preference: store.GetString("server_password", "password"),
 		},
+		&SpaceSaverPref{
+			Preference: store.GetBoolean("space_saver", false),
+		},
 	}
 }
 
@@ -123,3 +127,5 @@ type ServerPortPref struct{ pref.Preference[int] }
 type ServerUsernamePref struct{ pref.Preference[string] }
 type ServerPasswordPref struct{ pref.Preference[string] }
 type ServerAuthTypePref struct{ pref.Preference[int] }
+
+type SpaceSaverPref struct{ pref.Preference[bool] }
