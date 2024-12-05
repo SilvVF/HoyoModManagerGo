@@ -9,6 +9,7 @@ import {
   wuwaDirPref,
   zzzDirPref,
   serverPortPref,
+  spaceSaverPref,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
@@ -35,6 +36,7 @@ import { useShallow } from "zustand/shallow";
 import { LogDebug } from "wailsjs/runtime/runtime";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 const stringToColour = (str: string) => {
@@ -113,6 +115,7 @@ export default function SettingsScreen() {
   const [zzzDir, setZZZdir] = usePrefrenceAsState(zzzDirPref);
   const [ignore, setIgnore] = usePrefrenceAsState(ignorePref);
   const [serverPort, setServerPort] = usePrefrenceAsState(serverPortPref);
+  const [spaceSaver, setSpaceSaver] = usePrefrenceAsState(spaceSaverPref)
   const [maxDownloadWorkers, setMaxDownloadWorkers] = usePrefrenceAsState(
     maxDownloadWorkersPref
   );
@@ -287,6 +290,15 @@ export default function SettingsScreen() {
         ) : undefined}
         <div className="text-lg font-semibold tracking-tight mx-4">{`Max workers: ${sliderValue} `}</div>
       </div>
+       <div className="flex items-center space-x-6 my-6">
+      <Checkbox checked={spaceSaver ?? false} onCheckedChange={(v) => setSpaceSaver(v as boolean)} />
+      <label
+        htmlFor="terms"
+        className="text-xl font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+      >
+        Enable space saver
+      </label>
+    </div>
       <h2 className="text-lg font-semibold tracking-tight mt-4">Http server</h2>
       <div className="px-4 flex flex-row justify-between">
         <div className="flex flex-col">

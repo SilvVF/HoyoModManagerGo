@@ -20,8 +20,6 @@ import (
 	"github.com/alitto/pond/v2"
 )
 
-var ErrStopWalkingDirError = errors.New("stop walking normally")
-
 type Generator struct {
 	db         *DbHelper
 	cancel     map[types.Game]context.CancelFunc
@@ -68,25 +66,6 @@ func areModsSame(parts []string) func(m types.Mod) bool {
 			return false
 		}
 		return m.Id == prevId && m.Filename == parts[1]
-	}
-}
-
-func dateSorter() func(a, b string) int {
-	return func(a, b string) int {
-		dateA, errA := util.ExtractDateFromFilename(a)
-		dateB, errB := util.ExtractDateFromFilename(b)
-
-		if errA != nil || errB != nil {
-			return 0
-		}
-		switch {
-		case dateA.Before(dateB):
-			return 1
-		case dateA.After(dateB):
-			return -1
-		default:
-			return 0
-		}
 	}
 }
 
@@ -294,7 +273,7 @@ func copyKeyMapToMergedIni(modDir, outputDir string) error {
 		paths = append(paths, file.Name())
 	}
 
-	slices.SortFunc(paths, dateSorter())
+	slices.SortFunc(paths, util.DateSorter(false))
 	if len(paths) > 0 {
 		ini, err := os.ReadFile(filepath.Join(modDir, "keymaps", paths[0]))
 		if err != nil {
@@ -403,6 +382,11 @@ func copyModWithTextures(
 		if filepath.Dir(path) == filepath.Join(src, "keymaps") || strings.HasPrefix(relPath, "textures\\") {
 			log.LogDebug("skipped " + relPath)
 			return nil
+		}
+
+		if filepath.Ext(path) == ".zip" {
+			_, err := extract(path, strings.TrimSuffix(dstPath, ".zip"), func(progress int64, total int64) {})
+			return err
 		}
 
 		return util.CopyFile(path, dstPath, overwrite)

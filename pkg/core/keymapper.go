@@ -59,30 +59,6 @@ func NewKeymapper(db *DbHelper) *KeyMapper {
 	}
 }
 
-func sortKeyConfigsByDate() func(a, b string) int {
-	return func(a, b string) int {
-		dateA, errA := util.ExtractDateFromFilename(a)
-		dateB, errB := util.ExtractDateFromFilename(b)
-
-		if errA != nil {
-			log.LogError(errA.Error())
-			return 0
-		}
-		if errB != nil {
-			log.LogError(errB.Error())
-			return 0
-		}
-		switch {
-		case dateA.Before(dateB):
-			return 1
-		case dateA.After(dateB):
-			return -1
-		default:
-			return 0
-		}
-	}
-}
-
 func resetState(k *KeyMapper) {
 	k.cfg = nil
 	k.mod = nil
@@ -166,7 +142,7 @@ func (k *KeyMapper) GetKeymaps() ([]string, error) {
 	for _, file := range files {
 		paths = append(paths, file.Name())
 	}
-	slices.SortFunc(paths, sortKeyConfigsByDate())
+	slices.SortFunc(paths, util.DateSorter(false))
 
 	return paths, nil
 }
@@ -262,18 +238,8 @@ func (k *KeyMapper) Load(modId int) error {
 		return ErrModNotFound
 	}
 	modDir := util.GetModDir(mod)
-	filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
 
-		if d.IsDir() || err != nil {
-			return nil
-		}
-
-		if strings.HasSuffix(d.Name(), ".ini") && !strings.HasPrefix(d.Name(), "DISABLED") {
-			k.path = path
-			return ErrFileFoundShortcircuit
-		}
-		return nil
-	})
+	WalkDirRecursivly(modDir, k)
 
 	if k.path == "" {
 		return ErrConfigNotFound
@@ -284,7 +250,7 @@ func (k *KeyMapper) Load(modId int) error {
 	for _, file := range files {
 		paths = append(paths, file.Name())
 	}
-	slices.SortFunc(paths, sortKeyConfigsByDate())
+	slices.SortFunc(paths, util.DateSorter(false))
 	log.LogDebugf("paths %v", paths)
 
 	var cfg *ini.File
@@ -315,6 +281,31 @@ func (k *KeyMapper) Load(modId int) error {
 	k.keymap = keybinds
 
 	return nil
+}
+
+func WalkDirRecursivly(modDir string, k *KeyMapper) {
+	filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
+
+		if d.IsDir() || err != nil {
+			return nil
+		}
+		if filepath.Ext(path) == ".zip" {
+			tmpDir, err := os.MkdirTemp("path", "")
+			if err != nil {
+				log.LogError(err.Error())
+				return err
+			}
+			defer os.RemoveAll(tmpDir)
+			extract(path, tmpDir, func(progress, total int64) {})
+			WalkDirRecursivly(tmpDir, k)
+		}
+
+		if strings.HasSuffix(d.Name(), ".ini") && !strings.HasPrefix(d.Name(), "DISABLED") {
+			k.path = path
+			return ErrFileFoundShortcircuit
+		}
+		return nil
+	})
 }
 
 func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {

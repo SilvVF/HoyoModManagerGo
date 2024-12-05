@@ -54,6 +54,33 @@ func CreateFileIfNotExists(path string) {
 	}
 }
 
+func DateSorter(ascending bool) func(a, b string) int {
+	return func(a, b string) int {
+		dateA, errA := ExtractDateFromFilename(a)
+		dateB, errB := ExtractDateFromFilename(b)
+
+		if errA != nil || errB != nil {
+			return 0
+		}
+		switch {
+		case dateA.Before(dateB):
+			if ascending {
+				return -1
+			} else {
+				return 1
+			}
+		case dateA.After(dateB):
+			if ascending {
+				return 1
+			} else {
+				return -1
+			}
+		default:
+			return 0
+		}
+	}
+}
+
 func ExtractDateFromFilename(filename string) (time.Time, error) {
 	// Split the filename by the underscore
 	parts := strings.Split(filename, "_")

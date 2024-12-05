@@ -96,7 +96,7 @@ func main() {
 	}
 
 	dbHelper := core.NewDbHelper(queries, dbSql)
-	downloader := core.NewDownloader(dbHelper, appPrefs.MaxDownloadWorkersPref.Preference)
+	downloader := core.NewDownloader(dbHelper, appPrefs.MaxDownloadWorkersPref.Preference, appPrefs.SpaceSaverPref.Preference)
 	sync := core.NewSyncHelper(dbHelper)
 	stats := core.NewStats(preferenceDirs)
 	keymapper := core.NewKeymapper(dbHelper)
@@ -174,6 +174,7 @@ func main() {
 			appPrefs.PlaylistGamePref,
 			appPrefs.DiscoverGamePref,
 			appPrefs.ServerPortPref,
+			appPrefs.SpaceSaverPref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

@@ -16,6 +16,7 @@ import * as MaxDownloadWorkersPref from "../../wailsjs/go/core/MaxDownloadWorker
 import * as PlaylistGamePref from "../../wailsjs/go/core/PlaylistGamePref"
 import * as DiscoverGamePref from "../../wailsjs/go/core/DiscoverGamePref"
 import * as ServerPortPref from "../../wailsjs/go/core/ServerPortPref"
+import * as SpaceSaverPref from "../../wailsjs/go/core/SpaceSaverPref"
 
 export type GoPref<T extends any> = {
     DefaultValue():Promise<T>;
@@ -44,6 +45,7 @@ const zzzElementPref = ZenlessElementPref as GoPref<string[]>
 const wuwaElementPref = WuwaElementPref as GoPref<string[]>
 
 const maxDownloadWorkersPref = MaxDownloadWorkersPref as GoPref<number>
+const spaceSaverPref = SpaceSaverPref as GoPref<boolean>
 
 const playlistGamePref = PlaylistGamePref as GoPref<number>
 const discoverGamePref = DiscoverGamePref as GoPref<string>
@@ -125,5 +127,6 @@ export {
     maxDownloadWorkersPref,
     playlistGamePref,
     discoverGamePref,
-    serverPortPref
+    serverPortPref,
+    spaceSaverPref
 }
