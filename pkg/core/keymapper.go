@@ -302,7 +302,7 @@ func WalkDirRecursivly(modDir string, k *KeyMapper) []string {
 			}
 			remove = append(remove, tmpDir)
 			extract(path, tmpDir, func(progress, total int64) {})
-			WalkDirRecursivly(tmpDir, k)
+			remove = append(remove, WalkDirRecursivly(tmpDir, k)...)
 		}
 
 		if strings.HasSuffix(d.Name(), ".ini") && !strings.HasPrefix(d.Name(), "DISABLED") {
