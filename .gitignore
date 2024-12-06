@@ -1,3 +1,6 @@
 ../build/bin
 build/bin
 ./build/bin
+test_resources/output
+test_resources/clorinde.zip
+test_resources/navia.rar

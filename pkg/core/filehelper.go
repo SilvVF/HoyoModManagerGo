@@ -202,9 +202,9 @@ func clean(x *XFile, filePath string, trim ...string) string {
 	return filepath.Clean(filepath.Join(x.OutputDir, filePath))
 }
 
-func rarUncompressedSize(rarReader *rardecode.ReadCloser) (int64, error) {
+func rarUncompressedSize(rarReader *rardecode.ReadCloser) (int64, []string, error) {
 	var totalSize int64 = 0
-
+	contents := []string{}
 	// Iterate through each file in the archive
 	for {
 		header, err := rarReader.Next()
@@ -213,13 +213,13 @@ func rarUncompressedSize(rarReader *rardecode.ReadCloser) (int64, error) {
 				// End of archive
 				break
 			}
-			return 0, fmt.Errorf("error reading archive: %w", err)
+			return 0, contents, fmt.Errorf("error reading archive: %w", err)
 		}
-
+		contents = append(contents, header.Name)
 		// Accumulate the uncompressed size
 		totalSize += header.UnPackedSize
 	}
-	return totalSize, nil
+	return totalSize, contents, nil
 }
 
 // XFile defines the data needed to extract an archive.
@@ -248,10 +248,11 @@ func unrar(x *XFile, rarReader *rardecode.ReadCloser, onProgress func(progress i
 	if sizeReader, err := rardecode.OpenReader(x.FilePath, ""); err != nil {
 		return size, files, fmt.Errorf("error reading total size %w", err)
 	} else {
-		t, _ := rarUncompressedSize(sizeReader)
-		contents = sizeReader.Volumes()
-		total = t
+		total, contents, err = rarUncompressedSize(sizeReader)
 		sizeReader.Close()
+		if err != nil {
+			return total, contents, err
+		}
 	}
 	onProgress(0, total)
 
