@@ -76,17 +76,17 @@ function App() {
           />
           <SidebarInset className="overflow-hidden">
             <ScrollProvider provideRef={scrollAreaRef}>
-                <div
-                  ref={scrollAreaRef}
-                  className={cn(
-                    !expanded && downloadsInQueue >= 1
-                      ? "max-h-[calc(100vh-30px)]"
-                      : "max-h-[calc(100vh)]",
-                      "overflow-y-auto overflow-x-hidden"
-                  )}
-                >
-                  <Outlet />
-                </div>
+              <div
+                ref={scrollAreaRef}
+                className={cn(
+                  !expanded && downloadsInQueue >= 1
+                    ? "max-h-[calc(100vh-30px)]"
+                    : "max-h-[calc(100vh)]",
+                  "overflow-y-auto overflow-x-hidden"
+                )}
+              >
+                <Outlet />
+              </div>
             </ScrollProvider>
           </SidebarInset>
         </SidebarProvider>

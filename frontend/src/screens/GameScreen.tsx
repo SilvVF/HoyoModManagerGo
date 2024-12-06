@@ -159,7 +159,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
         setDialog={setDialog}
         refreshCharacters={refreshCharacters}
       />
-      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
+      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 mb-16">
         {filteredCharacters.map((c) => (
           <div className="col-span-1">
             <CharacterInfoCard
@@ -242,7 +242,7 @@ function OverlayOptions({
   const settings = dialog !== undefined ? dialogSettings[dialog.x] : undefined;
 
   return (
-    <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10">
+    <div className="fixed bottom-4 -translate-y-1 end-6 flex flex-row z-10">
       <NameDialog
         title={settings?.title ?? ""}
         description={settings?.description ?? ""}

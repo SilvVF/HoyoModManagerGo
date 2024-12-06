@@ -71,6 +71,8 @@ func (k *KeyMapper) Unload() {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
+	os.RemoveAll(util.GetKeybindCache())
+
 	resetState(k)
 }
 
@@ -226,6 +228,8 @@ func (k *KeyMapper) Write(section string, sectionKey string, keys []string) erro
 }
 
 func (k *KeyMapper) Load(modId int) error {
+	os.RemoveAll(util.GetKeybindCache())
+	os.MkdirAll(util.GetKeybindCache(), os.ModePerm)
 
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
@@ -283,19 +287,20 @@ func (k *KeyMapper) Load(modId int) error {
 	return nil
 }
 
-func WalkDirRecursivly(modDir string, k *KeyMapper) {
+func WalkDirRecursivly(modDir string, k *KeyMapper) []string {
+	remove := []string{}
 	filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
-
+		log.LogDebug(path)
 		if d.IsDir() || err != nil {
 			return nil
 		}
 		if filepath.Ext(path) == ".zip" {
-			tmpDir, err := os.MkdirTemp("path", "")
+			tmpDir, err := os.MkdirTemp(util.GetKeybindCache(), "")
 			if err != nil {
 				log.LogError(err.Error())
 				return err
 			}
-			defer os.RemoveAll(tmpDir)
+			remove = append(remove, tmpDir)
 			extract(path, tmpDir, func(progress, total int64) {})
 			WalkDirRecursivly(tmpDir, k)
 		}
@@ -306,6 +311,7 @@ func WalkDirRecursivly(modDir string, k *KeyMapper) {
 		}
 		return nil
 	})
+	return remove
 }
 
 func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {

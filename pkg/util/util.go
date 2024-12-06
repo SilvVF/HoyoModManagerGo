@@ -14,6 +14,13 @@ const (
 	APP_NAME = "HoyoModManagerGo"
 )
 
+func GetKeybindCache() string {
+
+	appData, _ := os.UserCacheDir()
+
+	return filepath.Join(appData, APP_NAME, "cache", "keybind")
+}
+
 func GetCacheDir() string {
 
 	appData, _ := os.UserCacheDir()
