@@ -61,20 +61,50 @@ func ZipFolder(srcDir string) error {
 	})
 }
 
-func archiveUncompressedSize(a *unarr.Archive) (int64, error) {
+func archiveUncompressedSize(a *unarr.Archive) (int64, []string, error) {
 	total := int64(0)
+	contents := []string{}
 	for {
 		e := a.Entry()
 		if e != nil {
 			if e == io.EOF {
 				break
 			}
-			return 0, e
+			return 0, contents, e
 		}
-
+		contents = append(contents, a.Name())
 		total += int64(a.Size())
 	}
-	return total, nil
+	return total, contents, nil
+}
+
+type Entry struct {
+	Path string
+	Root string
+}
+
+func hasUniformRoot(contents []string) bool {
+	var entries []Entry
+	for _, entry := range contents {
+		root := filepath.Base(filepath.Dir(entry))
+		entries = append(entries, Entry{Path: entry, Root: root})
+	}
+
+	if len(entries) == 0 {
+		return true
+	}
+
+	// Get the root of the first entry
+	firstRoot := entries[0].Root
+
+	// Check if all other entries have the same root
+	for _, entry := range entries[1:] {
+		if entry.Root != firstRoot {
+			return false
+		}
+	}
+
+	return true
 }
 
 func extract(archivePath, path string, onProgress func(progress int64, total int64)) (contents []string, err error) {
@@ -84,7 +114,7 @@ func extract(archivePath, path string, onProgress func(progress int64, total int
 		log.LogDebug("error creating size archive")
 		return
 	}
-	total, err := archiveUncompressedSize(sizeA)
+	total, contents, err := archiveUncompressedSize(sizeA)
 	if err != nil {
 		log.LogDebug("error reading archive size")
 	}
@@ -100,7 +130,11 @@ func extract(archivePath, path string, onProgress func(progress int64, total int
 
 	onProgress(progress, total)
 
-	basePath := ""
+	basePath := path
+	if !hasUniformRoot(contents) {
+		basePath = filepath.Join(path, filepath.Base(path))
+	}
+
 	for {
 		e := a.Entry()
 		if e != nil {
@@ -118,13 +152,6 @@ func extract(archivePath, path string, onProgress func(progress int64, total int
 		if e != nil {
 			err = e
 			return
-		}
-		// always write to a dir if the files are zipped with no root
-		if basePath == "" {
-			basePath = path
-			if filepath.Dir(name) == "." {
-				path = filepath.Join(filepath.Base(path))
-			}
 		}
 
 		dirname := filepath.Join(basePath, filepath.Dir(name))
@@ -216,15 +243,22 @@ func unrar(x *XFile, rarReader *rardecode.ReadCloser, onProgress func(progress i
 	size := int64(0)
 
 	var total int64
+	var contents []string
+
 	if sizeReader, err := rardecode.OpenReader(x.FilePath, ""); err != nil {
 		return size, files, fmt.Errorf("error reading total size %w", err)
 	} else {
 		t, _ := rarUncompressedSize(sizeReader)
+		contents = sizeReader.Volumes()
 		total = t
+		sizeReader.Close()
+	}
+	onProgress(0, total)
+
+	if !hasUniformRoot(contents) {
+		x.OutputDir = filepath.Join(x.OutputDir, filepath.Base(x.OutputDir))
 	}
 
-	onProgress(0, total)
-	basePath := ""
 	for {
 		header, err := rarReader.Next()
 
@@ -235,15 +269,6 @@ func unrar(x *XFile, rarReader *rardecode.ReadCloser, onProgress func(progress i
 			return size, files, fmt.Errorf("rarReader.Next: %w", err)
 		case header == nil:
 			return size, files, fmt.Errorf("%w: %s", ErrInvalidHead, x.FilePath)
-		}
-
-		// always write to a dir if the files are zipped with no root
-		if basePath == "" {
-			basePath = x.OutputDir
-			if filepath.Dir(header.Name) == "." {
-				basePath = filepath.Join(basePath, filepath.Base(x.OutputDir))
-			}
-			x.OutputDir = basePath
 		}
 
 		wfile := clean(x, header.Name)

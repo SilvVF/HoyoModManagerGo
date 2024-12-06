@@ -373,7 +373,7 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 		} else {
 			path := filepath.Join(outputDir, dir[0].Name())
 			err = ZipFolder(path)
-			if err != nil {
+			if err == nil {
 				os.RemoveAll(path)
 			}
 		}
