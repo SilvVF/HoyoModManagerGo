@@ -10,6 +10,9 @@ import {
   zzzDirPref,
   serverPortPref,
   spaceSaverPref,
+  serverUsernamePref,
+  serverPasswordPref,
+  serverAuthTypePref,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
@@ -37,28 +40,25 @@ import { LogDebug } from "wailsjs/runtime/runtime";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const stringToColour = (str: string) => {
   let hash = 0;
-  str.split('').forEach(char => {
-    hash = char.charCodeAt(0) + ((hash << 5) - hash)
-  })
-  let colour = '#'
+  str.split("").forEach((char) => {
+    hash = char.charCodeAt(0) + ((hash << 5) - hash);
+  });
+  let colour = "#";
   for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xff
-    colour += value.toString(16).padStart(2, '0')
+    const value = (hash >> (i * 8)) & 0xff;
+    colour += value.toString(16).padStart(2, "0");
   }
-  return colour
-}
-
-// // Helper function to generate random HSL color
-// function getRandomColor(): string {
-//   const hue = Math.floor(Math.random() * 360); // Random hue value between 0 and 360
-//   const saturation = Math.floor(Math.random() * 100); // Random saturation value between 0 and 100
-//   const lightness = Math.floor(Math.random() * 80) + 20; // Lightness between 20 and 100 to avoid very dark or very light colors
-//   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-// }
+  return colour;
+};
 
 function bytesToMB(bytes: number): number {
   return bytes / (1024 * 1024); // 1024 * 1024 = 1,048,576
@@ -71,7 +71,7 @@ function transformDownloadStatsToChartData(data: types.FileInfo[]) {
     return {
       file: split[split.length - 1],
       size: bytesToMB(fileInfo.bytes),
-      fill: stringToColour (fileInfo.file),
+      fill: stringToColour(fileInfo.file),
     };
   });
 
@@ -89,7 +89,6 @@ function transformDownloadStatsToChartData(data: types.FileInfo[]) {
   return { chartData, chartConfig };
 }
 
-// Helper function to capitalize browser (file) names
 function capitalizeFirstLetter(string: string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
@@ -105,7 +104,11 @@ type ChartItem = {
   }[];
 };
 
-type SettingsDialog = "edit_port";
+type SettingsDialog = "edit_port" | "edit_password" | "edit_username";
+const AuthType: { [keyof: number]: string } = {
+  0: "None",
+  1: "Basic",
+} as const;
 
 export default function SettingsScreen() {
   const [honkaiDir, setHonkaiDir] = usePrefrenceAsState(honkaiDirPref);
@@ -115,7 +118,10 @@ export default function SettingsScreen() {
   const [zzzDir, setZZZdir] = usePrefrenceAsState(zzzDirPref);
   const [ignore, setIgnore] = usePrefrenceAsState(ignorePref);
   const [serverPort, setServerPort] = usePrefrenceAsState(serverPortPref);
-  const [spaceSaver, setSpaceSaver] = usePrefrenceAsState(spaceSaverPref)
+  const [spaceSaver, setSpaceSaver] = usePrefrenceAsState(spaceSaverPref);
+  const [username, setUsername] = usePrefrenceAsState(serverUsernamePref);
+  const [password, setPassword] = usePrefrenceAsState(serverPasswordPref);
+  const [authType, setAuthType] = usePrefrenceAsState(serverAuthTypePref);
   const [maxDownloadWorkers, setMaxDownloadWorkers] = usePrefrenceAsState(
     maxDownloadWorkersPref
   );
@@ -227,6 +233,26 @@ export default function SettingsScreen() {
         } catch {}
       },
     },
+    edit_username: {
+      title: "Edit username",
+      description:
+        "change the username that will be expected when calling any Http endpoints",
+      onSuccess: (username: string) => {
+        try {
+          setUsername(username);
+        } catch {}
+      },
+    },
+    edit_password: {
+      title: "Edit password",
+      description:
+        "change the password that will be expected when calling any Http endpoints",
+      onSuccess: (password: string) => {
+        try {
+          setPassword(password);
+        } catch {}
+      },
+    },
   };
 
   const dialogSetting =
@@ -248,9 +274,7 @@ export default function SettingsScreen() {
             return <SizeChart item={data} />;
           }) ??
             range(1, 4).map(() => {
-              return (
-                <Skeleton className="min-w-[400px] aspect-square"/>
-              );
+              return <Skeleton className="min-w-[400px] aspect-square" />;
             })}
         </div>
       </ScrollArea>
@@ -290,27 +314,74 @@ export default function SettingsScreen() {
         ) : undefined}
         <div className="text-lg font-semibold tracking-tight mx-4">{`Max workers: ${sliderValue} `}</div>
       </div>
-       <div className="flex items-center space-x-6 my-6">
-      <Checkbox checked={spaceSaver ?? false} onCheckedChange={(v) => setSpaceSaver(v as boolean)} />
-      <label
-        htmlFor="terms"
-        className="text-xl font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-      >
-        Enable space saver
-      </label>
-    </div>
+      <div className="flex items-center space-x-6 my-6">
+        <Checkbox
+          checked={spaceSaver ?? false}
+          onCheckedChange={(v) => setSpaceSaver(v as boolean)}
+        />
+        <label
+          htmlFor="terms"
+          className="text-xl font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Enable space saver
+        </label>
+      </div>
       <h2 className="text-lg font-semibold tracking-tight mt-4">Http server</h2>
       <div className="px-4 flex flex-row justify-between">
         <div className="flex flex-col">
           <div className="text-zinc-500  m-1">{`to connect go to http://${ipAddr}:${serverPort}`}</div>
           <div className="text-zinc-500  m-1">{`Port: ${serverPort}`}</div>
         </div>
-        <Button size={"icon"} onPointerDown={() => setDialog("edit_port")}>
+        <div className="flex flex-row space-x-6">
+          <Button size={"icon"} onPointerDown={() => setDialog("edit_port")}>
+            <Edit />
+          </Button>
+          <ServerActions />
+        </div>
+      </div>
+      <h2 className="text-lg font-semibold tracking-tight mt-2">
+        Server auth type
+      </h2>
+      <div className="flex flex-row w-full justify-between px-4">
+        <div className="text-zinc-500  m-2">{`Auth type: ${
+          authType !== undefined ? AuthType[authType] : ""
+        }`}</div>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-1">
+            <Button size={"icon"}>
+              <Edit />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {Object.keys(AuthType).map((type) => {
+              return (
+                <DropdownMenuItem onClick={() => setAuthType(Number(type))}>
+                  {AuthType[Number(type)]}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <h2 className="text-lg font-semibold tracking-tight mt-2">
+        Server username
+      </h2>
+      <div className="px-4 flex flex-row justify-between">
+        <div className="text-zinc-500  m-2">{`Username: ${username}`}</div>
+        <Button size={"icon"} onPointerDown={() => setDialog("edit_username")}>
           <Edit />
         </Button>
-        <ServerActions />
       </div>
-      <h2 className="text-lg font-semibold tracking-tight mt-4">
+      <h2 className="text-lg font-semibold tracking-tight mt-2">
+        Server password
+      </h2>
+      <div className="px-4 flex flex-row justify-between">
+        <div className="text-zinc-500  m-2">{`Password: ${password}`}</div>
+        <Button size={"icon"} onPointerDown={() => setDialog("edit_password")}>
+          <Edit />
+        </Button>
+      </div>
+      <h2 className="text-lg font-semibold tracking-tight mt-2">
         Saved discover path
       </h2>
       <div className="px-4 flex flex-row justify-between pb-6">
@@ -332,7 +403,7 @@ function ServerActions() {
 
   if (serverRunning) {
     return (
-      <div className="flex flex-row space-y-1">
+      <div className="flex flex-row space-x-6">
         <Button size={"icon"} onClick={restartServer}>
           <RefreshCwIcon />
         </Button>

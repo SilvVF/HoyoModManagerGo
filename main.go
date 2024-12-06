@@ -174,6 +174,9 @@ func main() {
 			appPrefs.PlaylistGamePref,
 			appPrefs.DiscoverGamePref,
 			appPrefs.ServerPortPref,
+			appPrefs.ServerUsernamePref,
+			appPrefs.ServerPasswordPref,
+			appPrefs.ServerAuthTypePref,
 			appPrefs.SpaceSaverPref,
 		},
 		// Windows platform specific options

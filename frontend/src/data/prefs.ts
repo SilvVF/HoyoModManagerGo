@@ -17,6 +17,9 @@ import * as PlaylistGamePref from "../../wailsjs/go/core/PlaylistGamePref"
 import * as DiscoverGamePref from "../../wailsjs/go/core/DiscoverGamePref"
 import * as ServerPortPref from "../../wailsjs/go/core/ServerPortPref"
 import * as SpaceSaverPref from "../../wailsjs/go/core/SpaceSaverPref"
+import * as ServerPasswordPref from "../../wailsjs/go/core/ServerPasswordPref"
+import * as ServerUsernamePref from "../../wailsjs/go/core/ServerUsernamePref"
+import * as ServerAuthTypePref from "../../wailsjs/go/core/ServerAuthTypePref"
 
 export type GoPref<T extends any> = {
     DefaultValue():Promise<T>;
@@ -49,6 +52,10 @@ const spaceSaverPref = SpaceSaverPref as GoPref<boolean>
 
 const playlistGamePref = PlaylistGamePref as GoPref<number>
 const discoverGamePref = DiscoverGamePref as GoPref<string>
+
+const serverUsernamePref = ServerUsernamePref as GoPref<string>
+const serverPasswordPref = ServerPasswordPref as GoPref<string>
+const serverAuthTypePref = ServerAuthTypePref as GoPref<number>
 
 export function usePrefrenceAsStateDefault<T extends any>(defaultValue: T, pref: GoPref<T>): [T, Dispatch<SetStateAction<T | undefined>>] {
 
@@ -128,5 +135,8 @@ export {
     playlistGamePref,
     discoverGamePref,
     serverPortPref,
-    spaceSaverPref
+    spaceSaverPref,
+    serverAuthTypePref,
+    serverPasswordPref,
+    serverUsernamePref
 }
