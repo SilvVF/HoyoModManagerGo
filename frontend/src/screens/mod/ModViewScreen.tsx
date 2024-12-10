@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { useContext, useEffect, useMemo, useState } from "react";
 import {
   Carousel,
+  CarouselApi,
   CarouselContent,
   CarouselItem,
   CarouselNext,
@@ -64,6 +65,7 @@ export function ModViewScreen() {
   const [character, setCharacter] = useState<types.Character | undefined>(
     undefined
   );
+  const [api, setApi] = useState<CarouselApi>();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const downloads = useDownloadStore(useShallow((state) => state.downloads));
@@ -109,7 +111,13 @@ export function ModViewScreen() {
   ) => {
     if (character !== undefined && content?._idRow !== undefined) {
       LogPrint(modId.toString());
-      Downloader.DownloadTexture(link, filename, modId, content?._idRow, images);
+      Downloader.DownloadTexture(
+        link,
+        filename,
+        modId,
+        content?._idRow,
+        images
+      );
     }
   };
 
@@ -144,21 +152,33 @@ export function ModViewScreen() {
   return (
     <div className="flex flex-col min-w-screen h-full items-center">
       <CharacterSelectDropdown onSelected={setCharacter} selected={character} />
-      <Carousel className="w-full m-8">
+      <Carousel className="w-11/12" setApi={setApi}>
         <CarouselContent>
           {images.map((url, index) => (
-            <CarouselItem key={index} className="pl-1 basis-1/3">
-              <div className="p-1">
-                <img
-                  className="object-cover aspect-square h-[500px]"
-                  src={url}
-                />
-              </div>
+            <CarouselItem key={index} className="basis-1/3">
+              <Dialog>
+                <DialogTrigger asChild>
+                <img className="object-cover aspect-square" src={url} />
+                </DialogTrigger>
+                <DialogContent className="min-w-[80%] justify-center">
+                   <img className="max-h-[calc(80vh)] object-contain overflow-clip" src={url} />
+                </DialogContent>
+              </Dialog>
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="m-16" />
-        <CarouselNext className="m-16" />
+        <CarouselPrevious
+          onClick={() => {
+            api?.scrollTo(api.selectedScrollSnap() - 3);
+          }}
+          className="me-12"
+        />
+        <CarouselNext
+          onClick={() => {
+            api?.scrollTo(api.selectedScrollSnap() + 3);
+          }}
+          className="me-12"
+        />
       </Carousel>
       <Table>
         <TableCaption>Mods available to download.</TableCaption>
@@ -249,10 +269,10 @@ export function ModViewScreen() {
           }) ?? <></>}
         </TableBody>
       </Table>
-      <div 
+      <div
         dangerouslySetInnerHTML={{ __html: content?._sText ?? "" }}
         onClick={(e) => {
-          const anchor = (e.target as HTMLElement).closest('a');
+          const anchor = (e.target as HTMLElement).closest("a");
           if (anchor) {
             e.preventDefault();
           }

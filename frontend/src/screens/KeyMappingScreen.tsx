@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import {
   Carousel,
+  CarouselApi,
   CarouselContent,
   CarouselItem,
   CarouselNext,
@@ -21,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { useStateProducer } from "@/lib/utils";
 import { useKeyMapperStore } from "@/state/keymapperStore";
 import { TrashIcon } from "lucide-react";
+import React from "react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
@@ -312,6 +314,8 @@ const formatDate = (dateString: string): string => {
 };
 
 function ModPreviewImages(props: { mod: types.Mod | undefined }) {
+  const [api, setApi] = React.useState<CarouselApi>();
+
   if (props.mod === undefined || props.mod.previewImages.length === 0) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -322,21 +326,28 @@ function ModPreviewImages(props: { mod: types.Mod | undefined }) {
 
   return (
     <div className="w-full flex flex-col items-end space-y-1 my-4">
-      <Carousel className="w-full">
+      <Carousel className="w-full" setApi={setApi}>
         <CarouselContent>
           {props.mod?.previewImages.map((url, index) => (
             <CarouselItem key={index} className="basis-1/4">
               <div className="">
-                <img
-                  className="object-cover aspect-square"
-                  src={url}
-                />
+                <img className="object-cover aspect-square" src={url} />
               </div>
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="mx-6 rounded-full backdrop-blur-md bg-primary/30" />
-        <CarouselNext className="mx-6 rounded-full backdrop-blur-md bg-primary/30" />
+        <CarouselPrevious
+          onClick={() => {
+            api?.scrollTo(api.selectedScrollSnap() - 4);
+          }}
+          className="mx-6 rounded-full backdrop-blur-md bg-primary/30"
+        />
+        <CarouselNext
+          onClick={() => {
+            api?.scrollTo(api.selectedScrollSnap() + 4);
+          }}
+          className="mx-6 rounded-full backdrop-blur-md bg-primary/30"
+        />
       </Carousel>
       <text className="align-end">
         {"Hint: click arr btn alt + <- | -> to scroll"}
