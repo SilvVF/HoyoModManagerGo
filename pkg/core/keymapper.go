@@ -303,7 +303,7 @@ func WalkZip(path string) (string, error) {
 		if info.IsDir() {
 			continue
 		} else {
-			if filepath.Ext(info.Name()) == ".ini" && !strings.HasPrefix(info.Name(), "DISABLED") {
+			if filepath.Ext(info.Name()) == ".ini" && !strings.HasPrefix(strings.ToUpper(filepath.Base(info.Name())), "DISABLED") {
 				rc, err := f.Open()
 				if err != nil {
 					return "", err
@@ -319,7 +319,7 @@ func WalkZip(path string) (string, error) {
 				_, err = io.Copy(tmp, rc)
 				if err != nil {
 					os.Remove(tmp.Name())
-					return "", nil
+					return "", err
 				}
 				log.LogDebug(tmp.Name())
 				return tmp.Name(), nil
