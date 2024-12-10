@@ -1,6 +1,7 @@
 package core
 
 import (
+	"archive/zip"
 	"bufio"
 	"errors"
 	"fmt"
@@ -243,7 +244,7 @@ func (k *KeyMapper) Load(modId int) error {
 	}
 	modDir := util.GetModDir(mod)
 
-	WalkDirRecursivly(modDir, k)
+	WalkDirHandleZip(modDir, k)
 
 	if k.path == "" {
 		return ErrConfigNotFound
@@ -287,22 +288,61 @@ func (k *KeyMapper) Load(modId int) error {
 	return nil
 }
 
-func WalkDirRecursivly(modDir string, k *KeyMapper) []string {
-	remove := []string{}
-	filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
+func WalkZip(path string) (string, error) {
+	if filepath.Ext(path) != ".zip" {
+		return "", errors.New("file is not a .zip")
+	}
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		return "", err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		info := f.FileInfo()
+		if info.IsDir() {
+			continue
+		} else {
+			if filepath.Ext(info.Name()) == ".ini" && !strings.HasPrefix(info.Name(), "DISABLED") {
+				rc, err := f.Open()
+				if err != nil {
+					return "", err
+				}
+				defer rc.Close()
+
+				tmp, err := os.CreateTemp(util.GetKeybindCache(), "")
+				if err != nil {
+					return "", err
+				}
+				defer tmp.Close()
+
+				_, err = io.Copy(tmp, rc)
+				if err != nil {
+					os.Remove(tmp.Name())
+					return "", nil
+				}
+				log.LogDebug(tmp.Name())
+				return tmp.Name(), nil
+			}
+		}
+	}
+	return "", errors.New("file not found")
+}
+
+func WalkDirHandleZip(modDir string, k *KeyMapper) error {
+	return filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
 		log.LogDebug(path)
 		if d.IsDir() || err != nil {
 			return nil
 		}
 		if filepath.Ext(path) == ".zip" {
-			tmpDir, err := os.MkdirTemp(util.GetKeybindCache(), "")
+			tmp, err := WalkZip(path)
 			if err != nil {
 				log.LogError(err.Error())
 				return err
 			}
-			remove = append(remove, tmpDir)
-			extract(path, tmpDir, func(progress, total int64) {})
-			remove = append(remove, WalkDirRecursivly(tmpDir, k)...)
+			k.path = tmp
+			return ErrFileFoundShortcircuit
 		}
 
 		if strings.HasSuffix(d.Name(), ".ini") && !strings.HasPrefix(d.Name(), "DISABLED") {
@@ -311,7 +351,6 @@ func WalkDirRecursivly(modDir string, k *KeyMapper) []string {
 		}
 		return nil
 	})
-	return remove
 }
 
 func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
