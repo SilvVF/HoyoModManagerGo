@@ -27,7 +27,8 @@ func TestExtractRar(t *testing.T) {
 		DirMode:   0777,
 		FileMode:  0777,
 	},
-		func(progress, total int64) {},
+		true,
+		nil,
 	)
 
 	fmt.Println(size, files, contents)
@@ -45,7 +46,7 @@ func TestExtractZip(t *testing.T) {
 	os.RemoveAll(out)
 	os.MkdirAll(out, os.ModePerm)
 
-	contents, err := extract(path, filepath.Join(workingDir, "test_resources", "output"), func(progress, total int64) {})
+	contents, err := extract(path, filepath.Join(workingDir, "test_resources", "output"), true, nil)
 
 	fmt.Println(contents)
 	if err != nil {

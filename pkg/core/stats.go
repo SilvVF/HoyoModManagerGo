@@ -39,48 +39,55 @@ func getDirSize(path string) (int64, error) {
 
 func (s *Stats) GetStats() (*types.DownloadStats, error) {
 
+	bytes, dirInfos, err := getDirInfo(util.GetRootModDir())
+	if err != nil && err != ErrStopWalkingDirError {
+		return nil, err
+	}
 	res := &types.DownloadStats{
-		TotalBytes: 0,
-		Data:       [][]types.FileInfo{},
+		TotalBytes: bytes,
+		Data:       [][]types.FileInfo{dirInfos},
 	}
 
-	for game := range types.Games {
+	for _, game := range types.Games {
 
-		gameDir := util.GetGameDir(types.Game(game))
-		infos := []types.FileInfo{}
-		total := int64(0)
+		gameDir := util.GetGameDir(game)
+		_, dirInfos, err := getDirInfo(gameDir)
 
-		err := filepath.WalkDir(gameDir, func(path string, d fs.DirEntry, err error) error {
-
-			relPath := strings.TrimPrefix(path, gameDir)
-			segs := strings.Split(relPath, string(filepath.Separator))
-
-			if !d.IsDir() || len(segs) > 2 {
-				return nil
-			}
-
-			size := int64(0)
-			if len(segs) == 2 {
-				if s, err := getDirSize(path); err == nil {
-					size = s
-				}
-			}
-
-			total += size
-			infos = append(infos, types.FileInfo{
-				File:  path,
-				Bytes: size,
-			})
-			return nil
-		})
-
-		if err != nil {
+		if err != nil && err != ErrStopWalkingDirError {
 			return nil, err
 		}
-
-		res.TotalBytes += total
-		res.Data = append(res.Data, infos)
+		res.Data = append(res.Data, dirInfos)
 	}
 
 	return res, nil
+}
+
+func getDirInfo(root string) (int64, []types.FileInfo, error) {
+	infos := []types.FileInfo{}
+	total := int64(0)
+
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+
+		relPath := strings.TrimPrefix(path, root)
+		segs := strings.Split(relPath, string(filepath.Separator))
+
+		if len(segs) > 2 || !d.IsDir() {
+			return nil
+		}
+		size := int64(0)
+		if len(segs) == 2 {
+			if s, err := getDirSize(path); err == nil {
+				size = s
+			}
+		}
+
+		total += size
+		infos = append(infos, types.FileInfo{
+			File:  path,
+			Bytes: size,
+		})
+		return nil
+	})
+
+	return total, infos, err
 }

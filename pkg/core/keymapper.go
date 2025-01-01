@@ -288,7 +288,7 @@ func (k *KeyMapper) Load(modId int) error {
 	return nil
 }
 
-func WalkZip(path string) (string, error) {
+func walkZip(path string) (string, error) {
 	if filepath.Ext(path) != ".zip" {
 		return "", errors.New("file is not a .zip")
 	}
@@ -336,7 +336,7 @@ func WalkDirHandleZip(modDir string, k *KeyMapper) error {
 			return nil
 		}
 		if filepath.Ext(path) == ".zip" {
-			tmp, err := WalkZip(path)
+			tmp, err := walkZip(path)
 			if err != nil {
 				log.LogError(err.Error())
 				return err

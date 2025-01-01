@@ -215,7 +215,6 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 			err = copyModWithTextures(
 				modDir,
 				outputDir,
-				len(textures) > 0,
 				slices.DeleteFunc(textures, func(e types.Texture) bool {
 					return !e.Enabled
 				}),
@@ -252,7 +251,7 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 	cmder.WithOutFn(func(b []byte) (int, error) {
 		value := string(b)
 		log.LogDebug(fmt.Sprintf("%s len: %d", value, len(value)))
-		if err := isActive(); err != nil || strings.Contains(value, "Done!") || strings.HasSuffix(value, "quit...") {
+		if err := isActive(); err != nil || strings.Contains(value, "Done!") || strings.Contains(value, "quit...") {
 			log.LogDebug("Cancelling")
 			cancel()
 		}
@@ -328,9 +327,11 @@ type Pair[X any, Y any] struct {
 func copyModWithTextures(
 	src string,
 	dst string,
-	overwrite bool,
 	textures []types.Texture,
 ) error {
+
+	os.MkdirAll(util.GetGeneratorCache(), os.ModePerm)
+
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		return fmt.Errorf("cannot stat source dir: %w", err)
@@ -340,22 +341,21 @@ func copyModWithTextures(
 		return fmt.Errorf("cannot create destination dir: %w", err)
 	}
 
-	texturePaths := map[string]Pair[string, string]{}
+	err = copyAndUnzipSelectedMods(
+		src,
+		dst,
+		len(textures) > 0,
+	)
 
-	for _, t := range textures {
-		log.LogDebug("reading dirs for " + t.Filename)
-		dirs, err := os.ReadDir(filepath.Join(src, "textures", t.Filename))
-		if err != nil {
-			log.LogError(err.Error())
-			continue
-		}
-		for _, d := range dirs {
-			log.LogPrint("adding to texturePaths: " + d.Name())
-			texturePaths[d.Name()] = Pair[string, string]{t.Filename, d.Name()}
-		}
+	if err != nil {
+		return err
 	}
 
-	err = filepath.WalkDir(src, func(path string, info os.DirEntry, err error) error {
+	return overwriteTextures(src, dst, textures)
+}
+
+func copyAndUnzipSelectedMods(src, dst string, overwrite bool) error {
+	return filepath.WalkDir(src, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -385,51 +385,90 @@ func copyModWithTextures(
 		}
 
 		if filepath.Ext(path) == ".zip" {
-			_, err := extract(path, strings.TrimSuffix(dstPath, ".zip"), func(progress int64, total int64) {})
+			_, err := extract(path, strings.TrimSuffix(dstPath, ".zip"), false, nil)
 			return err
 		}
 
 		return util.CopyFile(path, dstPath, overwrite)
 	})
+}
+
+func overwriteTextures(src, dst string, textures []types.Texture) error {
+
+	texturePaths := map[string]Pair[string, string]{}
+
+	for _, t := range textures {
+		log.LogDebug("reading dirs for " + t.Filename)
+		texturePath := filepath.Join(src, "textures", t.Filename)
+		dirs, err := os.ReadDir(texturePath)
+		if err != nil {
+			log.LogError(err.Error())
+			continue
+		}
+
+		for _, d := range dirs {
+			log.LogDebug("dir " + d.Name())
+			if filepath.Ext(d.Name()) != ".zip" {
+				texturePaths[d.Name()] = Pair[string, string]{texturePath, d.Name()}
+				continue
+			}
+			tmp, err := os.MkdirTemp(util.GetGeneratorCache(), "")
+			if err != nil {
+				log.LogError(err.Error())
+				continue
+			}
+
+			log.LogDebug("extracting " + filepath.Join(texturePath, d.Name()) + "to " + tmp)
+			_, err = extract(filepath.Join(texturePath, d.Name()), tmp, false, nil)
+			if err != nil {
+				log.LogError(err.Error())
+				continue
+			}
+			tmpDirs, err := os.ReadDir(tmp)
+			if err != nil {
+				log.LogError(err.Error())
+				continue
+			}
+			for _, tmpDir := range tmpDirs {
+				texturePaths[tmpDir.Name()] = Pair[string, string]{tmp, tmpDir.Name()}
+			}
+		}
+	}
+
+	if len(texturePaths) <= 0 {
+		return nil
+	}
+
+	log.LogDebugf("%v \nsearching in: %s", texturePaths, dst)
+
+	cpy := [][2]string{}
+
+	err := filepath.WalkDir(dst, func(path string, info os.DirEntry, err error) error {
+		if err != nil || !info.IsDir() {
+			return err
+		}
+
+		t, ok := texturePaths[info.Name()]
+
+		if !ok {
+			log.LogDebugf("couldnt find texture for path: %s, name: %s", path, info.Name())
+			return nil
+		}
+
+		log.LogDebugf("copying %s to %s", filepath.Join(t.x, t.y), path)
+		cpy = append(cpy, [2]string{filepath.Join(t.x, t.y), path})
+		return nil
+	})
+
 	if err != nil {
 		return err
 	}
-	if len(texturePaths) > 0 {
-		err = filepath.WalkDir(src, func(path string, info os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			relPath, err := filepath.Rel(src, path)
-			if err != nil {
-				return err
-			}
-			dstPath := filepath.Join(dst, relPath)
 
-			t, ok := texturePaths[info.Name()]
-
-			if info.IsDir() && ok {
-
-				if info.Name() == "keymaps" || info.Name() == "textures" {
-					log.LogDebug("skipped " + relPath)
-					return nil
-				}
-				if strings.HasPrefix(relPath, "textures\\") || strings.HasPrefix(relPath, "keymaps") {
-					log.LogDebug("skipped " + relPath)
-					return nil
-				}
-
-				log.LogDebug("copy dir to " + dstPath)
-				return util.CopyRecursivley(filepath.Join(src, "textures", t.x, t.y), dstPath, true)
-			} else if ok {
-				if filepath.Dir(path) == filepath.Join(src, "keymaps") || strings.HasPrefix(relPath, "textures\\") {
-					log.LogDebug("skipped " + relPath)
-					return nil
-				}
-				log.LogDebug("copy to " + dstPath)
-				return util.CopyFile(filepath.Join(src, "textures", t.x, t.y), dstPath, true)
-			}
-			return nil
-		})
+	for _, pair := range cpy {
+		err := util.CopyRecursivley(pair[0], pair[1], true)
+		if err != nil {
+			return err
+		}
 	}
-	return err
+	return nil
 }

@@ -351,12 +351,12 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 
 	if strings.Contains(filename[dotIdx:], ".rar") {
 		log.LogDebug("extracting rar " + filename)
-		if _, _, _, err = extractRAR(&XFile{FilePath: filePath, OutputDir: outputDir, DirMode: 0777, FileMode: 0777}, onProgress); err != nil {
+		if _, _, _, err = extractRAR(&XFile{FilePath: filePath, OutputDir: outputDir, DirMode: 0777, FileMode: 0777}, true, onProgress); err != nil {
 			return
 		}
 	} else {
 		log.LogDebug("extracting using unarr " + filename)
-		if _, err = extract(filePath, outputDir, onProgress); err != nil {
+		if _, err = extract(filePath, outputDir, true, onProgress); err != nil {
 			return
 		}
 	}

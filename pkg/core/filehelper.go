@@ -107,7 +107,12 @@ func hasUniformRoot(contents []string) bool {
 	return true
 }
 
-func extract(archivePath, path string, onProgress func(progress int64, total int64)) (contents []string, err error) {
+func extract(archivePath, path string, unifyRoot bool, onProgress func(progress int64, total int64)) (contents []string, err error) {
+
+	if onProgress == nil {
+		onProgress = func(progress, total int64) {}
+	}
+
 	log.LogDebug("Archive path: " + archivePath)
 	sizeA, err := unarr.NewArchive(archivePath)
 	if err != nil {
@@ -131,7 +136,7 @@ func extract(archivePath, path string, onProgress func(progress int64, total int
 	onProgress(progress, total)
 
 	basePath := path
-	if !hasUniformRoot(contents) {
+	if !hasUniformRoot(contents) && unifyRoot {
 		basePath = filepath.Join(path, filepath.Base(path))
 	}
 
@@ -169,14 +174,18 @@ func extract(archivePath, path string, onProgress func(progress int64, total int
 	return
 }
 
-func extractRAR(xFile *XFile, onProgress func(progress int64, total int64)) (int64, []string, []string, error) {
+func extractRAR(xFile *XFile, unifyRoot bool, onProgress func(progress int64, total int64)) (int64, []string, []string, error) {
 	rarReader, err := rardecode.OpenReader(xFile.FilePath, xFile.Password)
 	if err != nil {
 		return 0, nil, nil, fmt.Errorf("rardecode.OpenReader: %w", err)
 	}
 	defer rarReader.Close()
 
-	size, files, err := unrar(xFile, rarReader, onProgress)
+	if onProgress == nil {
+		onProgress = func(progress, total int64) {}
+	}
+
+	size, files, err := unrar(xFile, rarReader, unifyRoot, onProgress)
 	if err != nil {
 		lastFile := xFile.FilePath
 		if volumes := rarReader.Volumes(); len(volumes) > 0 {
@@ -238,7 +247,7 @@ type XFile struct {
 	Passwords []string
 }
 
-func unrar(x *XFile, rarReader *rardecode.ReadCloser, onProgress func(progress int64, total int64)) (int64, []string, error) {
+func unrar(x *XFile, rarReader *rardecode.ReadCloser, unifyRoot bool, onProgress func(progress int64, total int64)) (int64, []string, error) {
 	files := []string{}
 	size := int64(0)
 
@@ -256,7 +265,7 @@ func unrar(x *XFile, rarReader *rardecode.ReadCloser, onProgress func(progress i
 	}
 	onProgress(0, total)
 
-	if !hasUniformRoot(contents) {
+	if !hasUniformRoot(contents) && unifyRoot {
 		x.OutputDir = filepath.Join(x.OutputDir, filepath.Base(x.OutputDir))
 	}
 

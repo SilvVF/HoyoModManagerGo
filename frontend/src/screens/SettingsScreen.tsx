@@ -138,6 +138,9 @@ export default function SettingsScreen() {
       const charts = stats.data.map((data) => {
         const split = data[0].file.split("\\");
         let game = split[split.length - 1];
+
+        LogDebug(game)
+
         const { chartData, chartConfig } = transformDownloadStatsToChartData(
           data.slice(1, data.length)
         );

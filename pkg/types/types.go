@@ -13,7 +13,7 @@ const (
 type Game int
 type AuthType int
 
-var Games = []Game{Genshin, StarRail, ZZZ, WuWa}
+var Games = []Game{Genshin, StarRail, WuWa, ZZZ}
 
 func (g Game) Int64() int64 {
 	switch g {
