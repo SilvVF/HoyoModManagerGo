@@ -331,6 +331,7 @@ func copyModWithTextures(
 ) error {
 
 	os.MkdirAll(util.GetGeneratorCache(), os.ModePerm)
+	defer os.RemoveAll(util.GetGeneratorCache())
 
 	srcInfo, err := os.Stat(src)
 	if err != nil {

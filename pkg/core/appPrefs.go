@@ -93,7 +93,7 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 			Preference: store.GetString("server_password", "password"),
 		},
 		&SpaceSaverPref{
-			Preference: store.GetBoolean("space_saver", false),
+			Preference: store.GetBoolean("space_saver", true),
 		},
 	}
 }
