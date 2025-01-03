@@ -35,7 +35,11 @@ import {
 } from "@/data/prefs";
 import { useDownloadStore } from "@/state/downloadStore";
 import { useShallow } from "zustand/shallow";
-import { CharacterInfoCard } from "@/components/CharacterInfoCard";
+import {
+  CharacterInfoCard,
+  ModActionsDropDown,
+  TextureActionDropDown,
+} from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
 
 export type DialogType =
@@ -137,62 +141,13 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
   };
 
   const disableAllMods = async () => {
-    DisableAllModsByGame(props.game).then(refreshCharacters)
-  }
+    DisableAllModsByGame(props.game).then(refreshCharacters);
+  };
 
-  return (
-    <div className="flex flex-col w-full" key={props.game}>
-      <div className="sticky top-0 z-10 backdrop-blur-md">
-        <CharacterFilters
-          className={`relative w-full`}
-          unselectAll={disableAllMods}
-          elements={elements}
-          selectedElements={selectedElements ?? []}
-          available={available ?? false}
-          toggleElement={onElementSelected}
-          toggleAvailable={setAvailableOnly}
-        />
-      </div>
-      <OverlayOptions
-        dataApi={props.dataApi}
-        dialog={dialog}
-        setDialog={setDialog}
-        refreshCharacters={refreshCharacters}
-      />
-      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 mb-16">
-        {filteredCharacters.map((c) => (
-          <div className="col-span-1">
-            <CharacterInfoCard
-              key={c.characters.id}
-              enableMod={enableMod}
-              cmt={c}
-              deleteMod={deleteMod}
-              viewMod={(gbId) => navigate(`/mods/${gbId}`)}
-              setDialog={(d) => setDialog(d)}
-              onEditKeymap={(modId) => navigate(`/keymap/${modId}`)}
-              enableTexture={enableTexture}
-              deleteTexture={deleteTexture}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function OverlayOptions({
-  dialog,
-  dataApi,
-  setDialog,
-  refreshCharacters,
-}: {
-  dataApi: DataApi;
-  dialog: GameDialog | undefined;
-  setDialog: (dialgo: GameDialog | undefined) => void;
-  refreshCharacters: () => void;
-}) {
-  const [reloading, setReloading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const handleChange = (event: any) => {
+    setInputValue(event.target.value);
+  };
 
   const dialogSettings = useMemo(() => {
     return {
@@ -223,7 +178,153 @@ function OverlayOptions({
         },
       },
     };
-  }, []);
+  }, [refreshCharacters]);
+
+  const Settings = useMemo(() => {
+    if (dialog === undefined) return undefined;
+    const curr = dialogSettings[dialog.x];
+    return (
+      <NameDialogContent
+        title={curr.title}
+        description={curr.description}
+        input={inputValue}
+        onInputChange={handleChange}
+        onSuccess={() => curr.onSuccess(dialog.y, inputValue)}
+      />
+    );
+  }, [dialog, dialogSettings]);
+
+  return (
+    <div className="flex flex-col w-full" key={props.game}>
+      <div className="sticky top-0 z-10 backdrop-blur-md">
+        <CharacterFilters
+          className={`relative w-full`}
+          unselectAll={disableAllMods}
+          elements={elements}
+          selectedElements={selectedElements ?? []}
+          available={available ?? false}
+          toggleElement={onElementSelected}
+          toggleAvailable={setAvailableOnly}
+        />
+      </div>
+      <OverlayOptions
+        dataApi={props.dataApi}
+        dialog={dialog}
+        setDialog={setDialog}
+        refreshCharacters={refreshCharacters}
+      />
+      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 mb-16">
+        {filteredCharacters.map((c) => (
+          <div className="col-span-1">
+            <CharacterInfoCard
+              key={c.characters.id}
+              enableMod={enableMod}
+              cmt={c}
+              modDropdownMenu={(mwt) => (
+                <Dialog>
+                  <ModActionsDropDown
+                    onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
+                    onDelete={() => deleteMod(mwt.mod.id)}
+                    onRename={() =>
+                      setDialog({ x: "rename_mod", y: mwt.mod.id })
+                    }
+                    onView={() => {
+                      if (mwt.mod.gbId !== 0) {
+                        navigate(`/mods/${mwt.mod.gbId}`);
+                      }
+                    }}
+                    onKeymapEdit={() => navigate(`/keymap/${mwt.mod.id}`)}
+                  />
+                  {Settings}
+                </Dialog>
+              )}
+              textureDropdownMenu={(t) => (
+                <Dialog
+                  modal={true}
+                  open={Settings !== undefined}
+                  onOpenChange={() => setDialog(undefined)}
+                >
+                  <TextureActionDropDown
+                    onEnable={() => enableTexture(t.id, !t.enabled)}
+                    onDelete={() => deleteTexture(t.id)}
+                    onRename={() => setDialog({ x: "rename_texture", y: t.id })}
+                    onView={() => {
+                      if (t.gbId !== 0) {
+                        navigate(`/mods/${t.gbId}`);
+                      }
+                    }}
+                  />
+                  {Settings}
+                </Dialog>
+              )}
+              enableTexture={enableTexture}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+export function NameDialog(props: {
+  title: string;
+  description: string;
+  onSuccess: (name: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [inputValue, setInputValue] = useState("");
+  const handleChange = (event: any) => {
+    setInputValue(event.target.value);
+  };
+
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{props.title}</DialogTitle>
+          <DialogDescription>{props.description}</DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center space-x-2">
+          <div className="grid flex-1 gap-2">
+            <Input
+              value={inputValue}
+              onChange={handleChange}
+              defaultValue="Playlist"
+            />
+          </div>
+        </div>
+        <DialogFooter className="sm:justify-start">
+          <DialogClose asChild>
+            <Button type="button" variant="secondary">
+              Cancel
+            </Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button
+              onPointerDown={() => props.onSuccess(inputValue)}
+              type="button"
+              variant="secondary"
+            >
+              Confirm
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function OverlayOptions({
+  dataApi,
+  refreshCharacters,
+}: {
+  dataApi: DataApi;
+  dialog: GameDialog | undefined;
+  setDialog: (dialgo: GameDialog | undefined) => void;
+  refreshCharacters: () => void;
+}) {
+  const [reloading, setReloading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const sync = (type: SyncType) => {
     setSyncing(true);
@@ -233,23 +334,14 @@ function OverlayOptions({
   };
 
   const reload = async () => {
-    setReloading(true)
+    setReloading(true);
     Reload(await dataApi.game())
-    .finally(() => setReloading(false))
-    .catch()
-  }
-
-  const settings = dialog !== undefined ? dialogSettings[dialog.x] : undefined;
+      .finally(() => setReloading(false))
+      .catch();
+  };
 
   return (
     <div className="fixed bottom-4 -translate-y-1 end-6 flex flex-row z-10">
-      <NameDialog
-        title={settings?.title ?? ""}
-        description={settings?.description ?? ""}
-        open={dialog !== undefined}
-        onOpenChange={() => setDialog(undefined)}
-        onSuccess={(n) => settings!!.onSuccess(dialog!!.y, n)}
-      />
       {!reloading ? (
         <Button
           className="mx-2 rounded-full backdrop-blur-md bg-primary/30"
@@ -296,40 +388,40 @@ function OverlayOptions({
         </div>
       ) : (
         <>
-        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
-          <svg
-            className="h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-          Syncing...
-        </div>
-        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
-          <svg
-            className="h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-          Syncing...
-        </div>
+          <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
+            <svg
+              className="h-4 w-4 animate-spin"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            Syncing...
+          </div>
+          <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
+            <svg
+              className="h-4 w-4 animate-spin"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            Syncing...
+          </div>
         </>
       )}
     </div>
@@ -386,73 +478,66 @@ function CharacterFilters({
         })}
       </div>
       <div className="flex flex-row pe-2">
-      <Button
-        className="mx-2 backdrop-blur-md border-0"
-        onPointerDown={unselectAll}
-      >
-        Unselect All
-      </Button>
-      <Button
-        className={cn(
-          available ? "bg-primary/50" : "bg-secondary/20",
-          "mx-2 rounded-full backdrop-blur-md border-0"
-        )}
-        variant={available ? "secondary" : "outline"}
-        onPointerDown={() => toggleAvailable(!available)}
-      >
-        Mods available
-      </Button>
+        <Button
+          className="mx-2 backdrop-blur-md border-0"
+          onPointerDown={unselectAll}
+        >
+          Unselect All
+        </Button>
+        <Button
+          className={cn(
+            available ? "bg-primary/50" : "bg-secondary/20",
+            "mx-2 rounded-full backdrop-blur-md border-0"
+          )}
+          variant={available ? "secondary" : "outline"}
+          onPointerDown={() => toggleAvailable(!available)}
+        >
+          Mods available
+        </Button>
       </div>
     </div>
   );
 }
 
-export function NameDialog(props: {
+export function NameDialogContent(props: {
   title: string;
   description: string;
-  onSuccess: (name: string) => void;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+  input: string;
+  onInputChange: (v: any) => void;
 }) {
-  const [inputValue, setInputValue] = useState("");
-  const handleChange = (event: any) => {
-    setInputValue(event.target.value);
-  };
-
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{props.title}</DialogTitle>
-          <DialogDescription>{props.description}</DialogDescription>
-        </DialogHeader>
-        <div className="flex items-center space-x-2">
-          <div className="grid flex-1 gap-2">
-            <Input
-              value={inputValue}
-              onChange={handleChange}
-              defaultValue="Playlist"
-            />
-          </div>
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>{props.title}</DialogTitle>
+        <DialogDescription>{props.description}</DialogDescription>
+      </DialogHeader>
+      <div className="flex items-center space-x-2">
+        <div className="grid flex-1 gap-2">
+          <Input
+            value={props.input}
+            onChange={props.onInputChange}
+            defaultValue="Playlist"
+          />
         </div>
-        <DialogFooter className="sm:justify-start">
-          <DialogClose asChild>
-            <Button type="button" variant="secondary">
-              Cancel
-            </Button>
-          </DialogClose>
-          <DialogClose asChild>
-            <Button
-              onPointerDown={() => props.onSuccess(inputValue)}
-              type="button"
-              variant="secondary"
-            >
-              Confirm
-            </Button>
-          </DialogClose>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+      <DialogFooter className="sm:justify-start">
+        <DialogClose asChild>
+          <Button type="button" variant="secondary">
+            Cancel
+          </Button>
+        </DialogClose>
+        <DialogClose asChild>
+          <Button
+            onPointerDown={props.onSuccess}
+            type="button"
+            variant="secondary"
+          >
+            Confirm
+          </Button>
+        </DialogClose>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 

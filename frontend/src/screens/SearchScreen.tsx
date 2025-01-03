@@ -14,12 +14,17 @@ import {
 } from "wailsjs/go/core/DbHelper";
 import { Game } from "@/data/dataapi";
 import { types } from "wailsjs/go/models";
-import { CharacterInfoCard } from "@/components/CharacterInfoCard";
+import {
+  CharacterInfoCard,
+  ModActionsDropDown,
+  TextureActionDropDown,
+} from "@/components/CharacterInfoCard";
 import { NameDialog } from "./GameScreen";
 import { useMemo, useState } from "react";
 import { Pair } from "@/lib/utils";
 import { Delete, DeleteTexture } from "wailsjs/go/core/Downloader";
 import { Separator } from "@/components/ui/separator";
+import { Dialog } from "@/components/ui/dialog";
 
 interface SearchState {
   query: string;
@@ -105,14 +110,14 @@ const useSearchStore = create<SearchState>((set, get) => ({
     const query = get().query;
 
     if (query.trim() === "") {
-        set({
-            results: {
-              urlResults: [],
-              dataResults: [],
-            },
-            searching: false,
-        });
-        return
+      set({
+        results: {
+          urlResults: [],
+          dataResults: [],
+        },
+        searching: false,
+      });
+      return;
     }
 
     const urlResult: UrlResult[] = [];
@@ -171,10 +176,10 @@ const useSearchStore = create<SearchState>((set, get) => ({
       }
     }
 
-    LogDebug("games: " + games)
-    LogDebug("mods: " + mods)
-    LogDebug("tags: " + tags)
-    LogDebug("characters: " + characters)
+    LogDebug("games: " + games);
+    LogDebug("mods: " + mods);
+    LogDebug("tags: " + tags);
+    LogDebug("characters: " + characters);
 
     if (games.length <= 0) {
       games.push(...Object.values(Game));
@@ -243,7 +248,6 @@ export function SearchScreen() {
     EnableTextureById(enabled, id).then(refreshCharacters);
   };
 
-
   return (
     <div className="flex flex-col h-full w-full items-center justify-top">
       <SearchOverlayOptions
@@ -253,41 +257,68 @@ export function SearchScreen() {
       />
       <SearchBar />
       <div className="w-full flex flex-col p-4">
-        <h3>Search specific categorys by prefixing with a bang '!' ex. !character Ayaka</h3>
+        <h3>
+          Search specific categorys by prefixing with a bang '!' ex. !character
+          Ayaka
+        </h3>
         <div className="flex flex-row space-x-4 p-4">
-            <h6>!tag</h6>
-            <Separator orientation="vertical" />
-            <h6>!mod</h6>
-            <Separator orientation="vertical" />
-            <h6>!character</h6>
-            <Separator orientation="vertical" />
-            <h6>!game</h6>
-            <Separator orientation="vertical" />
-            <h6>!g 'global'</h6>
-            <Separator orientation="vertical" />
-            <h6>!texture</h6>
+          <h6>!tag</h6>
+          <Separator orientation="vertical" />
+          <h6>!mod</h6>
+          <Separator orientation="vertical" />
+          <h6>!character</h6>
+          <Separator orientation="vertical" />
+          <h6>!game</h6>
+          <Separator orientation="vertical" />
+          <h6>!g 'global'</h6>
+          <Separator orientation="vertical" />
+          <h6>!texture</h6>
         </div>
       </div>
-      {results.urlResults.map((res) => (
-        <div onClick={() => navigate(res.path)}>{res.text}</div>
-      ))}
-      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 w-full">
-        {results.dataResults.map((res) => {
+      <Dialog>
+        {results.urlResults.map((res) => (
+          <div onClick={() => navigate(res.path)}>{res.text}</div>
+        ))}
+        <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 w-full">
+          {results.dataResults.map((res) => {
             return (
-            <CharacterInfoCard
+              <CharacterInfoCard
                 key={res.characters.id}
                 enableMod={enableMod}
                 cmt={res}
-                deleteMod={deleteMod}
-                viewMod={(gbId) => navigate(`/mods/${gbId}`)}
-                setDialog={(d) => setDialog(d)}
-                onEditKeymap={(modId) => navigate(`/keymap/${modId}`)}
+                modDropdownMenu={(mwt) => (
+                  <ModActionsDropDown
+                    onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
+                    onDelete={() => deleteMod(mwt.mod.id)}
+                    onRename={() =>
+                      setDialog({ x: "rename_mod", y: mwt.mod.id })
+                    }
+                    onView={() => {
+                      if (mwt.mod.gbId !== 0) {
+                        navigate(`/mods/${mwt.mod.gbId}`);
+                      }
+                    }}
+                    onKeymapEdit={() => navigate(`/keymap/${mwt.mod.id}`)}
+                  />
+                )}
+                textureDropdownMenu={(t) => (
+                  <TextureActionDropDown
+                    onEnable={() => enableTexture(t.id, !t.enabled)}
+                    onDelete={() => deleteTexture(t.id)}
+                    onRename={() => setDialog({ x: "rename_texture", y: t.id })}
+                    onView={() => {
+                      if (t.gbId !== 0) {
+                        navigate(`/mods/${t.gbId}`);
+                      }
+                    }}
+                  />
+                )}
                 enableTexture={enableTexture}
-                deleteTexture={deleteTexture}
-            />
+              />
             );
-        })}
-      </div>
+          })}
+        </div>
+      </Dialog>
     </div>
   );
 }
