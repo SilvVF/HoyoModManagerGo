@@ -56,7 +56,11 @@ function SidebarItem(props: {
   const { open } = useSidebar();
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton variant={props.selected ? 'outline' : 'default'} onClick={props.onClick} className="w-full h-full">
+      <SidebarMenuButton
+        variant={props.selected ? "outline" : "default"}
+        onClick={props.onClick}
+        className="w-full h-full"
+      >
         <props.icon />
         <text
           className={cn(
@@ -163,6 +167,12 @@ export function AppSidebar({
               selected={location.pathname.includes("mods")}
               icon={BananaIcon}
             />
+            <SidebarItem
+              onClick={() => navigate("browser")}
+              name="HSR Optimizer"
+              selected={location.pathname.includes("browser")}
+              icon={GlobeIcon}
+            />
           </SidebarMenu>
         </SidebarGroup>
         <SidebarGroup>
@@ -190,11 +200,13 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className={cn(
-            open ? "opacity-100" : "opacity-0",
-            "fade-in fade-out transition-all duration-350 ease-in-out",
-            "text-md line-clamp-1 overflow-ellipsis"
-          )}>
+      <SidebarFooter
+        className={cn(
+          open ? "opacity-100" : "opacity-0",
+          "fade-in fade-out transition-all duration-350 ease-in-out",
+          "text-md line-clamp-1 overflow-ellipsis"
+        )}
+      >
         <div className="flex flex-row justify-between items-baseline w-full">
           <SidebarGroupLabel>Playlists</SidebarGroupLabel>
           <Button

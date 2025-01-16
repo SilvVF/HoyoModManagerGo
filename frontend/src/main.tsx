@@ -14,6 +14,7 @@ import { PlaylistScreen } from './screens/PlaylistScreen.tsx';
 import { SearchScreen } from './screens/SearchScreen.tsx';
 import { KeymappingScreen } from './screens/KeyMappingScreen.tsx';
 import { syncCharacters, SyncType } from './data/sync.ts';
+import BrowserScreen from './screens/BrowserScreen.tsx';
 
 const router = createHashRouter([
   {
@@ -81,7 +82,11 @@ const router = createHashRouter([
             element: <ModBrowseScreen />
           },
         ]
-      }
+      },
+      {
+        path: "browser",
+        element: <BrowserScreen src="https://fribbels.github.io/hsr-optimizer/"/>,
+      },
     ],
     errorElement: <ErrorPage />,
   },
