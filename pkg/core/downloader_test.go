@@ -10,6 +10,8 @@ import (
 const (
 	rarFile = "\\test_resources\\navia.rar"
 	zipFile = "\\test_resources\\clorinde.zip"
+
+	brokenZip = "\\test_resources\\lingsha_nude_halfnude_incomletever_v101.zip"
 )
 
 func TestExtractRar(t *testing.T) {
@@ -32,6 +34,23 @@ func TestExtractRar(t *testing.T) {
 	)
 
 	fmt.Println(size, files, contents)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestNoDirCreatesNewRoot(t *testing.T) {
+
+	path := filepath.Join(workingDir, brokenZip)
+	out := filepath.Join(workingDir, "test_resources", "output")
+	fmt.Println(path)
+
+	os.RemoveAll(out)
+	os.MkdirAll(out, os.ModePerm)
+
+	contents, err := extract(path, filepath.Join(workingDir, "test_resources", "output"), true, nil)
+
+	fmt.Println(contents)
 	if err != nil {
 		t.Error(err)
 	}

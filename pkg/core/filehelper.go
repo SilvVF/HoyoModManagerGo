@@ -85,13 +85,24 @@ type Entry struct {
 
 func hasUniformRoot(contents []string) bool {
 	var entries []Entry
+	anyDir := false
+
 	for _, entry := range contents {
+
+		if filepath.Ext(entry) == "" {
+			anyDir = true
+		}
+
 		root := filepath.Base(filepath.Dir(entry))
 		entries = append(entries, Entry{Path: entry, Root: root})
 	}
 
 	if len(entries) == 0 {
 		return true
+	}
+
+	if !anyDir {
+		return false
 	}
 
 	// Get the root of the first entry
