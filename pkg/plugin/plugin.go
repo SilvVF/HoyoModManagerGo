@@ -70,21 +70,20 @@ func (p *Plugins) Run() {
 
 func IndexPlugins() ([]string, error) {
 
-	found := []string{}
 	pluginDir := util.GetPluginDir()
 	os.MkdirAll(pluginDir, os.ModePerm)
 	pdh, err := os.Open(pluginDir)
 
 	if err != nil {
 		log.LogError(err.Error())
-		return found, err
+		return []string{}, err
 	}
 	defer pdh.Close()
 
 	files, err := pdh.Readdirnames(-1)
 	if err != nil {
 		log.LogError(err.Error())
-		return found, err
+		return []string{}, err
 	}
 
 	files = slices.DeleteFunc(files, func(name string) bool {
@@ -94,7 +93,7 @@ func IndexPlugins() ([]string, error) {
 	log.LogDebugf("found %d lua files", len(files))
 	log.LogDebug(strings.Join(files, "\n-"))
 
-	return found, err
+	return files, err
 }
 
 func New(exports map[string]lua.LGFunction, ctx context.Context) *Plugins {

@@ -14,15 +14,13 @@ import {
   serverPasswordPref,
   serverAuthTypePref,
   cleanModDirPref,
-  pluginsPref,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
   GetExclusionPaths,
-  GetPlugins
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
-import { cn, range, useStateProducer } from "@/lib/utils";
+import { cn, range } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -36,7 +34,7 @@ import { ModSizeChart } from "@/components/mod-size-chart";
 import { NameDialog } from "./GameScreen";
 import { useServerStore } from "@/state/serverStore";
 import { useShallow } from "zustand/shallow";
-import { LogDebug, LogError } from "wailsjs/runtime/runtime";
+import { LogDebug } from "wailsjs/runtime/runtime";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -47,7 +45,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChartItem, useStatsState } from "@/state/useStatsState";
-
+import { usePluginStore } from "@/state/pluginStore";
 
 type SettingsDialog = "edit_port" | "edit_password" | "edit_username";
 const AuthType: { [keyof: number]: string } = {
@@ -62,7 +60,6 @@ export default function SettingsScreen() {
   const [wuwaDir, setWuwaDir] = usePrefrenceAsState(wuwaDirPref);
   const [zzzDir, setZZZdir] = usePrefrenceAsState(zzzDirPref);
   const [ignore, setIgnore] = usePrefrenceAsState(ignorePref);
-  const [_, __] = usePrefrenceAsState(pluginsPref);
   const [serverPort, setServerPort] = usePrefrenceAsState(serverPortPref);
   const [spaceSaver, setSpaceSaver] = usePrefrenceAsState(spaceSaverPref);
   const [username, setUsername] = usePrefrenceAsState(serverUsernamePref);
@@ -76,14 +73,15 @@ export default function SettingsScreen() {
   const [dialog, setDialog] = useState<SettingsDialog | undefined>(undefined);
   const [sliderValue, setSliderValue] = useState(maxDownloadWorkers ?? 1);
   const ipAddr = useServerStore(useShallow((state) => state.addr));
+  const enabledPlugins = usePluginStore(
+    useShallow((state) => state.enabledFiles)
+  );
+  const foundPlugins = usePluginStore(useShallow((state) => state.pluginFiles));
+  const initPlugins = usePluginStore(useShallow((state) => state.init));
+  const enablePlugin = usePluginStore((state) => state.disablePlugin);
+  const disbablePlugin = usePluginStore((state) => state.enablePlugin);
 
-  const foundPlugins = useStateProducer<string[]>([], async (update) => {
-      GetPlugins().then(update).catch(() => {
-        LogError("failed to load plugins")
-        update([])
-      })
-  })
-  const stats = useStatsState(undefined)
+  const stats = useStatsState(undefined);
 
   const items = useMemo(
     () => [
@@ -143,6 +141,10 @@ export default function SettingsScreen() {
     () => setSliderValue(maxDownloadWorkers ?? 1),
     [maxDownloadWorkers]
   );
+
+  useEffect(() => {
+    initPlugins();
+  }, []);
 
   const dialogSettings: {
     [key: string]: {
@@ -227,14 +229,12 @@ export default function SettingsScreen() {
         ignore={ignore}
         removeFromExclusions={removeFromExclusions}
       />
-      <h2 className="text-lg font-semibold tracking-tight">
-        EnabledPlugins
-      </h2>
-       <ExclusionDirSettingsItem
-        setExclusionDir={() => {}}
-        setExclusionPaths={() => {}}
-        ignore={foundPlugins}
-        removeFromExclusions={() => {}}
+      <h2 className="text-lg font-semibold tracking-tight">EnabledPlugins</h2>
+      <PluginSettingsItem
+        enablePlugin={enablePlugin}
+        disablePlugin={disbablePlugin}
+        available={foundPlugins}
+        enabled={enabledPlugins}
       />
       <h2 className="text-lg font-semibold tracking-tight mt-4">
         Max download workers
@@ -468,6 +468,51 @@ function ExclusionDirSettingsItem({
                     <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z" />
                   </svg>
                 </Button>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+interface PluginSettingsProps extends React.HTMLAttributes<HTMLDivElement> {
+  enabled: string[];
+  available: string[];
+  enablePlugin: (path: string) => void;
+  disablePlugin: (path: string) => void;
+}
+
+function PluginSettingsItem({
+  className,
+  enabled,
+  available,
+  enablePlugin,
+  disablePlugin,
+}: PluginSettingsProps) {
+  return (
+    <div className={cn("", className)}>
+      <div>{enabled}</div>
+      <Card>
+        <div className="space-y-1 p-2 overflow-y-auto max-h-[300px]">
+          {available?.map((path) => {
+            return (
+              <div
+                key={path}
+                className="flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground"
+              >
+                <div className="text-zinc-500  m-2">{path}</div>
+                <Checkbox
+                  checked={enabled.includes(path)}
+                  onCheckedChange={(v) => {
+                    if (v) {
+                      enablePlugin(path);
+                    } else {
+                      disablePlugin(path);
+                    }
+                  }}
+                />
               </div>
             );
           })}
