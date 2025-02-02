@@ -8,6 +8,18 @@
 * Runs skin fix .exe automatically when regenerating the mod folder if exists.
 * Dark and light themes using Catapuccin Mocha and Latte.
 
+### Setup
+Go to settings and select the Mods folder.
+
+If you have any previous mods inside the folder that you want to keep do the following
+Settings >  + Add Exclusion Directory > Select any folders that should not be deleted.  \
+
+To update the mods folder after toggling the checkboxes click generate. This will go through the mods that you have enabled and unzip them into the export Directory selected in Settings. It will also fill any keymaps or textures that are selected for the mod.
+
+All mods are kept inside C:\Users\USER\AppData\Local\HoyoModManagerGo\cache
+USER being your user. if space saver is enabled all mods will be stored in .zip files.
+To delete all data after deleting the app delete the root of this folder. 
+
 ### Building and running.
 
 uses C go for sqlite3 and sqlc. to run on windows you can use mingw https://www.mingw-w64.org/
