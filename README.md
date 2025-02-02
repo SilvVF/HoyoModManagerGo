@@ -10,6 +10,8 @@
 
 # Setup
 Go to settings and select the Mods folder.
+It is recommended to create a new folder within 3dmigoto/Mods (ex. create Mods/managed) to use as this folder
+this will decrease the work done when unzipping as no other folders need to be checked.
 
 If you have any previous mods inside the folder that you want to keep do the following
 Settings >  + Add Exclusion Directory > Select any folders that should not be deleted.\
