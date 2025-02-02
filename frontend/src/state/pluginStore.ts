@@ -16,38 +16,34 @@ export interface PluginState {
   disablePlugin: (path: string) => Promise<void>;
 }
 
-export const usePluginStore = create<PluginState>((set) => ({
+export const usePluginStore = create<PluginState>((set, get) => ({
   pluginFiles: [],
   enabledFiles: [],
   init: async () => {
     GetPlugins()
-      .then((paths) => set({ pluginFiles: paths ?? [] }))
-      .catch(() => set({ pluginFiles: [] }));
+      .then((paths) => set(({ pluginFiles: paths ?? [] })))
+      .catch(() => set(({ pluginFiles: [] })));
 
     pluginsPref
       .Get()
-      .then((enabledFiles) => set({ enabledFiles: enabledFiles }))
-      .catch(() => set({ enabledFiles: [] }));
+      .then((enabledFiles) => set(({ enabledFiles: enabledFiles })))
+      .catch(() => set(({ enabledFiles: [] })));
   },
   enablePlugin: async (path: string) => {
-    LogPrint(path)
-    const enabled = (await pluginsPref.Get()) ?? [];
-    LogDebug(enabled.toString())
-    pluginsPref.Set([...enabled, path]).then(() => {
-      set({
+    const enabled = [...get().enabledFiles.filter((it) => it != path), path]
+    pluginsPref.Set(enabled).then(() => {
+      set(({
         enabledFiles: enabled,
-      });
+      }));
     });
   },
   disablePlugin: async (path: string) => {
-    LogDebug(path)
-    const enabled = (await pluginsPref.Get()) ?? [];
-    LogDebug(enabled.toString())
+    const enabled = (await pluginsPref.Get())
     const filtered = enabled.filter((it) => it != path);
     pluginsPref.Set(filtered).then(() => {
-      set({
+      set(({
         enabledFiles: filtered,
-      });
+      }));
     });
   },
 }));

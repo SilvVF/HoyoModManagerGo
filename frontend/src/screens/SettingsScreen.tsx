@@ -77,9 +77,9 @@ export default function SettingsScreen() {
     useShallow((state) => state.enabledFiles)
   );
   const foundPlugins = usePluginStore(useShallow((state) => state.pluginFiles));
-  const initPlugins = usePluginStore(useShallow((state) => state.init));
-  const enablePlugin = usePluginStore((state) => state.disablePlugin);
-  const disbablePlugin = usePluginStore((state) => state.enablePlugin);
+  const initPlugins = usePluginStore((state) => state.init);
+  const enablePlugin = usePluginStore((state) => state.enablePlugin);
+  const disablePlugin = usePluginStore((state) => state.disablePlugin);
 
   const stats = useStatsState(undefined);
 
@@ -229,10 +229,11 @@ export default function SettingsScreen() {
         ignore={ignore}
         removeFromExclusions={removeFromExclusions}
       />
-      <h2 className="text-lg font-semibold tracking-tight">EnabledPlugins</h2>
+      <h2 className="text-lg font-semibold tracking-tight  mt-4">Available Plugins</h2>
       <PluginSettingsItem
+        className="mt-4"
         enablePlugin={enablePlugin}
-        disablePlugin={disbablePlugin}
+        disablePlugin={disablePlugin}
         available={foundPlugins}
         enabled={enabledPlugins}
       />
@@ -493,7 +494,6 @@ function PluginSettingsItem({
 }: PluginSettingsProps) {
   return (
     <div className={cn("", className)}>
-      <div>{enabled}</div>
       <Card>
         <div className="space-y-1 p-2 overflow-y-auto max-h-[300px]">
           {available?.map((path) => {
