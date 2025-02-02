@@ -76,6 +76,10 @@ func (a *App) GetExportDirectory() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{})
 }
 
+func (a *App) GetPlugins() ([]string, error) {
+	return plugin.IndexPlugins()
+}
+
 func (a *App) LoadPlugins() {
 
 	if a.pluginsRunning {

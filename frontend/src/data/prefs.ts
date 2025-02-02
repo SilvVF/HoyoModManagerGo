@@ -21,6 +21,7 @@ import * as ServerPasswordPref from "../../wailsjs/go/core/ServerPasswordPref"
 import * as ServerUsernamePref from "../../wailsjs/go/core/ServerUsernamePref"
 import * as ServerAuthTypePref from "../../wailsjs/go/core/ServerAuthTypePref"
 import * as CleanModDirPref from "../../wailsjs/go/core/CleanModExportDirPref"
+import * as EnabledPluginsPref from "../../wailsjs/go/core/EnabledPluginsPref"
 
 export type GoPref<T extends any> = {
     DefaultValue():Promise<T>;
@@ -40,6 +41,7 @@ const zzzDirPref = ZZZDirPref as GoPref<string>
 const genshinDirPref = GenshinDirPref as GoPref<string>
 const wuwaDirPref = WuwaDirPref as GoPref<string>
 const ignorePref = IgnorePref as GoPref<string[]>
+const pluginsPref = EnabledPluginsPref as GoPref<string[]>
 const sortModPref = SortModPref as GoPref<string>
 
 const modsAvailablePref = ModsAvailablePref as GoPref<boolean>
@@ -142,5 +144,6 @@ export {
     serverAuthTypePref,
     serverPasswordPref,
     serverUsernamePref,
-    cleanModDirPref
+    cleanModDirPref,
+    pluginsPref
 }

@@ -17,3 +17,11 @@ export function GetExclusionPaths() {
 export function GetExportDirectory() {
   return window['go']['main']['App']['GetExportDirectory']();
 }
+
+export function GetPlugins() {
+  return window['go']['main']['App']['GetPlugins']();
+}
+
+export function LoadPlugins() {
+  return window['go']['main']['App']['LoadPlugins']();
+}

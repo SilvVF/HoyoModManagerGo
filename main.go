@@ -179,6 +179,7 @@ func main() {
 			appPrefs.ServerAuthTypePref,
 			appPrefs.SpaceSaverPref,
 			appPrefs.CleanModExportDirPref,
+			appPrefs.EnabledPluginsPref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

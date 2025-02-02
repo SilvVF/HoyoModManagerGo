@@ -68,6 +68,35 @@ func (p *Plugins) Run() {
 	}
 }
 
+func IndexPlugins() ([]string, error) {
+
+	found := []string{}
+	pluginDir := util.GetPluginDir()
+	os.MkdirAll(pluginDir, os.ModePerm)
+	pdh, err := os.Open(pluginDir)
+
+	if err != nil {
+		log.LogError(err.Error())
+		return found, err
+	}
+	defer pdh.Close()
+
+	files, err := pdh.Readdirnames(-1)
+	if err != nil {
+		log.LogError(err.Error())
+		return found, err
+	}
+
+	files = slices.DeleteFunc(files, func(name string) bool {
+		return filepath.Ext(name) != ".lua"
+	})
+
+	log.LogDebugf("found %d lua files", len(files))
+	log.LogDebug(strings.Join(files, "\n-"))
+
+	return found, err
+}
+
 func New(exports map[string]lua.LGFunction, ctx context.Context) *Plugins {
 
 	errCh := make(chan PluginError)
@@ -85,32 +114,16 @@ func New(exports map[string]lua.LGFunction, ctx context.Context) *Plugins {
 		return 1
 	}
 
-	pluginDir := util.GetPluginDir()
-	os.MkdirAll(pluginDir, os.ModePerm)
-	pdh, err := os.Open(pluginDir)
+	files, err := IndexPlugins()
 
 	if err != nil {
-		log.LogError(err.Error())
 		return ps
 	}
-	defer pdh.Close()
-
-	files, err := pdh.Readdirnames(-1)
-	if err != nil {
-		log.LogError(err.Error())
-		return ps
-	}
-
-	files = slices.DeleteFunc(files, func(name string) bool {
-		return filepath.Ext(name) != ".lua"
-	})
-	log.LogDebugf("found %d lua files", len(files))
-	log.LogDebug(strings.Join(files, "\n-"))
 
 	for _, file := range files {
 		plug := &Plugin{
 			L:    lua.NewState(Lopts),
-			path: filepath.Join(pluginDir, file),
+			path: filepath.Join(util.GetPluginDir(), file),
 			err:  make(chan error),
 			Done: make(chan struct{}),
 		}

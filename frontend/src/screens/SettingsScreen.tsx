@@ -14,10 +14,12 @@ import {
   serverPasswordPref,
   serverAuthTypePref,
   cleanModDirPref,
+  pluginsPref,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
   GetExclusionPaths,
+  GetPlugins
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
 import { cn, range, useStateProducer } from "@/lib/utils";
@@ -30,14 +32,11 @@ import {
   StopCircleIcon,
   UndoIcon,
 } from "lucide-react";
-import { getStats } from "@/data/stats";
-import { types } from "wailsjs/go/models";
 import { ModSizeChart } from "@/components/mod-size-chart";
-import { ChartConfig } from "@/components/ui/chart";
 import { NameDialog } from "./GameScreen";
 import { useServerStore } from "@/state/serverStore";
 import { useShallow } from "zustand/shallow";
-import { LogDebug } from "wailsjs/runtime/runtime";
+import { LogDebug, LogError } from "wailsjs/runtime/runtime";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -47,63 +46,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ChartItem, useStatsState } from "@/state/useStatsState";
 
-const stringToColour = (str: string) => {
-  let hash = 0;
-  str.split("").forEach((char) => {
-    hash = char.charCodeAt(0) + ((hash << 5) - hash);
-  });
-  let colour = "#";
-  for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xff;
-    colour += value.toString(16).padStart(2, "0");
-  }
-  return colour;
-};
-
-function bytesToMB(bytes: number): number {
-  return bytes / (1024 * 1024); // 1024 * 1024 = 1,048,576
-}
-
-// Transformation function
-function transformDownloadStatsToChartData(data: types.FileInfo[]) {
-  const chartData = data.map((fileInfo: types.FileInfo) => {
-    const split = fileInfo.file.split("\\");
-    return {
-      file: split[split.length - 1],
-      size: bytesToMB(fileInfo.bytes),
-      fill: stringToColour(fileInfo.file),
-    };
-  });
-
-  const chartConfig = {
-    visitors: { label: "Visitors" },
-    ...chartData.reduce((acc, { file, fill }) => {
-      acc[file] = {
-        label: capitalizeFirstLetter(file), // Use file name for label
-        color: fill, // Assign the generated random color
-      };
-      return acc;
-    }, {} as Record<string, { label: string; color: string }>),
-  };
-
-  return { chartData, chartConfig };
-}
-
-function capitalizeFirstLetter(string: string) {
-  return string.charAt(0).toUpperCase() + string.slice(1);
-}
-
-type ChartItem = {
-  game: string;
-  config: ChartConfig;
-  total: number;
-  data: {
-    file: string;
-    size: number;
-    fill: string;
-  }[];
-};
 
 type SettingsDialog = "edit_port" | "edit_password" | "edit_username";
 const AuthType: { [keyof: number]: string } = {
@@ -118,6 +62,7 @@ export default function SettingsScreen() {
   const [wuwaDir, setWuwaDir] = usePrefrenceAsState(wuwaDirPref);
   const [zzzDir, setZZZdir] = usePrefrenceAsState(zzzDirPref);
   const [ignore, setIgnore] = usePrefrenceAsState(ignorePref);
+  const [_, __] = usePrefrenceAsState(pluginsPref);
   const [serverPort, setServerPort] = usePrefrenceAsState(serverPortPref);
   const [spaceSaver, setSpaceSaver] = usePrefrenceAsState(spaceSaverPref);
   const [username, setUsername] = usePrefrenceAsState(serverUsernamePref);
@@ -132,33 +77,13 @@ export default function SettingsScreen() {
   const [sliderValue, setSliderValue] = useState(maxDownloadWorkers ?? 1);
   const ipAddr = useServerStore(useShallow((state) => state.addr));
 
-  const stats = useStateProducer<ChartItem[] | undefined>(
-    undefined,
-    async (update) => {
-      const stats = await getStats();
-
-      const charts = stats.data.map((data) => {
-        const split = data[0].file.split("\\");
-        let game = split[split.length - 1];
-
-        LogDebug(game);
-
-        const { chartData, chartConfig } = transformDownloadStatsToChartData(
-          data.slice(1, data.length)
-        );
-
-        return {
-          game: game,
-          config: chartConfig,
-          data: chartData,
-          total: data.reduce((acc, curr) => acc + curr.bytes, 0),
-        } as ChartItem;
-      });
-
-      update(charts);
-    },
-    []
-  );
+  const foundPlugins = useStateProducer<string[]>([], async (update) => {
+      GetPlugins().then(update).catch(() => {
+        LogError("failed to load plugins")
+        update([])
+      })
+  })
+  const stats = useStatsState(undefined)
 
   const items = useMemo(
     () => [
@@ -301,6 +226,15 @@ export default function SettingsScreen() {
         setExclusionPaths={setExclusionPaths}
         ignore={ignore}
         removeFromExclusions={removeFromExclusions}
+      />
+      <h2 className="text-lg font-semibold tracking-tight">
+        EnabledPlugins
+      </h2>
+       <ExclusionDirSettingsItem
+        setExclusionDir={() => {}}
+        setExclusionPaths={() => {}}
+        ignore={foundPlugins}
+        removeFromExclusions={() => {}}
       />
       <h2 className="text-lg font-semibold tracking-tight mt-4">
         Max download workers

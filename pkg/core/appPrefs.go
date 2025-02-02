@@ -28,7 +28,7 @@ type AppPrefs struct {
 	ServerPasswordPref     *ServerPasswordPref
 	SpaceSaverPref         *SpaceSaverPref
 	CleanModExportDirPref  *CleanModExportDirPref
-	EnabledPlugins         *EnabledPlugins
+	EnabledPluginsPref     *EnabledPluginsPref
 }
 
 func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
@@ -100,7 +100,7 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 		&CleanModExportDirPref{
 			Preference: store.GetBoolean("clean_mod_dir", false),
 		},
-		&EnabledPlugins{
+		&EnabledPluginsPref{
 			Preference: store.GetStringSlice("enabled_plugins", []string{}),
 		},
 	}
@@ -139,4 +139,4 @@ type ServerAuthTypePref struct{ pref.Preference[int] }
 
 type SpaceSaverPref struct{ pref.Preference[bool] }
 
-type EnabledPlugins struct{ pref.Preference[[]string] }
+type EnabledPluginsPref struct{ pref.Preference[[]string] }

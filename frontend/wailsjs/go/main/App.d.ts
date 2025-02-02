@@ -8,3 +8,7 @@ export function DevModeEnabled():Promise<boolean>;
 export function GetExclusionPaths():Promise<Array<string>>;
 
 export function GetExportDirectory():Promise<string>;
+
+export function GetPlugins():Promise<Array<string>>;
+
+export function LoadPlugins():Promise<void>;
