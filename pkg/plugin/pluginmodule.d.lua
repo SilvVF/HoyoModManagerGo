@@ -1,0 +1,4 @@
+---@class PluginModule
+---@field FEATURE_CATEGORY number
+---@field FEATURE_BROWSE number
+---@field bor function(args: ...number): number

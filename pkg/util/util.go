@@ -28,6 +28,11 @@ func GetKeybindCache() string {
 	return filepath.Join(appData, APP_NAME, "cache", "keybind")
 }
 
+func GetPluginDir() string {
+
+	return filepath.Join(GetCacheDir(), "plugins")
+}
+
 func GetCacheDir() string {
 
 	appData, _ := os.UserCacheDir()

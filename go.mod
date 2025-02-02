@@ -19,6 +19,7 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/robfig/cron/v3 v3.0.0 // indirect
 	github.com/rosedblabs/wal v1.3.8 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 )
 
 require (
