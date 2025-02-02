@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { ThemeProvider } from "./components/theme-provider";
 import { cn } from "./lib/utils";
 import { AppSidebar } from "./components/app-sidebar";
@@ -10,6 +10,9 @@ import { useServerStore } from "./state/serverStore";
 import { ScrollProvider } from "./ScrollContext";
 import { DownloadOverlay } from "./components/DownloadOverlay";
 import { SidebarInset, SidebarProvider } from "./components/ui/sidebar";
+import { Button } from "./components/ui/button";
+import { ClosePrefsDB, DevModeEnabled } from "wailsjs/go/main/App";
+import { ExpandIcon } from "lucide-react";
 
 function App() {
   const navigate = useNavigate();
@@ -66,32 +69,65 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="dark">
-      <div className="bg-background max-h-screen overflow-hidden flex flex-col">
-        <DownloadOverlay />
-        <SidebarProvider>
-          <AppSidebar
-            refreshPlaylist={refreshAllPlaylists}
-            playlists={playlists}
-            onDeletePlaylist={deletePlaylist}
-          />
-          <SidebarInset className="overflow-hidden">
-            <ScrollProvider provideRef={scrollAreaRef}>
-              <div
-                ref={scrollAreaRef}
-                className={cn(
-                  !expanded && downloadsInQueue >= 1
-                    ? "max-h-[calc(100vh-30px)]"
-                    : "max-h-[calc(100vh)]",
-                  "overflow-y-auto overflow-x-hidden"
-                )}
-              >
-                <Outlet />
-              </div>
-            </ScrollProvider>
-          </SidebarInset>
-        </SidebarProvider>
-      </div>
+      <DevModeOverlay>
+        <div className="bg-background max-h-screen overflow-hidden flex flex-col">
+          <DownloadOverlay />
+          <SidebarProvider>
+            <AppSidebar
+              refreshPlaylist={refreshAllPlaylists}
+              playlists={playlists}
+              onDeletePlaylist={deletePlaylist}
+            />
+            <SidebarInset className="overflow-hidden">
+              <ScrollProvider provideRef={scrollAreaRef}>
+                <div
+                  ref={scrollAreaRef}
+                  className={cn(
+                    !expanded && downloadsInQueue >= 1
+                      ? "max-h-[calc(100vh-30px)]"
+                      : "max-h-[calc(100vh)]",
+                    "overflow-y-auto overflow-x-hidden"
+                  )}
+                >
+                  <Outlet />
+                </div>
+              </ScrollProvider>
+            </SidebarInset>
+          </SidebarProvider>
+        </div>
+      </DevModeOverlay>
     </ThemeProvider>
+  );
+}
+
+function DevModeOverlay({ children }: { children: ReactNode }) {
+  const [devMode, setDevMode] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    DevModeEnabled()
+      .then(setDevMode)
+      .catch(() => setDevMode(false));
+  }, []);
+
+  if (!devMode) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div>
+      <div className="flex flex-row z-50 absolute top-0">
+        <Button size={"icon"} onClick={() => setCollapsed((c) => !c)}>
+          <ExpandIcon />
+        </Button>
+        {collapsed ? undefined : (
+          <div>
+            <Button onClick={() => ClosePrefsDB()}>Close DB</Button>
+          </div>
+        )}
+      </div>
+      {children}
+    </div>
   );
 }
 

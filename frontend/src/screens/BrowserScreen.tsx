@@ -6,9 +6,10 @@ export default function BrowserScreen({ src }: { src: string }) {
 
   return (
     <div className="flex flex-col h-screen">
-      <Button className="h-30" onClick={() => navigate("/genshin")}>Back</Button>
-     
-     <iframe className="w-full h-full" src={src}></iframe>
+      <Button className="h-30" onClick={() => navigate("/genshin")}>
+        Back
+      </Button>
+      <iframe className="w-full h-full" src={src}></iframe>
     </div>
   );
 }

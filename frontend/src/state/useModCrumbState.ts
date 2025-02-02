@@ -58,29 +58,33 @@ const createCategoryCrumbs = async (
   skinIds: number[],
   subCats: api.CategoryListResponseItem[][]
 ): Promise<Crumb[]> => {
-  const skinIdIdx = skinIds.indexOf(id);
-  const isTopLevelCat = skinIdIdx !== -1;
-  if (isTopLevelCat) {
-    return [{ name: gameDispalyNameFromIdx(skinIdIdx), path: `cats/${id}` }];
-  } else {
-    const item = subCats.firstNotNullOfOrNull((value, i) => {
-      return value.firstNotNullOfOrNull((value) =>
-        value._idRow === id ? { i, value } : undefined
-      );
-    });
-    if (item?.value !== undefined) {
-      const { name, id } = await gameDispalyNameWithCatId(item.i);
-      return [
-        {
-          path: `cats/${id}`,
-          name: name,
-        },
-        {
-          path: `cats/${item.value._idRow!!}`,
-          name: item.value._sName!!,
-        },
-      ];
+  try {
+    const skinIdIdx = skinIds.indexOf(id);
+    const isTopLevelCat = skinIdIdx !== -1;
+    if (isTopLevelCat) {
+      return [{ name: gameDispalyNameFromIdx(skinIdIdx), path: `cats/${id}` }];
+    } else {
+      const item = subCats.firstNotNullOfOrNull((value, i) => {
+        return value.firstNotNullOfOrNull((value) =>
+          value._idRow === id ? { i, value } : undefined
+        );
+      });
+      if (item?.value !== undefined) {
+        const { name, id } = await gameDispalyNameWithCatId(item.i);
+        return [
+          {
+            path: `cats/${id}`,
+            name: name,
+          },
+          {
+            path: `cats/${item.value._idRow!!}`,
+            name: item.value._sName!!,
+          },
+        ];
+      }
+      return [];
     }
+  } catch {
     return [];
   }
 };
@@ -89,17 +93,16 @@ export function useModCrumbState() {
   const location = useLocation();
 
   const skinIds = useStateProducer<number[]>(
-    [],
+    [18140, 22832, 30305, 29524],
     async (update) => {
       const ids = await Promise.all([
-        GenshinApi.skinId(),
-        StarRailApi.skinId(),
-        ZenlessApi.skinId(),
-        WutheringWavesApi.skinId(),
+        GenshinApi.skinId().catch(() => 18140),
+        StarRailApi.skinId().catch(() => 22832),
+        ZenlessApi.skinId().catch(() => 30305),
+        WutheringWavesApi.skinId().catch(() => 29524),
       ]);
       update(ids);
-    },
-    []
+    }
   );
   const subCats = useStateProducer<api.CategoryListResponseItem[][]>(
     [],
@@ -109,7 +112,7 @@ export function useModCrumbState() {
           skinIds.map(async (item): Promise<api.CategoryListResponseItem[]> => {
             return await GbApi.Categories(item);
           })
-        )
+        ).catch(() => [])
       );
     },
     [skinIds]
@@ -134,8 +137,9 @@ export function useModCrumbState() {
         const modPage = await GbApi.ModPage(id);
         crumbs = [
           {
-            name: modPage._aGame?._sName ?? "",
-            path: `cats/${modPage?._aSuperCategory?._idRow}`,
+            name:  modPage._aGame?._sName ?? "",
+            // if the crumb below is a charcter skins category set the top level to the category id
+            path: `cats/${modPage._aCategory?._sName?.includes("Character Skins") ? modPage?._aCategory?._idRow : modPage?._aSuperCategory?._idRow}`,
           },
           {
             name: modPage._aCategory?._sName ?? "",
@@ -147,16 +151,16 @@ export function useModCrumbState() {
           },
         ];
       }
-      update(
-        crumbs ?? [
-          { name: "Genshin Impact", path: `cats/${await GenshinApi.skinId()}` },
-        ]
-      );
+      update(crumbs);
     },
     [location.pathname, subCats]
   );
 
   useEffect(() => {
+    if (location.pathname === "" || location.pathname === undefined) {
+      return;
+    }
+
     try {
       const idx = location.pathname.indexOf("/mods/");
       discoverGamePref.Set(

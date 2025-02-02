@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"flag"
 	"hmm/db"
 	"hmm/pkg/api"
 	"hmm/pkg/core"
@@ -35,18 +36,16 @@ var icon []byte
 //go:embed schema.sql
 var ddl string
 
+var dev = flag.Bool("dev", false, "enable dev mode")
+var prefs = flag.Int("prefs", 0, "set prefs mode 0 - DISK (DEFAULT) 1 - MEMORY")
+
 func main() {
 	// Create an instance of the app structure
-	debug := false
-
-	argsWithoutProg := os.Args[1:]
-	if len(argsWithoutProg) >= 1 {
-		debug = argsWithoutProg[0] == "debug"
-	}
+	flag.Parse()
 
 	ctx := context.Background()
 	var store pref.PrefrenceDb
-	if debug {
+	if (*prefs) == 1 {
 		store = pref.NewMemoryPrefs(context.Background())
 	} else {
 		store = pref.NewRosePrefDb(

@@ -13,12 +13,14 @@ import (
 type App struct {
 	prefs pref.PreferenceStore
 	ctx   context.Context
+	dev   bool
 }
 
 // NewApp creates a new App application struct
 func NewApp(prefs pref.PreferenceStore) *App {
 	return &App{
 		prefs: prefs,
+		dev:   *dev,
 	}
 }
 
@@ -52,6 +54,18 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 func (a *App) shutdown(ctx context.Context) {
 	// Perform your teardown here
 
+}
+
+// shutdown is called at application termination
+func (a *App) DevModeEnabled() bool {
+	// Perform your teardown here
+	return a.dev
+}
+
+// shutdown is called at application termination
+func (a *App) ClosePrefsDB() error {
+	// Perform your teardown here
+	return a.prefs.Close()
 }
 
 func (a *App) GetExclusionPaths() ([]string, error) {

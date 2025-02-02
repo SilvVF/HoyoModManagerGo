@@ -308,7 +308,7 @@ function BreadCrumbList({
       )}
     >
       <BreadcrumbList>
-        {crumbs.map((item, i, arr) => (
+        {(crumbs.isEmpty() ? [topLevelCrumbs[0]] : crumbs).map((item, i, arr) => (
           <BreadCrumbListItem
             crumbs={arr}
             item={item}
