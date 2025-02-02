@@ -27,12 +27,14 @@ type Generator struct {
 	mutex      map[types.Game]*sync.Mutex
 	outputDirs map[types.Game]pref.Preference[string]
 	ignored    pref.Preference[[]string]
+	cleanDir   pref.Preference[bool]
 }
 
 func NewGenerator(
 	db *DbHelper,
 	outputDirs map[types.Game]pref.Preference[string],
 	ignoredDirPref pref.Preference[[]string],
+	cleanExportDir pref.Preference[bool],
 ) *Generator {
 	return &Generator{
 		db: db,
@@ -56,6 +58,7 @@ func NewGenerator(
 		},
 		outputDirs: outputDirs,
 		ignored:    ignoredDirPref,
+		cleanDir:   cleanExportDir,
 	}
 }
 
@@ -164,18 +167,23 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 			}
 
 			parts := strings.SplitN(file, "_", 2)
+
 			log.LogDebug(strings.Join(parts, ","))
 
 			if len(parts) == 2 {
 				enabled := slices.ContainsFunc(selected, areModsSame(parts))
 				if !enabled {
 					log.LogDebug("Removing" + file)
-					err := os.RemoveAll(filepath.Join(outputDir, file))
+					_, err := strconv.Atoi(parts[0])
+					if err != nil && !g.cleanDir.Get() {
+						return
+					}
+					err = os.RemoveAll(filepath.Join(outputDir, file))
 					if err != nil {
 						log.LogError(err.Error())
 					}
 				}
-			} else {
+			} else if g.cleanDir.Get() {
 				log.LogDebug("Removing" + file)
 				err := os.RemoveAll(filepath.Join(outputDir, file))
 				if err != nil {

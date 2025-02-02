@@ -13,6 +13,7 @@ import {
   serverUsernamePref,
   serverPasswordPref,
   serverAuthTypePref,
+  cleanModDirPref,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
@@ -125,6 +126,7 @@ export default function SettingsScreen() {
   const [maxDownloadWorkers, setMaxDownloadWorkers] = usePrefrenceAsState(
     maxDownloadWorkersPref
   );
+  const [cleanModDir, setCleanModDir] = usePrefrenceAsState(cleanModDirPref);
 
   const [dialog, setDialog] = useState<SettingsDialog | undefined>(undefined);
   const [sliderValue, setSliderValue] = useState(maxDownloadWorkers ?? 1);
@@ -139,7 +141,7 @@ export default function SettingsScreen() {
         const split = data[0].file.split("\\");
         let game = split[split.length - 1];
 
-        LogDebug(game)
+        LogDebug(game);
 
         const { chartData, chartConfig } = transformDownloadStatsToChartData(
           data.slice(1, data.length)
@@ -327,6 +329,18 @@ export default function SettingsScreen() {
           className="text-xl font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
         >
           Enable space saver
+        </label>
+      </div>
+      <div className="flex items-center space-x-6 my-6">
+        <Checkbox
+          checked={cleanModDir ?? false}
+          onCheckedChange={(v) => setCleanModDir(v as boolean)}
+        />
+        <label
+          htmlFor="terms"
+          className="text-xl font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Clean mod export directory when generating
         </label>
       </div>
       <h2 className="text-lg font-semibold tracking-tight mt-4">Http server</h2>

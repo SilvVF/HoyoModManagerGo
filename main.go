@@ -104,6 +104,7 @@ func main() {
 		dbHelper,
 		preferenceDirs,
 		appPrefs.IgnoreDirPref.Preference,
+		appPrefs.CleanModExportDirPref.Preference,
 	)
 
 	serverManager := server.NewServerManager(appPrefs, dbHelper, generator)
@@ -177,6 +178,7 @@ func main() {
 			appPrefs.ServerPasswordPref,
 			appPrefs.ServerAuthTypePref,
 			appPrefs.SpaceSaverPref,
+			appPrefs.CleanModExportDirPref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

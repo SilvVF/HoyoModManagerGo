@@ -20,6 +20,7 @@ import * as SpaceSaverPref from "../../wailsjs/go/core/SpaceSaverPref"
 import * as ServerPasswordPref from "../../wailsjs/go/core/ServerPasswordPref"
 import * as ServerUsernamePref from "../../wailsjs/go/core/ServerUsernamePref"
 import * as ServerAuthTypePref from "../../wailsjs/go/core/ServerAuthTypePref"
+import * as CleanModDirPref from "../../wailsjs/go/core/CleanModExportDirPref"
 
 export type GoPref<T extends any> = {
     DefaultValue():Promise<T>;
@@ -56,6 +57,8 @@ const discoverGamePref = DiscoverGamePref as GoPref<string>
 const serverUsernamePref = ServerUsernamePref as GoPref<string>
 const serverPasswordPref = ServerPasswordPref as GoPref<string>
 const serverAuthTypePref = ServerAuthTypePref as GoPref<number>
+
+const cleanModDirPref = CleanModDirPref as GoPref<boolean>
 
 export function usePrefrenceAsStateDefault<T extends any>(defaultValue: T, pref: GoPref<T>): [T, Dispatch<SetStateAction<T | undefined>>] {
 
@@ -138,5 +141,6 @@ export {
     spaceSaverPref,
     serverAuthTypePref,
     serverPasswordPref,
-    serverUsernamePref
+    serverUsernamePref,
+    cleanModDirPref
 }

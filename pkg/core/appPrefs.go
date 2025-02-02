@@ -27,6 +27,7 @@ type AppPrefs struct {
 	ServerUsernamePref     *ServerUsernamePref
 	ServerPasswordPref     *ServerPasswordPref
 	SpaceSaverPref         *SpaceSaverPref
+	CleanModExportDirPref  *CleanModExportDirPref
 }
 
 func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
@@ -95,6 +96,9 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 		&SpaceSaverPref{
 			Preference: store.GetBoolean("space_saver", true),
 		},
+		&CleanModExportDirPref{
+			Preference: store.GetBoolean("clean_mod_dir", false),
+		},
 	}
 }
 
@@ -119,6 +123,7 @@ type ZZZDirPref struct{ pref.Preference[string] }
 type WuwaDirPref struct{ pref.Preference[string] }
 
 type IgnoreDirPref struct{ pref.Preference[[]string] }
+type CleanModExportDirPref struct{ pref.Preference[bool] }
 
 type PlaylistGamePref struct{ pref.Preference[int] }
 type DiscoverGamePref struct{ pref.Preference[string] }
