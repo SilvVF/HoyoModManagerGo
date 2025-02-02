@@ -39,8 +39,10 @@ type PluginError struct {
 type Plugins struct {
 	Plugins []*Plugin
 	err     chan PluginError
+	ctx     context.Context
 }
 
+// https://github.com/PeerDB-io/gluabit32/blob/main/bit32.go#L77
 func bit32bor(ls *lua.LState) int {
 	x := uint32(0)
 	for i, top := 1, ls.GetTop(); i <= top; i += 1 {
@@ -48,6 +50,22 @@ func bit32bor(ls *lua.LState) int {
 	}
 	ls.Push(lua.LNumber(x))
 	return 1
+}
+
+func (p *Plugins) Run() {
+	for {
+
+		if _, ok := <-p.ctx.Done(); ok {
+			break
+		}
+
+		perr := <-p.err
+
+		plugin := perr.plugin
+		err := perr.err
+
+		log.LogErrorf("plugin: %s, err: %e", plugin.path, err)
+	}
 }
 
 func New(exports map[string]lua.LGFunction, ctx context.Context) *Plugins {

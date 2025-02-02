@@ -3,17 +3,21 @@ package main
 import (
 	"context"
 	"hmm/pkg/log"
+	"hmm/pkg/plugin"
 	"hmm/pkg/pref"
 
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	lua "github.com/yuin/gopher-lua"
 )
 
 // App struct
 type App struct {
-	prefs pref.PreferenceStore
-	ctx   context.Context
-	dev   bool
+	prefs          pref.PreferenceStore
+	ctx            context.Context
+	pluginExports  map[string]lua.LGFunction
+	dev            bool
+	pluginsRunning bool
 }
 
 // NewApp creates a new App application struct
@@ -56,15 +60,11 @@ func (a *App) shutdown(ctx context.Context) {
 
 }
 
-// shutdown is called at application termination
 func (a *App) DevModeEnabled() bool {
-	// Perform your teardown here
 	return a.dev
 }
 
-// shutdown is called at application termination
 func (a *App) ClosePrefsDB() error {
-	// Perform your teardown here
 	return a.prefs.Close()
 }
 
@@ -74,4 +74,15 @@ func (a *App) GetExclusionPaths() ([]string, error) {
 
 func (a *App) GetExportDirectory() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{})
+}
+
+func (a *App) LoadPlugins() {
+
+	if a.pluginsRunning {
+		return
+	}
+
+	plugins := plugin.New(a.pluginExports, a.ctx)
+	a.pluginsRunning = true
+	go plugins.Run()
 }
