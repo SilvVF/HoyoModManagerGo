@@ -19,7 +19,7 @@ func TestRosePrefWatchersCanceledOnClose(t *testing.T) {
 	path := filepath.Join(os.TempDir(), "rosedb-temp"+strconv.Itoa(int(nameRand.Int63())))
 	defer os.RemoveAll(path)
 
-	prefDb := NewRosePrefDb(
+	prefDb := NewRoseDbStore(
 		rosedb.Options{
 			DirPath:           path,
 			SegmentSize:       rosedb.DefaultOptions.SegmentSize,
@@ -66,7 +66,7 @@ func TestRosePrefWatchersRemoval(t *testing.T) {
 	path := filepath.Join(os.TempDir(), "rosedb-temp1"+strconv.Itoa(int(nameRand.Int63())))
 	defer os.RemoveAll(path)
 
-	prefDb := NewRosePrefDb(
+	prefDb := NewRoseDbStore(
 		rosedb.Options{
 			DirPath:           path,
 			SegmentSize:       rosedb.DefaultOptions.SegmentSize,
@@ -126,7 +126,7 @@ func TestRosePrefWatchersReceiveCorrectValues(t *testing.T) {
 
 	queueSize := uint64(500)
 
-	prefDb := NewRosePrefDb(
+	prefDb := NewRoseDbStore(
 		rosedb.Options{
 			DirPath:           path,
 			SegmentSize:       rosedb.DefaultOptions.SegmentSize,
@@ -189,7 +189,7 @@ func TestRosePrefWatchersMultipleWatchersForKey(t *testing.T) {
 	path := filepath.Join(os.TempDir(), "rosedb-temp-6"+strconv.Itoa(int(nameRand.Int63())))
 	defer os.RemoveAll(path)
 
-	prefDb := NewRosePrefDb(
+	prefDb := NewRoseDbStore(
 		rosedb.Options{
 			DirPath:           path,
 			SegmentSize:       rosedb.DefaultOptions.SegmentSize,
@@ -240,7 +240,7 @@ func TestRosePrefWatchersMultipleCancelableForKey(t *testing.T) {
 	path := filepath.Join(os.TempDir(), "rosedb-temp-6"+strconv.Itoa(int(nameRand.Int63())))
 	defer os.RemoveAll(path)
 
-	prefDb := NewRosePrefDb(
+	prefDb := NewRoseDbStore(
 		rosedb.Options{
 			DirPath:           path,
 			SegmentSize:       rosedb.DefaultOptions.SegmentSize,

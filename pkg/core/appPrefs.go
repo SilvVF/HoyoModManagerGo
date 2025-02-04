@@ -6,6 +6,7 @@ import (
 )
 
 type AppPrefs struct {
+	pref.PreferenceStore
 	DarkTheme              *DarkThemePref
 	StartScreen            *StartScreenPref
 	GenshinDirPref         *GenshinDirPref
@@ -33,6 +34,7 @@ type AppPrefs struct {
 
 func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 	return &AppPrefs{
+		store,
 		&DarkThemePref{
 			Preference: store.GetString("darktheme", "system"),
 		},

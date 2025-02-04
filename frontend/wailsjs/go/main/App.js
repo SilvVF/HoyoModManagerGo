@@ -18,12 +18,12 @@ export function GetExportDirectory() {
   return window['go']['main']['App']['GetExportDirectory']();
 }
 
-export function GetPlugins() {
-  return window['go']['main']['App']['GetPlugins']();
+export function GetPluginsState() {
+  return window['go']['main']['App']['GetPluginsState']();
 }
 
-export function LoadPlugins() {
-  return window['go']['main']['App']['LoadPlugins']();
+export function StartPlugins() {
+  return window['go']['main']['App']['StartPlugins']();
 }
 
 export function StopPlugins() {

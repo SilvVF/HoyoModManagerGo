@@ -13,6 +13,7 @@ import { SidebarInset, SidebarProvider } from "./components/ui/sidebar";
 import { Button } from "./components/ui/button";
 import { ClosePrefsDB, DevModeEnabled } from "wailsjs/go/main/App";
 import { ExpandIcon } from "lucide-react";
+import { usePluginStore } from "./state/pluginStore";
 
 function App() {
   const navigate = useNavigate();
@@ -32,13 +33,19 @@ function App() {
   const refreshAllPlaylists = usePlaylistStore((state) => state.init);
   const deletePlaylist = usePlaylistStore((state) => state.delete);
 
+  const listenToPluginEvents = usePluginStore((state) => state.listen);
+  useEffect(() => {
+    const cancelFunc = listenToPluginEvents()
+
+    return cancelFunc;
+  }, [])
+
+
   const listen = useServerStore((state) => state.listen);
   useEffect(() => {
     const cancelFunc = listen();
 
-    return () => {
-      cancelFunc();
-    };
+    return cancelFunc;
   }, []);
 
   useEffect(() => {

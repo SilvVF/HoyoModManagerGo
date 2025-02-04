@@ -12,7 +12,8 @@ import {
   WutheringWavesApi,
   ZenlessApi,
 } from "@/data/dataapi";
-import { cn, getEnumValues } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { getEnumValues } from "@/lib/tsutils";
 import { Outlet, useNavigate } from "react-router-dom";
 import { createContext, useMemo, useState } from "react";
 
@@ -44,6 +45,7 @@ function getEnumName<T>(enumType: T, value: T[keyof T]): string | undefined {
     (key) => enumType[key] === value
   );
 }
+
 const nameFilterName = (nf: NameFilter) => {
   switch (nf) {
     case NameFilter.None:
@@ -308,15 +310,17 @@ function BreadCrumbList({
       )}
     >
       <BreadcrumbList>
-        {(crumbs.isEmpty() ? [topLevelCrumbs[0]] : crumbs).map((item, i, arr) => (
-          <BreadCrumbListItem
-            crumbs={arr}
-            item={item}
-            i={i}
-            topLevelCrumbs={topLevelCrumbs}
-            onSelected={onCrumbSelected}
-          />
-        ))}
+        {(crumbs.isEmpty() ? [topLevelCrumbs[0]] : crumbs).map(
+          (item, i, arr) => (
+            <BreadCrumbListItem
+              crumbs={arr}
+              item={item}
+              i={i}
+              topLevelCrumbs={topLevelCrumbs}
+              onSelected={onCrumbSelected}
+            />
+          )
+        )}
       </BreadcrumbList>
     </Breadcrumb>
   );
@@ -357,7 +361,7 @@ function BreadCrumbListItem({
       <div className="flex flex-row items-center">
         <BreadcrumbItem className="font-semibold text-foreground hover:underline text-base p-2">
           <DropdownMenu>
-            <text onClick={() => onSelected(item.path)} >{item.name}</text>
+            <text onClick={() => onSelected(item.path)}>{item.name}</text>
             <DropdownMenuTrigger className="flex items-center gap-1">
               <ChevronDownIcon />
             </DropdownMenuTrigger>

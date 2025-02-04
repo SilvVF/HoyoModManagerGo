@@ -9,23 +9,23 @@ import (
 	"github.com/rosedblabs/rosedb/v2"
 )
 
-type RoseDbPrefs struct {
+type RoseDbStore struct {
 	*rosedb.DB
 	closed   *atomic.Bool
 	watchers map[string][]chan struct{}
 	mutex    sync.RWMutex
 }
 
-func (r *RoseDbPrefs) Close() error {
+func (r *RoseDbStore) Close() error {
 	r.closed.Swap(true)
 	return r.DB.Close()
 }
 
-func (r *RoseDbPrefs) Closed() bool {
+func (r *RoseDbStore) Closed() bool {
 	return r.closed.Load()
 }
 
-func (r *RoseDbPrefs) CreateWatcher(key []byte) <-chan struct{} {
+func (r *RoseDbStore) CreateWatcher(key []byte) <-chan struct{} {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -35,7 +35,7 @@ func (r *RoseDbPrefs) CreateWatcher(key []byte) <-chan struct{} {
 	return watcher
 }
 
-func (r *RoseDbPrefs) RemoveWatcher(key []byte, watcher <-chan struct{}) {
+func (r *RoseDbStore) RemoveWatcher(key []byte, watcher <-chan struct{}) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -55,7 +55,7 @@ func (r *RoseDbPrefs) RemoveWatcher(key []byte, watcher <-chan struct{}) {
 	}
 }
 
-func NewRosePrefDb(options rosedb.Options) PrefrenceDb {
+func NewRoseDbStore(options rosedb.Options) PrefrenceDb {
 
 	assert.Assert(options.WatchQueueSize > 0, "Key watch will not work if watch queue size is <= 0")
 
@@ -63,7 +63,7 @@ func NewRosePrefDb(options rosedb.Options) PrefrenceDb {
 	if err != nil {
 		panic(err)
 	}
-	db := &RoseDbPrefs{
+	db := &RoseDbStore{
 		DB:       rose,
 		watchers: map[string][]chan struct{}{},
 		mutex:    sync.RWMutex{},

@@ -46,7 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChartItem, useStatsState } from "@/state/useStatsState";
-import { usePluginStore } from "@/state/pluginStore";
+import { LPlugin, usePluginStore } from "@/state/pluginStore";
 
 type SettingsDialog = "edit_port" | "edit_password" | "edit_username";
 const AuthType: { [keyof: number]: string } = {
@@ -77,10 +77,11 @@ export default function SettingsScreen() {
   const enabledPlugins = usePluginStore(
     useShallow((state) => state.enabledFiles)
   );
-  const foundPlugins = usePluginStore(useShallow((state) => state.pluginFiles));
+  const plugins = usePluginStore(useShallow((state) => state.plugins));
   const initPlugins = usePluginStore((state) => state.init);
   const enablePlugin = usePluginStore((state) => state.enablePlugin);
   const disablePlugin = usePluginStore((state) => state.disablePlugin);
+  
 
   const stats = useStatsState(undefined);
 
@@ -235,7 +236,7 @@ export default function SettingsScreen() {
         className="mt-4"
         enablePlugin={enablePlugin}
         disablePlugin={disablePlugin}
-        available={foundPlugins}
+        available={plugins}
         enabled={enabledPlugins}
       />
       <h2 className="text-lg font-semibold tracking-tight mt-4">
@@ -481,7 +482,7 @@ function ExclusionDirSettingsItem({
 
 interface PluginSettingsProps extends React.HTMLAttributes<HTMLDivElement> {
   enabled: string[];
-  available: string[];
+  available: LPlugin[];
   enablePlugin: (path: string) => void;
   disablePlugin: (path: string) => void;
 }
@@ -497,20 +498,23 @@ function PluginSettingsItem({
     <div className={cn("", className)}>
       <Card>
         <div className="space-y-1 p-2 overflow-y-auto max-h-[300px]">
-          {available?.map((path) => {
+          {available?.map((plugin) => {
             return (
               <div
-                key={path}
+                key={plugin.path}
                 className="flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground"
               >
-                <div className="text-zinc-500  m-2">{path}</div>
+                <div className="flex flex-col">
+                  <text className="text-zinc-500  m-2">{plugin.path}</text>
+                  <text className="text-zinc-500  m-2">{"LastEvent: "+plugin.lastEvent}</text>
+                </div>
                 <Checkbox
-                  checked={enabled.includes(path)}
+                  checked={enabled.includes(plugin.path)}
                   onCheckedChange={(v) => {
                     if (v) {
-                      enablePlugin(path);
+                      enablePlugin(plugin.path);
                     } else {
-                      disablePlugin(path);
+                      disablePlugin(plugin.path);
                     }
                   }}
                 />

@@ -46,9 +46,9 @@ func main() {
 	ctx := context.Background()
 	var store pref.PrefrenceDb
 	if (*prefs) == 1 {
-		store = pref.NewMemoryPrefs(context.Background())
+		store = pref.NewInMemoryStore(context.Background())
 	} else {
-		store = pref.NewRosePrefDb(
+		store = pref.NewRoseDbStore(
 			rosedb.Options{
 				DirPath:           filepath.Join(util.GetCacheDir(), "/rosedb_basic"),
 				SegmentSize:       rosedb.DefaultOptions.SegmentSize,
@@ -59,7 +59,8 @@ func main() {
 			},
 		)
 	}
-	app := NewApp(pref.NewPrefs(store))
+	appPrefs := core.NewAppPrefs(pref.NewPrefs(store))
+	app := NewApp(appPrefs)
 
 	genshinApi := api.ApiList[types.Genshin]
 	starRailApi := api.ApiList[types.StarRail]
@@ -85,7 +86,6 @@ func main() {
 	}
 
 	queries := db.New(dbSql)
-	appPrefs := core.NewAppPrefs(app.prefs)
 
 	preferenceDirs := map[types.Game]pref.Preference[string]{
 		types.Genshin:  appPrefs.GenshinDirPref.Preference,

@@ -14,7 +14,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { formatBytes } from "@/lib/utils"
+import { formatBytes } from "@/lib/tsutils"
 
 export function ModSizeChart(
     {title, config, total, data}: {

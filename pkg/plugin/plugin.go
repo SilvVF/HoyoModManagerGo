@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"hmm/pkg/log"
+	"hmm/pkg/pref"
 	"hmm/pkg/util"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	lua "github.com/yuin/gopher-lua"
 )
@@ -36,17 +38,21 @@ type Plugin struct {
 	lastEvent PluginEvent
 	eventCh   chan PluginEvent
 	flags     int
+	incEvent  chan int
+	mutex     sync.Mutex
 	Done      chan struct{}
 }
 
 type PluginEvent struct {
-	Etype  int
-	Data   interface{}
-	Plugin *Plugin
+	Etype int
+	Data  interface{}
+	Path  string
 }
 
 type Plugins struct {
 	Plugins  []*Plugin
+	enabled  pref.Preference[[]string]
+	mutex    sync.Mutex
 	event    chan PluginEvent
 	ctx      context.Context
 	cancel   context.CancelFunc
@@ -68,14 +74,58 @@ func (p *Plugins) Stop() {
 	<-p.ctx.Done()
 }
 
+func (p *Plugins) GetState() []struct {
+	LastEvent PluginEvent
+	Flags     int
+} {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	state := make([]struct {
+		LastEvent PluginEvent
+		Flags     int
+	}, len(p.Plugins))
+	for i, plug := range p.Plugins {
+		state[i] = struct {
+			LastEvent PluginEvent
+			Flags     int
+		}{
+			LastEvent: plug.LastEvent(),
+			Flags:     plug.flags,
+		}
+	}
+
+	return state
+}
+
+func (p *Plugin) LastEvent() PluginEvent {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return p.lastEvent
+}
+
+func (p *Plugins) Broadcast(event int) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	for _, plug := range p.Plugins {
+		plug.incEvent <- event
+	}
+}
+
 func (p *Plugins) Run(onEvent func(pe PluginEvent)) {
+	watcher, cancel := p.enabled.Watch()
 	for {
 		select {
+		case enabled := <-watcher:
+			p.StartAllPlugins(enabled)
 		case <-p.ctx.Done():
+			cancel()
 			return
 		case pe := <-p.event:
 			onEvent(pe)
-			log.LogDebugf("plugin: %s, event: %d, data: %v", pe.Plugin.Path, pe.Etype, pe.Data)
+			log.LogDebugf("plugin: %s, event: %d, data: %v", pe.Path, pe.Etype, pe.Data)
 		}
 	}
 }
@@ -108,15 +158,21 @@ func IndexPlugins() ([]string, error) {
 	return files, err
 }
 
-func New(exports map[string]lua.LGFunction, ctx context.Context) *Plugins {
+func New(
+	exports map[string]lua.LGFunction,
+	ctx context.Context,
+	enabled pref.Preference[[]string],
+) *Plugins {
 
 	pluginsCtx, cancel := context.WithCancel(ctx)
 	eventCh := make(chan PluginEvent)
 	ps := &Plugins{
 		event:   eventCh,
+		enabled: enabled,
 		Plugins: []*Plugin{},
 		ctx:     pluginsCtx,
 		cancel:  cancel,
+		mutex:   sync.Mutex{},
 	}
 	Lopts := lua.Options{}
 	ps.moduleFn = func(L *lua.LState) *lua.LTable {
@@ -136,11 +192,14 @@ func New(exports map[string]lua.LGFunction, ctx context.Context) *Plugins {
 	}
 
 	for _, file := range files {
+		path := filepath.Join(util.GetPluginDir(), file)
 		plug := &Plugin{
 			L:         lua.NewState(Lopts),
-			Path:      filepath.Join(util.GetPluginDir(), file),
-			lastEvent: PluginEvent{Etype: EVENT_IDLE, Plugin: nil},
+			eventCh:   eventCh,
+			Path:      path,
+			lastEvent: PluginEvent{Etype: EVENT_IDLE, Path: path},
 			Done:      make(chan struct{}),
+			incEvent:  make(chan int),
 		}
 		ps.Plugins = append(ps.Plugins, plug)
 	}
@@ -148,28 +207,50 @@ func New(exports map[string]lua.LGFunction, ctx context.Context) *Plugins {
 	return ps
 }
 
-func (p *Plugins) StartAllPlugins() {
+func (p *Plugins) StartAllPlugins(enabled []string) {
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	log.LogDebugf("STARTING enabled: %s", strings.Join(enabled, ", "))
 	for _, plug := range p.Plugins {
+		if !slices.Contains(enabled, filepath.Base(plug.Path)) {
+			log.LogDebugf("plugin: %s not enabled, base: %s", plug.Path, filepath.Base(plug.Path))
+			continue
+		}
+
+		log.LogDebugf("STARTING plugin: %s", plug.Path)
 		go plug.Run(p.ctx, p.moduleFn(plug.L))
 	}
 }
 
-func (p *Plugins) StartPlugin(plug *Plugin) {
-	go plug.Run(p.ctx, p.moduleFn(plug.L))
-}
-
 func (p *Plugin) sendEvent(etype int, data ...interface{}) {
-	pe := PluginEvent{Etype: etype, Data: data, Plugin: p}
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	log.LogDebugf("Sending event %d", etype)
+
+	pe := PluginEvent{Etype: etype, Data: data, Path: p.Path}
 	p.lastEvent = pe
 	p.eventCh <- pe
 }
 
 func (p *Plugin) Reset() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
-	if _, ok := <-p.Done; ok {
+	select {
+	case _, ok := <-p.Done:
+		if ok {
+			log.LogDebug("Plugin Doesn't need to be reset")
+			return
+		}
+	default:
+		log.LogDebug("Plugin Doesn't need to be reset")
 		return
 	}
 
+	log.LogDebug("Plugin reseting")
 	p.L = lua.NewState(p.L.Options)
 	p.lastEvent = PluginEvent{Etype: EVENT_IDLE}
 	p.Done = make(chan struct{})
@@ -182,10 +263,9 @@ func (p *Plugin) Run(ctx context.Context, Module *lua.LTable) {
 
 	cctx, cancel := context.WithCancel(ctx)
 	defer func() {
-		close(p.Done)
 		cancel()
+		close(p.Done)
 		p.L.Close()
-		p.sendEvent(EVENT_STOPPED)
 	}()
 
 	p.L.PreloadModule("pluginmodule", func(l *lua.LState) int {
@@ -223,9 +303,12 @@ func (p *Plugin) Run(ctx context.Context, Module *lua.LTable) {
 
 	for {
 		select {
+		case ie := <-p.incEvent:
+			log.LogDebugf("req: %d", ie)
 		case <-p.Done:
 			cancel()
 		case <-cctx.Done():
+			p.sendEvent(EVENT_STOPPED)
 			return
 		}
 	}

@@ -1,4 +1,4 @@
-import { formatBytes } from "@/lib/utils";
+import { formatBytes } from "@/lib/tsutils";
 import { useDownloadStore, Download, DownloadProgress } from "@/state/downloadStore";
 import { ChevronUpIcon, CheckCircle2Icon, RefreshCwIcon, XIcon } from "lucide-react";
 import { useShallow } from "zustand/shallow";

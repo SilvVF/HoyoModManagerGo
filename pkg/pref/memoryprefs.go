@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 )
 
-type MemoryPrefs struct {
+type MemoryStore struct {
 	cancel    context.CancelFunc
 	closed    *atomic.Bool
 	watchers  map[string][]chan struct{}
@@ -18,12 +18,12 @@ type MemoryPrefs struct {
 	mutex     sync.RWMutex
 }
 
-func NewMemoryPrefs(ctx context.Context) PrefrenceDb {
+func NewInMemoryStore(ctx context.Context) PrefrenceDb {
 
 	context, cancel := context.WithCancel(ctx)
 	events := make(chan []byte, 100)
 
-	db := &MemoryPrefs{
+	db := &MemoryStore{
 		cancel:    cancel,
 		prefs:     map[string][]byte{},
 		watchers:  map[string][]chan struct{}{},
@@ -72,11 +72,11 @@ func NewMemoryPrefs(ctx context.Context) PrefrenceDb {
 	return db
 }
 
-func (mp *MemoryPrefs) Closed() bool {
+func (mp *MemoryStore) Closed() bool {
 	return mp.closed.Load()
 }
 
-func (mp *MemoryPrefs) Delete(key []byte) error {
+func (mp *MemoryStore) Delete(key []byte) error {
 	mp.prefMutex.Lock()
 	defer mp.prefMutex.Unlock()
 
@@ -85,7 +85,7 @@ func (mp *MemoryPrefs) Delete(key []byte) error {
 	return nil
 }
 
-func (mp *MemoryPrefs) Exist(key []byte) (bool, error) {
+func (mp *MemoryStore) Exist(key []byte) (bool, error) {
 	mp.prefMutex.Lock()
 	defer mp.prefMutex.Unlock()
 
@@ -94,7 +94,7 @@ func (mp *MemoryPrefs) Exist(key []byte) (bool, error) {
 	return ok, nil
 }
 
-func (mp *MemoryPrefs) Get(key []byte) ([]byte, error) {
+func (mp *MemoryStore) Get(key []byte) ([]byte, error) {
 	mp.prefMutex.Lock()
 	defer mp.prefMutex.Unlock()
 
@@ -106,7 +106,7 @@ func (mp *MemoryPrefs) Get(key []byte) ([]byte, error) {
 	return value, nil
 }
 
-func (mp *MemoryPrefs) Put(key, value []byte) error {
+func (mp *MemoryStore) Put(key, value []byte) error {
 	mp.prefMutex.Lock()
 	defer mp.prefMutex.Unlock()
 
@@ -116,13 +116,13 @@ func (mp *MemoryPrefs) Put(key, value []byte) error {
 	return nil
 }
 
-func (mp *MemoryPrefs) Close() error {
+func (mp *MemoryStore) Close() error {
 	mp.closed.Swap(true)
 	mp.cancel()
 	return nil
 }
 
-func (mp *MemoryPrefs) CreateWatcher(key []byte) <-chan struct{} {
+func (mp *MemoryStore) CreateWatcher(key []byte) <-chan struct{} {
 	mp.mutex.Lock()
 	defer mp.mutex.Unlock()
 
@@ -132,7 +132,7 @@ func (mp *MemoryPrefs) CreateWatcher(key []byte) <-chan struct{} {
 	return watcher
 }
 
-func (mp *MemoryPrefs) RemoveWatcher(key []byte, watcher <-chan struct{}) {
+func (mp *MemoryStore) RemoveWatcher(key []byte, watcher <-chan struct{}) {
 	mp.mutex.Lock()
 	defer mp.mutex.Unlock()
 
