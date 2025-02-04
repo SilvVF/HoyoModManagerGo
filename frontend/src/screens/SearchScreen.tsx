@@ -21,7 +21,7 @@ import {
 } from "@/components/CharacterInfoCard";
 import { NameDialog } from "./GameScreen";
 import { useMemo, useState } from "react";
-import { Pair } from "@/lib/utils";
+import { type Pair } from "@/lib/tsutils";
 import { Delete, DeleteTexture } from "wailsjs/go/core/Downloader";
 import { Separator } from "@/components/ui/separator";
 import { Dialog } from "@/components/ui/dialog";

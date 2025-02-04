@@ -20,7 +20,8 @@ import {
   GetExclusionPaths,
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
-import { cn, range } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { range } from "@/lib/tsutils";
 import { Slider } from "@/components/ui/slider";
 import { useEffect, useMemo, useState } from "react";
 import {

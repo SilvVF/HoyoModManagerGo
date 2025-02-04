@@ -12,3 +12,5 @@ export function GetExportDirectory():Promise<string>;
 export function GetPlugins():Promise<Array<string>>;
 
 export function LoadPlugins():Promise<void>;
+
+export function StopPlugins():Promise<void>;

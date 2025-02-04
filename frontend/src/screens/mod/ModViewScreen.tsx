@@ -1,4 +1,5 @@
-import { cn, getRelativeTimeString, useStateProducer } from "@/lib/utils";
+import { cn, useStateProducer } from "@/lib/utils";
+import { getRelativeTimeString } from "@/lib/tsutils";
 import * as GbApi from "../../../wailsjs/go/api/GbApi";
 import { api, types } from "../../../wailsjs/go/models";
 import { useParams } from "react-router-dom";

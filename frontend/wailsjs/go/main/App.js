@@ -25,3 +25,7 @@ export function GetPlugins() {
 export function LoadPlugins() {
   return window['go']['main']['App']['LoadPlugins']();
 }
+
+export function StopPlugins() {
+  return window['go']['main']['App']['StopPlugins']();
+}

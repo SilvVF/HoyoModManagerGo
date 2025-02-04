@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { DataApi, Game } from "../data/dataapi";
 import { syncCharacters, SyncType } from "../data/sync";
-import { cn, Pair, useStateProducer } from "../lib/utils";
+import { cn, useStateProducer } from "../lib/utils";
+import { type Pair } from "@/lib/tsutils";
 import { types } from "wailsjs/go/models";
 import { Reload } from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
