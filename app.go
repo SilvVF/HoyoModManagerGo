@@ -11,13 +11,25 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
+const (
+	EVENT_PLUGINS = "plugins_event"
+
+	EVENT_PLUGINS_STARTED = "plugins_started"
+	EVENT_PLUGINS_STOPPED = "plugins_stopped"
+
+	EVENT_PLUGIN_STARTED = "plugin_started"
+	EVENT_PLUGIN_ERROR   = "plugin_error"
+	EVENT_PLUGIN_INFO    = "plugin_info"
+	EVENT_PLUGIN_STOPPED = "plugin_stopped"
+)
+
 // App struct
 type App struct {
-	prefs          pref.PreferenceStore
-	ctx            context.Context
-	pluginExports  map[string]lua.LGFunction
-	dev            bool
-	pluginsRunning bool
+	prefs         pref.PreferenceStore
+	ctx           context.Context
+	dev           bool
+	pluginExports map[string]lua.LGFunction
+	plugins       *plugin.Plugins
 }
 
 // NewApp creates a new App application struct
@@ -80,13 +92,39 @@ func (a *App) GetPlugins() ([]string, error) {
 	return plugin.IndexPlugins()
 }
 
+func (a *App) emitPluginEvent(event string, data ...interface{}) {
+	runtime.EventsEmit(
+		a.ctx,
+		EVENT_PLUGINS,
+		event,
+		data,
+	)
+}
+
 func (a *App) LoadPlugins() {
 
-	if a.pluginsRunning {
+	if a.plugins != nil {
 		return
 	}
 
-	plugins := plugin.New(a.pluginExports, a.ctx)
-	a.pluginsRunning = true
-	go plugins.Run()
+	a.plugins = plugin.New(a.pluginExports, a.ctx)
+	a.emitPluginEvent(EVENT_PLUGINS_STARTED)
+	go a.plugins.Run(func(pe plugin.PluginEvent) {
+		switch pe.Etype {
+		case plugin.EVENT_ERROR:
+			a.emitPluginEvent(EVENT_PLUGIN_ERROR, pe.Plugin.Path, pe.Data)
+		case plugin.EVENT_INFO:
+			a.emitPluginEvent(EVENT_PLUGIN_INFO, pe.Plugin.Path, pe.Data)
+		case plugin.EVENT_STOPPED:
+			a.emitPluginEvent(EVENT_PLUGIN_STOPPED, pe.Plugin.Path, pe.Data)
+		}
+	})
+}
+
+func (a *App) StopPlugins() {
+	if a.plugins != nil {
+		return
+	}
+	a.plugins.Stop()
+	a.emitPluginEvent(EVENT_PLUGINS_STOPPED)
 }

@@ -1,6 +1,7 @@
 import { pluginsPref } from "@/data/prefs";
+import { CancelFn } from "@/lib/tsutils";
 import { GetPlugins } from "wailsjs/go/main/App";
-import { LogDebug, LogPrint } from "wailsjs/runtime/runtime";
+import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";
 import { create } from "zustand";
 
 // type Plugin = {
@@ -11,14 +12,39 @@ import { create } from "zustand";
 export interface PluginState {
   pluginFiles: string[];
   enabledFiles: string[];
+  listen: () => CancelFn
   init: () => Promise<void>;
   enablePlugin: (path: string) => Promise<void>;
   disablePlugin: (path: string) => Promise<void>;
 }
 
+type PEvent = "plugins_started" | "plugins_stopped" | "plugin_error" | "plugin_info" | "plugin_stopped"
+
+type PluginEvent = {
+  event: PEvent
+  data: any
+}
+
+function subscribeToPluginUpdates(): () => void {
+
+  const cancel = EventsOn("plugins_event", (data) => {
+      let pluginEvent: PluginEvent
+      try {
+        pluginEvent = data as PluginEvent
+      } catch {
+        return
+      }
+
+      LogDebug(pluginEvent.data.toString())
+  })
+
+  return cancel
+}
+
 export const usePluginStore = create<PluginState>((set, get) => ({
   pluginFiles: [],
   enabledFiles: [],
+  listen: subscribeToPluginUpdates,
   init: async () => {
     GetPlugins()
       .then((paths) => set(({ pluginFiles: paths ?? [] })))

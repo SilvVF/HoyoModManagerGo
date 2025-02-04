@@ -1,11 +1,12 @@
 import { EventsOn } from "wailsjs/runtime/runtime";
 import { create } from "zustand";
 import * as ServerManager from "wailsjs/go/server/ServerManager"
+import { CancelFn } from "@/lib/tsutils";
 
 interface ServerState {
     running: boolean,
     addr: string,
-    listen: () => (() => void),
+    listen: () => CancelFn,
     shutdown: () => void,
     start: () => void,
     restart: () => void

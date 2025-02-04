@@ -8,15 +8,22 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 
 	lua "github.com/yuin/gopher-lua"
 )
 
 const (
-	FEATURE_CATEGORY = 1 << 0
-	FEATURE_BROWSE   = 1 << 1
+	FEATURE_TAB_APP      = 1 << 0
+	FEATURE_TAB_DISCOVER = 1 << 1
+	FEATURE_TAB_LIBRARY  = 1 << 2
+
+	EVENT_IDLE    = 0
+	EVENT_STARTED = 1
+	EVENT_ERROR   = 2
+	EVENT_STOPPED = 3
+	EVENT_FAILED  = 4
+	EVENT_INFO    = 5
 
 	FEATURE_FLAGS_FN = "Feature_flags"
 )
@@ -24,22 +31,26 @@ const (
 var ErrBadFlag = errors.New("expected to receive an unsigned int for feature flags")
 
 type Plugin struct {
-	L     *lua.LState
-	path  string
-	err   chan error
-	flags int
-	Done  chan struct{}
+	L         *lua.LState
+	Path      string
+	lastEvent PluginEvent
+	eventCh   chan PluginEvent
+	flags     int
+	Done      chan struct{}
 }
 
-type PluginError struct {
-	err    error
-	plugin *Plugin
+type PluginEvent struct {
+	Etype  int
+	Data   interface{}
+	Plugin *Plugin
 }
 
 type Plugins struct {
-	Plugins []*Plugin
-	err     chan PluginError
-	ctx     context.Context
+	Plugins  []*Plugin
+	event    chan PluginEvent
+	ctx      context.Context
+	cancel   context.CancelFunc
+	moduleFn func(L *lua.LState) *lua.LTable
 }
 
 // https://github.com/PeerDB-io/gluabit32/blob/main/bit32.go#L77
@@ -52,19 +63,20 @@ func bit32bor(ls *lua.LState) int {
 	return 1
 }
 
-func (p *Plugins) Run() {
+func (p *Plugins) Stop() {
+	p.cancel()
+	<-p.ctx.Done()
+}
+
+func (p *Plugins) Run(onEvent func(pe PluginEvent)) {
 	for {
-
-		if _, ok := <-p.ctx.Done(); ok {
-			break
+		select {
+		case <-p.ctx.Done():
+			return
+		case pe := <-p.event:
+			onEvent(pe)
+			log.LogDebugf("plugin: %s, event: %d, data: %v", pe.Plugin.Path, pe.Etype, pe.Data)
 		}
-
-		perr := <-p.err
-
-		plugin := perr.plugin
-		err := perr.err
-
-		log.LogErrorf("plugin: %s, err: %e", plugin.path, err)
 	}
 }
 
@@ -98,19 +110,23 @@ func IndexPlugins() ([]string, error) {
 
 func New(exports map[string]lua.LGFunction, ctx context.Context) *Plugins {
 
-	errCh := make(chan PluginError)
+	pluginsCtx, cancel := context.WithCancel(ctx)
+	eventCh := make(chan PluginEvent)
 	ps := &Plugins{
-		err:     errCh,
+		event:   eventCh,
 		Plugins: []*Plugin{},
+		ctx:     pluginsCtx,
+		cancel:  cancel,
 	}
 	Lopts := lua.Options{}
-	Loader := func(L *lua.LState) int {
+	ps.moduleFn = func(L *lua.LState) *lua.LTable {
 		exports["bor"] = bit32bor
 		module := L.SetFuncs(L.NewTable(), exports)
-		L.SetField(module, "FEATURE_CATEGORY", lua.LNumber(FEATURE_CATEGORY))
-		L.SetField(module, "FEATURE_BROWSE", lua.LNumber(FEATURE_BROWSE))
-		L.Push(module)
-		return 1
+		L.SetField(module, "FEATURE_TAB_APP", lua.LNumber(FEATURE_TAB_APP))
+		L.SetField(module, "FEATURE_TAB_DISCOVER", lua.LNumber(FEATURE_TAB_DISCOVER))
+		L.SetField(module, "FEATURE_TAB_LIBRARY", lua.LNumber(FEATURE_TAB_LIBRARY))
+
+		return module
 	}
 
 	files, err := IndexPlugins()
@@ -121,47 +137,98 @@ func New(exports map[string]lua.LGFunction, ctx context.Context) *Plugins {
 
 	for _, file := range files {
 		plug := &Plugin{
-			L:    lua.NewState(Lopts),
-			path: filepath.Join(util.GetPluginDir(), file),
-			err:  make(chan error),
-			Done: make(chan struct{}),
+			L:         lua.NewState(Lopts),
+			Path:      filepath.Join(util.GetPluginDir(), file),
+			lastEvent: PluginEvent{Etype: EVENT_IDLE, Plugin: nil},
+			Done:      make(chan struct{}),
 		}
-
-		ctx, cancel := context.WithCancel(ctx)
-		go func() {
-			for {
-				select {
-				case <-plug.Done:
-					cancel()
-				case err := <-plug.err:
-					errCh <- PluginError{plugin: plug, err: err}
-				case <-ctx.Done():
-					plug.L.Close()
-					return
-				}
-			}
-		}()
-		plug.L.PreloadModule("pluginmodule", Loader)
-
-		err := plug.L.DoFile(plug.path)
-		if err != nil {
-			log.LogError("failed to do file" + err.Error())
-			plug.Done <- struct{}{}
-			continue
-		}
-
-		flags, err := getFeatureFlags(plug)
-		if err != nil {
-			log.LogError("failed to get flags" + err.Error())
-			plug.Done <- struct{}{}
-			continue
-		}
-
-		plug.flags = flags
 		ps.Plugins = append(ps.Plugins, plug)
 	}
 
 	return ps
+}
+
+func (p *Plugins) StartAllPlugins() {
+	for _, plug := range p.Plugins {
+		go plug.Run(p.ctx, p.moduleFn(plug.L))
+	}
+}
+
+func (p *Plugins) StartPlugin(plug *Plugin) {
+	go plug.Run(p.ctx, p.moduleFn(plug.L))
+}
+
+func (p *Plugin) sendEvent(etype int, data ...interface{}) {
+	pe := PluginEvent{Etype: etype, Data: data, Plugin: p}
+	p.lastEvent = pe
+	p.eventCh <- pe
+}
+
+func (p *Plugin) Reset() {
+
+	if _, ok := <-p.Done; ok {
+		return
+	}
+
+	p.L = lua.NewState(p.L.Options)
+	p.lastEvent = PluginEvent{Etype: EVENT_IDLE}
+	p.Done = make(chan struct{})
+	p.flags = 0
+}
+
+func (p *Plugin) Run(ctx context.Context, Module *lua.LTable) {
+
+	p.Reset()
+
+	cctx, cancel := context.WithCancel(ctx)
+	defer func() {
+		close(p.Done)
+		cancel()
+		p.L.Close()
+		p.sendEvent(EVENT_STOPPED)
+	}()
+
+	p.L.PreloadModule("pluginmodule", func(l *lua.LState) int {
+		p.L.SetFuncs(Module, map[string]lua.LGFunction{
+			"emit_error": func(ls *lua.LState) int {
+				p.sendEvent(EVENT_ERROR, errors.New(ls.CheckString(-1)))
+				ls.Pop(1)
+				return 1
+			},
+			"emit_info": func(ls *lua.LState) int {
+				p.sendEvent(EVENT_INFO, ls.CheckString(-1))
+				ls.Pop(1)
+				return 1
+			},
+		})
+		p.L.Push(Module)
+		return 1
+	})
+
+	err := p.L.DoFile(p.Path)
+	if err != nil {
+		p.sendEvent(EVENT_FAILED, err)
+		log.LogError("failed to do file" + err.Error())
+		return
+	}
+
+	flags, err := getFeatureFlags(p)
+	if err != nil {
+		p.sendEvent(EVENT_FAILED, err)
+		log.LogError("failed to get flags" + err.Error())
+		return
+	}
+	p.flags = flags
+	p.sendEvent(EVENT_STARTED)
+
+	for {
+		select {
+		case <-p.Done:
+			cancel()
+		case <-cctx.Done():
+			return
+		}
+	}
 }
 
 func getFeatureFlags(p *Plugin) (int, error) {
@@ -178,16 +245,12 @@ func getFeatureFlags(p *Plugin) (int, error) {
 		return 0, err
 	}
 
-	ret := L.Get(-1)
+	v := L.Get(-1)
 	L.Pop(1)
 
-	if ret.Type() != lua.LTNumber {
+	if lv, ok := v.(lua.LNumber); !ok {
 		return 0, ErrBadFlag
+	} else {
+		return int(lv), nil
 	}
-
-	flags, err := strconv.Atoi(ret.String())
-	if err != nil {
-		return 0, ErrBadFlag
-	}
-	return flags, nil
 }

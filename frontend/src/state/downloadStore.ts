@@ -1,6 +1,7 @@
 import { EventsOn, LogDebug, LogPrint } from "../../wailsjs/runtime/runtime";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import { create } from "zustand";
+import { CancelFn } from "@/lib/tsutils";
 
 export type DownloadProgress = {
   total: number;
@@ -24,7 +25,7 @@ export type DownloadState = {
     running: number,
     expanded: boolean,
     remove: (key: string) => void,
-    subscribe: () => () => void,
+    subscribe: () => CancelFn,
     updateQueue: () => Promise<void>,
     retry: (key: string) => Promise<void>,
     toggleExpanded: () => void, 

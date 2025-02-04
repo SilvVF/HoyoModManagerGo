@@ -1,4 +1,5 @@
 ---@class PluginModule
----@field FEATURE_CATEGORY number
----@field FEATURE_BROWSE number
+---@field FEATURE_TAB_APP number
+---@field FEATURE_TAB_DISCOVER number
+---@field FEATURE_TAB_LIBRARY number
 ---@field bor function(args: ...number): number
