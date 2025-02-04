@@ -53,7 +53,7 @@ npx shadcn-ui@latest add [component]
 ## Live Development
 
 To run in live development mode, run `wails dev` in the project directory
-for hot reload when editing go code use to avoid rosedb single process issues `wails dev -appargs "debug"`.
+for hot reload when editing go code use to avoid rosedb single process issues `wails dev -appargs -dev true` in this mode you can close the db.
 
 ## Building
 
