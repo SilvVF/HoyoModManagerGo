@@ -36,8 +36,9 @@ type App struct {
 // NewApp creates a new App application struct
 func NewApp(appPrefs *core.AppPrefs) *App {
 	return &App{
-		appPrefs: appPrefs,
-		dev:      *dev,
+		appPrefs:      appPrefs,
+		dev:           *dev,
+		pluginExports: make(map[string]lua.LGFunction),
 	}
 }
 

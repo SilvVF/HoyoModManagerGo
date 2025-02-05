@@ -172,18 +172,18 @@ func New(
 		Plugins: []*Plugin{},
 		ctx:     pluginsCtx,
 		cancel:  cancel,
-		mutex:   sync.Mutex{},
+		moduleFn: func(L *lua.LState) *lua.LTable {
+			exports["bor"] = bit32bor
+			module := L.SetFuncs(L.NewTable(), exports)
+			L.SetField(module, "FEATURE_TAB_APP", lua.LNumber(FEATURE_TAB_APP))
+			L.SetField(module, "FEATURE_TAB_DISCOVER", lua.LNumber(FEATURE_TAB_DISCOVER))
+			L.SetField(module, "FEATURE_TAB_LIBRARY", lua.LNumber(FEATURE_TAB_LIBRARY))
+
+			return module
+		},
+		mutex: sync.Mutex{},
 	}
 	Lopts := lua.Options{}
-	ps.moduleFn = func(L *lua.LState) *lua.LTable {
-		exports["bor"] = bit32bor
-		module := L.SetFuncs(L.NewTable(), exports)
-		L.SetField(module, "FEATURE_TAB_APP", lua.LNumber(FEATURE_TAB_APP))
-		L.SetField(module, "FEATURE_TAB_DISCOVER", lua.LNumber(FEATURE_TAB_DISCOVER))
-		L.SetField(module, "FEATURE_TAB_LIBRARY", lua.LNumber(FEATURE_TAB_LIBRARY))
-
-		return module
-	}
 
 	files, err := IndexPlugins()
 

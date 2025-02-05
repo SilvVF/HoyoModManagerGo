@@ -14,7 +14,7 @@ import (
 
 func TestPlugins(t *testing.T) {
 
-	exports := make(map[string]lua.LGFunction)
+	exports := map[string]lua.LGFunction{}
 	ctx := context.Background()
 	prefs := pref.NewPrefs(pref.NewInMemoryStore(ctx))
 	enabled := prefs.GetStringSlice("test_pref", []string{"plugin1.lua"})
