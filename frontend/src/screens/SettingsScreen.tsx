@@ -507,6 +507,7 @@ function PluginSettingsItem({
                 <div className="flex flex-col">
                   <text className="text-zinc-500  m-2">{plugin.path}</text>
                   <text className="text-zinc-500  m-2">{"LastEvent: "+plugin.lastEvent}</text>
+                  <text className="text-zinc-500  m-2">{"Flags: "+plugin.flags}</text>
                 </div>
                 <Checkbox
                   checked={enabled.includes(plugin.path)}

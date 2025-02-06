@@ -1,6 +1,6 @@
 import { pluginsPref } from "@/data/prefs";
 import { CancelFn } from "@/lib/tsutils";
-import { GetPluginsState, StartPlugins } from "wailsjs/go/main/App";
+import { GetPluginsState, StartPlugins, LoadPlugins } from "wailsjs/go/main/App";
 import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";
 import { create } from "zustand";
 
@@ -16,6 +16,7 @@ export interface PluginState {
   started: boolean;
   listen: () => CancelFn;
   init: () => Promise<void>;
+  reload: () => Promise<void>;
   enablePlugin: (path: string) => Promise<void>;
   disablePlugin: (path: string) => Promise<void>;
 }
@@ -51,14 +52,12 @@ function subscribeToPluginUpdates(set: StoreSet): () => void {
     let pluginEvent: PluginEvent;
     try {
       pluginEvent = data as PluginEvent;
-      if (pluginEvent.event === "plugins_started") {
-        setPluginState(set);
-      }
+      setPluginState(set);
     } catch {
       return;
     }
 
-    LogDebug(pluginEvent.data.toString());
+    LogDebug("from the toy lang: "+pluginEvent.data.toString());
   });
 
   StartPlugins().catch(() => {
@@ -95,6 +94,7 @@ export const usePluginStore = create<PluginState>((set, get) => ({
   enabledFiles: [],
   started: false,
   listen: () => subscribeToPluginUpdates(set),
+  reload:  LoadPlugins,
   init: async () => {
     setPluginState(set);
     pluginsPref

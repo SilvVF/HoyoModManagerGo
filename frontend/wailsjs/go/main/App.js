@@ -22,6 +22,10 @@ export function GetPluginsState() {
   return window['go']['main']['App']['GetPluginsState']();
 }
 
+export function LoadPlugins() {
+  return window['go']['main']['App']['LoadPlugins']();
+}
+
 export function StartPlugins() {
   return window['go']['main']['App']['StartPlugins']();
 }

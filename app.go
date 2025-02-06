@@ -134,6 +134,14 @@ func (a *App) GetPluginsState() *PluginsState {
 	return state
 }
 
+func (a *App) LoadPlugins() error {
+	if a.plugins == nil {
+		return errors.New("plugins not running")
+	}
+
+	return a.plugins.LoadPlugins()
+}
+
 func (a *App) StartPlugins() error {
 
 	if a.plugins != nil {

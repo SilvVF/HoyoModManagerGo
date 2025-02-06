@@ -12,6 +12,8 @@ export function GetExportDirectory():Promise<string>;
 
 export function GetPluginsState():Promise<main.PluginsState>;
 
+export function LoadPlugins():Promise<void>;
+
 export function StartPlugins():Promise<void>;
 
 export function StopPlugins():Promise<void>;
