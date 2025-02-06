@@ -2,4 +2,5 @@
 ---@field FEATURE_TAB_APP number
 ---@field FEATURE_TAB_DISCOVER number
 ---@field FEATURE_TAB_LIBRARY number
+---@field FEATURE_API_GAME number
 ---@field bor function(args: ...number): number

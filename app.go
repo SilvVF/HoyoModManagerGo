@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"hmm/pkg/core"
 	"hmm/pkg/log"
 	"hmm/pkg/plugin"
@@ -133,16 +134,22 @@ func (a *App) GetPluginsState() *PluginsState {
 	return state
 }
 
-func (a *App) StartPlugins() {
+func (a *App) StartPlugins() error {
 
 	if a.plugins != nil {
-		return
+		return errors.New("plugins already running")
 	}
 
-	a.plugins = plugin.New(a.pluginExports, a.ctx, a.appPrefs.EnabledPluginsPref)
+	plugins := plugin.New(a.pluginExports, a.ctx, a.appPrefs.EnabledPluginsPref)
+	a.plugins = plugins
+
+	if err := plugins.LoadPlugins(); err != nil {
+		return err
+	}
+
 	a.emitPluginEvent(EVENT_PLUGINS_STARTED)
 
-	go a.plugins.Run(func(pe plugin.PluginEvent) {
+	go plugins.Run(func(pe plugin.PluginEvent) {
 		switch pe.Etype {
 		case plugin.EVENT_ERROR:
 			a.emitPluginEvent(EVENT_PLUGIN_ERROR, pe.Path, pe.Data)
@@ -152,13 +159,18 @@ func (a *App) StartPlugins() {
 			a.emitPluginEvent(EVENT_PLUGIN_STOPPED, pe.Path, pe.Data)
 		}
 	})
+
+	return nil
 }
 
-func (a *App) StopPlugins() {
+func (a *App) StopPlugins() error {
 	if a.plugins == nil {
-		return
+		return errors.New("plugins already stopped")
 	}
+
 	a.plugins.Stop()
 	a.emitPluginEvent(EVENT_PLUGINS_STOPPED)
 	a.plugins = nil
+
+	return nil
 }
