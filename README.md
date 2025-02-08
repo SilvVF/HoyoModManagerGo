@@ -20,6 +20,12 @@ All mods are kept inside C:\Users\USER\AppData\Local\HoyoModManagerGo\cache
 USER being your user. if space saver is enabled all mods will be stored in .zip files.
 To delete all data after deleting the app delete the root of this folder. 
 
+| Button      | Action      |
+| ------------- | ------------- |
+| Generate | Unzips all files from the mods that are enabled into the games export Dir. |
+| Refresh | Fetches character data and rechecks local mod files for the game. |
+| Refresh Local | rechecks local mod files. (this only needs to be pressed if you dragged a file into the cache/mods/...) |
+
 ### Generating 
 To update the mods folder after toggling the checkboxes click generate. 
 This will go through the mods that you have enabled and unzip them into the export Directory selected in Settings.
@@ -28,7 +34,8 @@ This will go through the mods that you have enabled and unzip them into the expo
 
 It will also fill any keymaps or textures that are selected for the mod.
 
-### Building and running.
+
+# Development.
 
 uses C go for sqlite3 and sqlc. to run on windows you can use mingw https://www.mingw-w64.org/
 
