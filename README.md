@@ -38,6 +38,7 @@ It will also fill any keymaps or textures that are selected for the mod.
 # Development.
 
 uses C go for sqlite3 and sqlc. to run on windows you can use mingw https://www.mingw-w64.org/
+https://jmeubank.github.io/tdm-gcc/download/
 
 ```console
 cd frontend
