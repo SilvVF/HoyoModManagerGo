@@ -43,6 +43,7 @@ func main() {
 	// Create an instance of the app structure
 	flag.Parse()
 	ctx := context.Background()
+
 	var store pref.PrefrenceDb
 	if (*prefs) == 1 {
 		store = pref.NewInMemoryStore(context.Background())
@@ -60,6 +61,7 @@ func main() {
 	}
 	appPrefs := core.NewAppPrefs(pref.NewPrefs(store))
 	app := NewApp(appPrefs)
+	defaultEmitter := core.DefaultEmitter()
 
 	genshinApi := api.ApiList[types.Genshin]
 	starRailApi := api.ApiList[types.StarRail]
@@ -94,7 +96,12 @@ func main() {
 	}
 
 	dbHelper := core.NewDbHelper(queries, dbSql)
-	downloader := core.NewDownloader(dbHelper, appPrefs.MaxDownloadWorkersPref.Preference, appPrefs.SpaceSaverPref.Preference)
+	downloader := core.NewDownloader(
+		dbHelper,
+		appPrefs.MaxDownloadWorkersPref.Preference,
+		appPrefs.SpaceSaverPref.Preference,
+		defaultEmitter,
+	)
 	sync := core.NewSyncHelper(dbHelper)
 
 	go func() {
@@ -150,7 +157,7 @@ func main() {
 		Logger:   logger.NewFileLogger(logFilePath),
 		LogLevel: logger.DEBUG,
 		OnStartup: func(ctx context.Context) {
-			downloader.Ctx = ctx
+			defaultEmitter.Bind(ctx)
 			serverManager.Listen(ctx)
 			app.startup(ctx)
 		},

@@ -48,6 +48,7 @@ export type DialogType =
   | "create_tag"
   | "rename_tag"
   | "rename_texture";
+  
 export type GameDialog = Pair<DialogType, number>;
 
 const getElementPref = (game: number): GoPref<string[]> => {
@@ -206,6 +207,9 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
           available={available ?? false}
           toggleElement={onElementSelected}
           toggleAvailable={setAvailableOnly}
+          importMod={() => navigate("/import", {
+            state: { game: props.game }
+          })}
         />
       </div>
       <OverlayOptions
@@ -436,6 +440,7 @@ interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement> {
   toggleAvailable: (change: boolean) => void;
   toggleElement: (element: string) => void;
   unselectAll: () => void;
+  importMod: () => void;
 }
 
 function CharacterFilters({
@@ -445,13 +450,14 @@ function CharacterFilters({
   available,
   toggleAvailable,
   toggleElement,
+  importMod,
   className,
 }: CharacterFilterProps) {
   return (
     <div
       className={cn(
         className,
-        "flex flex-row items-center justify-between p-2 me-2"
+        "flex flex-row items-center justify-between p-2 me-2 overflow-x-auto"
       )}
     >
       <div className="flex flex-row space-x-2 p-2">
@@ -479,6 +485,12 @@ function CharacterFilters({
         })}
       </div>
       <div className="flex flex-row pe-2">
+      <Button
+          className="mx-2 backdrop-blur-md border-0"
+          onPointerDown={importMod}
+        >
+          Import Mod
+        </Button>
         <Button
           className="mx-2 backdrop-blur-md border-0"
           onPointerDown={unselectAll}

@@ -58,9 +58,6 @@ func GetCharacterDir(character string, game types.Game) string {
 }
 
 func GetGameDir(game types.Game) string {
-
-	log.LogDebugf("Getting game dir for %v", game)
-
 	return filepath.Join(GetRootModDir(), game.Name())
 }
 

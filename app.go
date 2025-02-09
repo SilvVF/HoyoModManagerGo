@@ -186,6 +186,32 @@ func (a *App) GetExportDirectory() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{})
 }
 
+func (a *App) OpenMultipleFilesDialog(display string, filters []string) ([]string, error) {
+	return runtime.OpenMultipleFilesDialog(
+		a.ctx,
+		runtime.OpenDialogOptions{
+			Filters: []runtime.FileFilter{
+				{
+					DisplayName: display,
+					Pattern:     strings.Join(filters, ";"),
+				},
+			},
+		})
+}
+
+func (a *App) OpenDirectoryDialog(display string, filters []string) (string, error) {
+	return runtime.OpenDirectoryDialog(
+		a.ctx,
+		runtime.OpenDialogOptions{
+			Filters: []runtime.FileFilter{
+				{
+					DisplayName: display,
+					Pattern:     strings.Join(filters, ";"),
+				},
+			},
+		})
+}
+
 func (a *App) emitPluginEvent(event string, data ...interface{}) {
 	runtime.EventsEmit(
 		a.ctx,

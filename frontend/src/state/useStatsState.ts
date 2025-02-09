@@ -19,7 +19,7 @@ function capitalizeFirstLetter(string: string) {
     return string.charAt(0).toUpperCase() + string.slice(1);
   }
 
-const stringToColour = (str: string) => {
+export const stringToColour = (str: string) => {
     let hash = 0;
     str.split("").forEach((char) => {
       hash = char.charCodeAt(0) + ((hash << 5) - hash);

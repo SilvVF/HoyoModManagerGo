@@ -15,6 +15,7 @@ import { SearchScreen } from './screens/SearchScreen.tsx';
 import { KeymappingScreen } from './screens/KeyMappingScreen.tsx';
 import { syncCharacters, SyncType } from './data/sync.ts';
 import BrowserScreen from './screens/BrowserScreen.tsx';
+import ImportScreen from './screens/ImportScreen.tsx';
 
 const router = createHashRouter([
   {
@@ -68,6 +69,10 @@ const router = createHashRouter([
       {
         path: "keymap/:modId",
         element: <KeymappingScreen />,
+      },
+      {
+        path: "import",
+        element: <ImportScreen />
       },
       {
         path: "mods",

@@ -19,6 +19,10 @@ export function GetStats():Promise<types.DownloadStats>;
 
 export function LoadPlugins():Promise<void>;
 
+export function OpenDirectoryDialog(arg1:string,arg2:Array<string>):Promise<string>;
+
+export function OpenMultipleFilesDialog(arg1:string,arg2:Array<string>):Promise<Array<string>>;
+
 export function StartPlugins():Promise<void>;
 
 export function StopPlugins():Promise<void>;

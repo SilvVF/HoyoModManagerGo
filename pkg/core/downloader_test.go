@@ -1,10 +1,20 @@
 package core
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
+	"hmm/db"
+	"hmm/pkg/log"
+	"hmm/pkg/pref"
+	"hmm/pkg/types"
+	"hmm/pkg/util"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
@@ -13,6 +23,73 @@ const (
 
 	brokenZip = "\\test_resources\\lingsha_nude_halfnude_incomletever_v101.zip"
 )
+
+func _getDb() *DbHelper {
+	dbfile := filepath.Join(util.GetCacheDir(), "hmm.db")
+
+	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
+
+	util.CreateFileIfNotExists(dbfile)
+
+	dbSql, err := sql.Open("sqlite3", dbfile)
+	if err != nil {
+		panic(err)
+	}
+
+	return NewDbHelper(db.New(dbSql), dbSql)
+}
+
+func TestLocalSource(t *testing.T) {
+	path := filepath.Join(workingDir, zipFile)
+	fmt.Println(path)
+
+	ctx := context.Background()
+
+	memStore := pref.NewInMemoryStore(ctx)
+	prefs := pref.NewPrefs(memStore)
+	emitter := TestEmitter()
+
+	downloader := NewDownloader(
+		_getDb(),
+		prefs.GetInt("test_workers", 1),
+		prefs.GetBoolean("test_space_saver", true),
+		emitter,
+	)
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		for {
+			e, ok := <-emitter.events
+			log.LogPrintf("event: %s, data: %v", e.e, e.data)
+			if !ok || e.data[0].(string) == SIG_ERROR {
+				t.Fail()
+				return
+			} else if e.data[0].(string) == SIG_FINISHED {
+				return
+			}
+		}
+	}()
+
+	err := downloader.Download(
+		path,
+		"clorindemodtest",
+		"Clorinde",
+		10000098,
+		types.Genshin,
+		0,
+		[]string{},
+	)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	wg.Wait()
+}
 
 func TestExtractRar(t *testing.T) {
 

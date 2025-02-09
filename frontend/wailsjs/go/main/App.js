@@ -34,6 +34,14 @@ export function LoadPlugins() {
   return window['go']['main']['App']['LoadPlugins']();
 }
 
+export function OpenDirectoryDialog(arg1, arg2) {
+  return window['go']['main']['App']['OpenDirectoryDialog'](arg1, arg2);
+}
+
+export function OpenMultipleFilesDialog(arg1, arg2) {
+  return window['go']['main']['App']['OpenMultipleFilesDialog'](arg1, arg2);
+}
+
 export function StartPlugins() {
   return window['go']['main']['App']['StartPlugins']();
 }
