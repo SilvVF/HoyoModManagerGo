@@ -67,8 +67,8 @@ export default function ImportScreen() {
   const selectModDir = () => {
     App.OpenDirectoryDialog("Select a mod dir", []).then((dir) => {
       if (dir.length <= 0) {
-        return
-      } 
+        return;
+      }
       setPaths((prev) => [dir, ...prev]);
     });
   };
@@ -79,9 +79,9 @@ export default function ImportScreen() {
       "*.7z",
       "*.rar",
     ]).then((zips) => {
-        if (zips === undefined || zips.length <= 0) {
-            return
-        }
+      if (zips === undefined || zips.length <= 0) {
+        return;
+      }
       setPaths((prev) => [...zips, ...prev]);
     });
   };
