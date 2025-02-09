@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"io"
 	"os"
@@ -16,7 +17,11 @@ const (
 
 func GetGeneratorCache() string {
 
-	appData, _ := os.UserCacheDir()
+	appData, err := os.UserCacheDir()
+
+	if err != nil {
+		log.LogErrorf("Couldnt get the cache dir %e", err)
+	}
 
 	return filepath.Join(appData, APP_NAME, "cache", "generator")
 }
@@ -35,7 +40,11 @@ func GetPluginDir() string {
 
 func GetCacheDir() string {
 
-	appData, _ := os.UserCacheDir()
+	appData, err := os.UserCacheDir()
+
+	if err != nil {
+		log.LogErrorf("Couldnt get the cache dir %e", err)
+	}
 
 	return filepath.Join(appData, APP_NAME, "cache")
 }
@@ -49,6 +58,9 @@ func GetCharacterDir(character string, game types.Game) string {
 }
 
 func GetGameDir(game types.Game) string {
+
+	log.LogDebugf("Getting game dir for %v", game)
+
 	return filepath.Join(GetRootModDir(), game.Name())
 }
 

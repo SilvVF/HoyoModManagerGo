@@ -10,6 +10,10 @@ export function DevModeEnabled() {
   return window['go']['main']['App']['DevModeEnabled']();
 }
 
+export function ForcePanic() {
+  return window['go']['main']['App']['ForcePanic']();
+}
+
 export function GetExclusionPaths() {
   return window['go']['main']['App']['GetExclusionPaths']();
 }
@@ -20,6 +24,10 @@ export function GetExportDirectory() {
 
 export function GetPluginsState() {
   return window['go']['main']['App']['GetPluginsState']();
+}
+
+export function GetStats() {
+  return window['go']['main']['App']['GetStats']();
 }
 
 export function LoadPlugins() {

@@ -20,8 +20,6 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// TODO: auto retry downloads on error
-
 const (
 	TYPE_DOWNLOAD = "download"
 	TYPE_QUEUED   = "queued"
@@ -155,7 +153,15 @@ func (d *Downloader) Retry(link string) error {
 		return errors.New("item not found")
 	}
 	d.Queue.Remove(item.Link)
-	return d.Download(item.Link, item.Filename, item.meta.character, item.meta.characterId, item.meta.game, item.meta.gbId, item.meta.previewImages)
+	return d.Download(
+		item.Link,
+		item.Filename,
+		item.meta.character,
+		item.meta.characterId,
+		item.meta.game,
+		item.meta.gbId,
+		item.meta.previewImages,
+	)
 }
 
 func (d *Downloader) restart() {
@@ -167,20 +173,54 @@ func (d *Downloader) restart() {
 
 	for _, item := range d.Queue.Items() {
 		if item.State != TYPE_FINISHED {
-
-			item.State = TYPE_QUEUED
-
-			item.Fetch = DataProgress{}
-			item.Unzip = DataProgress{}
-
-			d.pool.SubmitErr(func() error {
-				return d.internalDonwload(item.Link, item.Filename, item.meta)
-			})
+			d.submitItem(item.Link, item.Filename, item.meta)
 		}
 	}
 }
 
-func (d *Downloader) DownloadTexture(link, filename string, modId, gbId int, previewImages []string) error {
+func (d *Downloader) submitItem(link, filename string, meta DLMeta) {
+	d.Queue.Set(link, &DLItem{
+		Filename: filename,
+		Link:     link,
+		State:    TYPE_QUEUED,
+		Fetch:    DataProgress{},
+		Unzip:    DataProgress{},
+		meta:     meta,
+	})
+
+	runtime.EventsEmit(
+		d.Ctx,
+		"download",
+		TYPE_QUEUED,
+	)
+
+	if !d.pool.Stopped() {
+		d.pool.SubmitErr(func() (err error) {
+
+			defer cleanup(d, link, err)
+
+			switch {
+			case filepath.IsAbs(link):
+				err = d.localDownload(link, filename, meta)
+				return
+			case strings.HasPrefix(link, "https") || strings.HasPrefix(link, "http"):
+				err = d.httpDownload(link, filename, meta)
+				return
+			default:
+				err = errors.New("link was not in a supported format")
+				return
+			}
+		})
+	}
+}
+
+func (d *Downloader) DownloadTexture(
+	link,
+	filename string,
+	modId,
+	gbId int,
+	previewImages []string,
+) error {
 	if _, ok := d.Queue.Get(link); ok {
 		return errors.New("already downloading")
 	}
@@ -198,29 +238,21 @@ func (d *Downloader) DownloadTexture(link, filename string, modId, gbId int, pre
 		texture:     true,
 		modId:       modId,
 	}
-	d.Queue.Set(link, &DLItem{
-		Filename: filename,
-		Link:     link,
-		State:    TYPE_QUEUED,
-		meta:     meta,
-	})
 
-	runtime.EventsEmit(
-		d.Ctx,
-		"download",
-		TYPE_QUEUED,
-	)
-
-	if !d.pool.Stopped() {
-		d.pool.SubmitErr(func() error {
-			return d.internalDonwload(link, filename, meta)
-		})
-	}
+	d.submitItem(link, filename, meta)
 
 	return nil
 }
 
-func (d *Downloader) Download(link, filename, character string, characterId int, game types.Game, gbId int, previewImages []string) error {
+func (d *Downloader) Download(
+	link,
+	filename,
+	character string,
+	characterId int,
+	game types.Game,
+	gbId int,
+	previewImages []string,
+) error {
 	if _, ok := d.Queue.Get(link); ok {
 		return errors.New("already downloading")
 	}
@@ -231,46 +263,74 @@ func (d *Downloader) Download(link, filename, character string, characterId int,
 		gbId:          gbId,
 		previewImages: previewImages,
 	}
-	d.Queue.Set(link, &DLItem{
-		Filename: filename,
-		Link:     link,
-		State:    TYPE_QUEUED,
-		meta:     meta,
-	})
 
-	runtime.EventsEmit(
-		d.Ctx,
-		"download",
-		TYPE_QUEUED,
-	)
-
-	if !d.pool.Stopped() {
-		d.pool.Submit(func() {
-			d.internalDonwload(link, filename, meta)
-		})
-
-	}
+	d.submitItem(link, filename, meta)
 
 	return nil
 }
 
-func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err error) {
-	log.LogPrint(fmt.Sprintf("Downloading %s %d", meta.character, meta.gbId))
+func cleanup(d *Downloader, link string, err error) {
+	item, ok := d.Queue.Get(link)
+	if !ok {
+		return
+	}
+	if err != nil {
+		log.LogError(err.Error())
+		item.State = TYPE_ERROR
+		runtime.EventsEmit(d.Ctx, "download", TYPE_ERROR)
+	} else {
+		item.State = TYPE_FINISHED
+		runtime.EventsEmit(d.Ctx, "download", TYPE_FINISHED)
+	}
+}
 
-	defer func() {
+func (d *Downloader) localDownload(link, filename string, meta DLMeta) (err error) {
+	log.LogPrint(fmt.Sprintf("Downloading from local source %s %d", meta.character, meta.gbId))
+	updateProgress := func(state string, dp DataProgress) {
 		item, ok := d.Queue.Get(link)
 		if !ok {
 			return
 		}
-		if err != nil {
-			log.LogError(err.Error())
-			item.State = TYPE_ERROR
-			runtime.EventsEmit(d.Ctx, "download", TYPE_ERROR)
-		} else {
-			item.State = TYPE_FINISHED
-			runtime.EventsEmit(d.Ctx, "download", TYPE_FINISHED)
+		item.State = state
+		switch state {
+		case TYPE_DOWNLOAD:
+			item.Fetch = dp
+		case TYPE_UNZIP:
+			item.Unzip = dp
 		}
-	}()
+	}
+
+	file, err := os.Open(link)
+
+	if err != nil {
+		return err
+	}
+
+	info, err := file.Stat()
+
+	if err != nil {
+		return err
+	}
+
+	bytes := info.Size()
+
+	updateProgress(
+		TYPE_DOWNLOAD,
+		DataProgress{
+			Total:    bytes,
+			Progress: bytes,
+		},
+	)
+
+	defer file.Close()
+
+	err = d.unzipAndInsertToDb(filename, link, meta, file, updateProgress)
+
+	return err
+}
+
+func (d *Downloader) httpDownload(link, filename string, meta DLMeta) (err error) {
+	log.LogPrint(fmt.Sprintf("Downloading from http source %s %d", meta.character, meta.gbId))
 
 	updateProgress := func(state string, dp DataProgress) {
 		item, ok := d.Queue.Get(link)
@@ -285,6 +345,7 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 			item.Unzip = dp
 		}
 	}
+
 	// Determinate the file size
 	resp, err := http.Head(link)
 	if err != nil {
@@ -316,14 +377,27 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 
 	file, err := os.CreateTemp("", "*"+filename)
 	if err != nil {
-		return
+		return err
 	}
 	if _, err = io.Copy(file, byteCounter); err != nil {
-		return
+		return err
 	}
-	file.Close()
+
+	defer file.Close()
 	defer os.RemoveAll(file.Name())
 
+	err = d.unzipAndInsertToDb(filename, link, meta, file, updateProgress)
+
+	return err
+}
+
+func (d *Downloader) unzipAndInsertToDb(
+	filename,
+	link string,
+	meta DLMeta,
+	file *os.File,
+	updateProgress func(string, DataProgress),
+) (err error) {
 	dotIdx := strings.LastIndex(filename, ".")
 	var outputDir string
 	if meta.texture {
@@ -348,16 +422,25 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 	}
 
 	filePath := file.Name()
-
-	if strings.Contains(filename[dotIdx:], ".rar") {
-		log.LogDebug("extracting rar " + filename)
-		if _, _, _, err = extractRAR(&XFile{FilePath: filePath, OutputDir: outputDir, DirMode: 0777, FileMode: 0777}, true, onProgress); err != nil {
-			return
+	switch filepath.Ext(filename) {
+	case "":
+		if err = util.CopyRecursivley(filePath, outputDir, true); err != nil {
+			return err
 		}
-	} else {
-		log.LogDebug("extracting using unarr " + filename)
+	case ".rar":
+		log.LogDebug("extracting rar " + filename)
+		xFile := &XFile{
+			FilePath:  filePath,
+			OutputDir: outputDir,
+			DirMode:   0777,
+			FileMode:  0777,
+		}
+		if _, _, _, err = extractRAR(xFile, true, onProgress); err != nil {
+			return err
+		}
+	default:
 		if _, err = extract(filePath, outputDir, true, onProgress); err != nil {
-			return
+			return err
 		}
 	}
 
@@ -405,5 +488,6 @@ func (d *Downloader) internalDonwload(link, filename string, meta DLMeta) (err e
 			GbDownloadLink: link,
 		})
 	}
+
 	return err
 }

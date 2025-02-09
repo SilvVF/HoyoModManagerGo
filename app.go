@@ -6,7 +6,12 @@ import (
 	"hmm/pkg/core"
 	"hmm/pkg/log"
 	"hmm/pkg/plugin"
+	"hmm/pkg/types"
+	"hmm/pkg/util"
+	"io/fs"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -32,6 +37,96 @@ type App struct {
 	pluginExports map[string]lua.LGFunction
 	plugins       *plugin.Plugins
 	appPrefs      *core.AppPrefs
+}
+
+func getDirSize(path string) (int64, error) {
+	var totalSize int64
+
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			totalSize += info.Size()
+		}
+
+		return nil
+	})
+
+	return totalSize, err
+}
+
+func (a *App) GetStats() (*types.DownloadStats, error) {
+	log.LogDebug("Getting stats")
+	bytes, rootInfo, err := getDirInfo(util.GetRootModDir())
+
+	empty := &types.DownloadStats{Data: [][]types.FileInfo{}, TotalBytes: 0}
+
+	log.LogDebugf("got dir info %v %v", bytes, rootInfo)
+
+	if err != nil {
+		log.LogDebugf("failed with %v", err)
+		return empty, err
+	}
+
+	res := &types.DownloadStats{
+		TotalBytes: bytes,
+		Data:       [][]types.FileInfo{rootInfo},
+	}
+
+	log.LogDebug("created download stats")
+
+	for _, game := range types.Games {
+
+		gameDir := util.GetGameDir(game)
+		log.LogDebugf("got game dir %s", gameDir)
+		_, dirInfos, err := getDirInfo(gameDir)
+
+		log.LogDebugf("got dir info %v", dirInfos)
+
+		if err != nil {
+			log.LogDebugf("Skipping directory %s due to error: %v", gameDir, err)
+			continue
+		}
+		res.Data = append(res.Data, dirInfos)
+	}
+
+	return res, nil
+}
+
+func getDirInfo(root string) (int64, []types.FileInfo, error) {
+	infos := []types.FileInfo{}
+	total := int64(0)
+
+	if ok, err := util.FileExists(root); !ok || err != nil {
+		return 0, infos, errors.New("file not found")
+	}
+
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+
+		relPath := strings.TrimPrefix(path, root)
+		segs := strings.Split(relPath, string(filepath.Separator))
+
+		if len(segs) > 2 || !d.IsDir() {
+			return nil
+		}
+
+		size := int64(0)
+		if len(segs) == 2 {
+			if s, err := getDirSize(path); err == nil {
+				size = s
+			}
+		}
+
+		total += size
+		infos = append(infos, types.FileInfo{
+			File:  path,
+			Bytes: size,
+		})
+		return nil
+	})
+
+	return total, infos, err
 }
 
 // NewApp creates a new App application struct
@@ -109,6 +204,12 @@ type PluginState struct {
 type PluginsState struct {
 	Started     bool          `json:"Started"`
 	PluginState []PluginState `json:"PluginState"`
+}
+
+func (a *App) ForcePanic() {
+	if a.dev {
+		panic("forced panic from dev mode")
+	}
 }
 
 func (a *App) GetPluginsState() *PluginsState {

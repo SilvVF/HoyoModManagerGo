@@ -11,7 +11,7 @@ import { ScrollProvider } from "./ScrollContext";
 import { DownloadOverlay } from "./components/DownloadOverlay";
 import { SidebarInset, SidebarProvider } from "./components/ui/sidebar";
 import { Button } from "./components/ui/button";
-import { ClosePrefsDB, DevModeEnabled } from "wailsjs/go/main/App";
+import { ClosePrefsDB, DevModeEnabled, ForcePanic } from "wailsjs/go/main/App";
 import { ExpandIcon } from "lucide-react";
 import { usePluginStore } from "./state/pluginStore";
 
@@ -128,8 +128,9 @@ function DevModeOverlay({ children }: { children: ReactNode }) {
           <ExpandIcon />
         </Button>
         {collapsed ? undefined : (
-          <div>
+          <div className="space-x-2 space-y-2">
             <Button onClick={() => ClosePrefsDB()}>Close DB</Button>
+            <Button onClick={() => ForcePanic()}>Force Panic</Button>
           </div>
         )}
       </div>

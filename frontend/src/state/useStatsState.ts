@@ -1,8 +1,8 @@
-import { getStats } from "@/data/stats";
 import { useStateProducer } from "@/lib/utils";
 import { types } from "wailsjs/go/models";
 import { LogDebug } from "wailsjs/runtime/runtime";
 import { ChartConfig } from "@/components/ui/chart";
+import { GetStats } from "wailsjs/go/main/App";
 
 export type ChartItem = {
     game: string;
@@ -64,7 +64,11 @@ const stringToColour = (str: string) => {
 export const useStatsState = (defaultValue: ChartItem[] | undefined) => useStateProducer<ChartItem[] | undefined>(
     defaultValue,
     async (update) => {
-      const stats = await getStats();
+      const stats = await GetStats();
+
+      if (stats.data.isEmpty()) {
+        return
+      }
 
       const charts = stats.data.map((data) => {
         const split = data[0].file.split("\\");

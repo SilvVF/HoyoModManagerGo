@@ -18,7 +18,7 @@ export const useServerStore = create<ServerState>((set) => ({
    running: false,
    addr: "",
    listen: () => {
-      ServerManager.GetLocalIp().then((ip) => set(({addr: ip})))
+      ServerManager.GetLocalIp().then((ip) => set(({addr: (ip ?? "")})))
       const cancel = EventsOn(
         'server_event',
          (data) => {

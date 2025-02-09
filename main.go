@@ -42,7 +42,6 @@ var prefs = flag.Int("prefs", 0, "set prefs mode 0 - DISK (DEFAULT) 1 - MEMORY")
 func main() {
 	// Create an instance of the app structure
 	flag.Parse()
-
 	ctx := context.Background()
 	var store pref.PrefrenceDb
 	if (*prefs) == 1 {
@@ -97,7 +96,13 @@ func main() {
 	dbHelper := core.NewDbHelper(queries, dbSql)
 	downloader := core.NewDownloader(dbHelper, appPrefs.MaxDownloadWorkersPref.Preference, appPrefs.SpaceSaverPref.Preference)
 	sync := core.NewSyncHelper(dbHelper)
-	stats := core.NewStats(preferenceDirs)
+
+	go func() {
+		for _, game := range types.Games {
+			sync.Sync(game, core.StartupRequest)
+		}
+	}()
+
 	keymapper := core.NewKeymapper(dbHelper)
 
 	generator := core.NewGenerator(
@@ -109,6 +114,20 @@ func main() {
 
 	serverManager := server.NewServerManager(appPrefs, dbHelper, generator)
 
+	logFilePath := filepath.Join(util.GetCacheDir(), "app.log")
+	os.Remove(logFilePath)
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("App crashed with error:", r)
+		}
+	}()
+	defer logFile.Close()
+	// Redirect logs to file
+	log.SetOutput(logFile)
 	// Create application with options
 	err = wails.Run(&options.App{
 		Title:             "hoyomodmanager",
@@ -128,7 +147,7 @@ func main() {
 			Assets: assets,
 		},
 		Menu:     nil,
-		Logger:   nil,
+		Logger:   logger.NewFileLogger(logFilePath),
 		LogLevel: logger.DEBUG,
 		OnStartup: func(ctx context.Context) {
 			downloader.Ctx = ctx
@@ -152,7 +171,6 @@ func main() {
 			dbHelper,
 			downloader,
 			generator,
-			stats,
 			keymapper,
 			// SERVER
 			serverManager,

@@ -199,7 +199,7 @@ export default function SettingsScreen() {
         description={dialogSetting?.description ?? ""}
         open={dialog !== undefined}
         onOpenChange={() => setDialog(undefined)}
-        onSuccess={(n) => dialogSetting!!.onSuccess(n)}
+        onSuccess={(n) => dialogSetting?.onSuccess(n)}
       />
       <h1 className="text-2xl font-bold my-4 ">Settings</h1>
       <ScrollArea className="max-w-[600]">
