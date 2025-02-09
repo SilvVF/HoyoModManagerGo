@@ -32,7 +32,7 @@ type Preference[T any] interface {
 	IsSet() bool
 	Delete()
 	DefaultValue() T
-	Watch() (<-chan T, func())
+	Watch() (<-chan T, context.CancelFunc)
 }
 
 type PreferenceStore interface {

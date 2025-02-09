@@ -50,7 +50,6 @@ type DLItem struct {
 type Downloader struct {
 	db    *DbHelper
 	Ctx   context.Context
-	count int
 	pool  pond.Pool
 	Queue ConcurrentMap[string, *DLItem]
 	m     sync.Mutex
@@ -60,12 +59,10 @@ type Downloader struct {
 
 func NewDownloader(db *DbHelper, count pref.Preference[int], spaceSaver pref.Preference[bool]) *Downloader {
 
-	downloader := &Downloader{
+	d := &Downloader{
 		db:         db,
-		count:      count.Get(),
 		pool:       pond.NewPool(count.Get()),
 		Queue:      NewCMap[*DLItem](),
-		m:          sync.Mutex{},
 		spaceSaver: spaceSaver,
 	}
 
@@ -77,12 +74,19 @@ func NewDownloader(db *DbHelper, count pref.Preference[int], spaceSaver pref.Pre
 			if !ok {
 				return
 			}
-			downloader.count = v
-			go downloader.restart()
+
+			d.pool.StopAndWait()
+			d.pool = pond.NewPool(v)
+
+			for _, item := range d.Queue.Items() {
+				if item.State != TYPE_FINISHED {
+					d.submitItem(item.Link, item.Filename, item.meta)
+				}
+			}
 		}
 	}()
 
-	return downloader
+	return d
 }
 
 func (d *Downloader) GetQueue() map[string]*DLItem {
@@ -162,20 +166,6 @@ func (d *Downloader) Retry(link string) error {
 		item.meta.gbId,
 		item.meta.previewImages,
 	)
-}
-
-func (d *Downloader) restart() {
-	d.m.Lock()
-	defer d.m.Unlock()
-
-	d.pool.StopAndWait()
-	d.pool = pond.NewPool(d.count)
-
-	for _, item := range d.Queue.Items() {
-		if item.State != TYPE_FINISHED {
-			d.submitItem(item.Link, item.Filename, item.meta)
-		}
-	}
 }
 
 func (d *Downloader) submitItem(link, filename string, meta DLMeta) {
