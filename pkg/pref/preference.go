@@ -2,6 +2,7 @@ package pref
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/gob"
 	"hmm/pkg/log"
@@ -55,7 +56,7 @@ func (s *StringPreference) DefaultValue() string {
 	return s.defaultValue
 }
 
-func (s *StringPreference) Watch() (<-chan string, func()) {
+func (s *StringPreference) Watch() (<-chan string, context.CancelFunc) {
 	return createWatcher(s.db, s)
 }
 
@@ -114,7 +115,7 @@ func (p *IntPreference) DefaultValue() int {
 	return p.defaultValue
 }
 
-func (p *IntPreference) Watch() (<-chan int, func()) {
+func (p *IntPreference) Watch() (<-chan int, context.CancelFunc) {
 	return createWatcher(p.db, p)
 }
 
@@ -171,7 +172,7 @@ func (p *LongPreference) DefaultValue() int64 {
 	return p.defaultValue
 }
 
-func (p *LongPreference) Watch() (<-chan int64, func()) {
+func (p *LongPreference) Watch() (<-chan int64, context.CancelFunc) {
 	return createWatcher(p.db, p)
 }
 
@@ -228,7 +229,7 @@ func (p *FloatPreference) DefaultValue() float32 {
 	return p.defaultValue
 }
 
-func (p *FloatPreference) Watch() (<-chan float32, func()) {
+func (p *FloatPreference) Watch() (<-chan float32, context.CancelFunc) {
 	return createWatcher(p.db, p)
 }
 
@@ -289,7 +290,7 @@ func (p *BooleanPreference) DefaultValue() bool {
 	return p.defaultValue
 }
 
-func (p *BooleanPreference) Watch() (<-chan bool, func()) {
+func (p *BooleanPreference) Watch() (<-chan bool, context.CancelFunc) {
 	return createWatcher(p.db, p)
 }
 
@@ -356,7 +357,7 @@ func (p *StringSlicePreference) DefaultValue() []string {
 	return p.defaultValue
 }
 
-func (p *StringSlicePreference) Watch() (<-chan []string, func()) {
+func (p *StringSlicePreference) Watch() (<-chan []string, context.CancelFunc) {
 	return createSliceWatcher(p.db, p)
 }
 
