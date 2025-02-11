@@ -65,10 +65,10 @@ func TestLocalSource(t *testing.T) {
 		for {
 			e, ok := <-emitter.events
 			log.LogPrintf("event: %s, data: %v", e.e, e.data)
-			if !ok || e.data[0].(string) == SIG_ERROR {
+			if !ok || e.data[0].(string) == STATE_ERROR {
 				t.Fail()
 				return
-			} else if e.data[0].(string) == SIG_FINISHED {
+			} else if e.data[0].(string) == STATE_FINSIHED {
 				return
 			}
 		}

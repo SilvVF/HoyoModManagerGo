@@ -9,6 +9,7 @@ import (
 	"hmm/pkg/types"
 	"hmm/pkg/util"
 	"io/fs"
+	golog "log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,9 @@ const (
 	EVENT_PLUGIN_ERROR   = "plugin_error"
 	EVENT_PLUGIN_INFO    = "plugin_info"
 	EVENT_PLUGIN_STOPPED = "plugin_stopped"
+
+	LOG_TYPE_CONSOLE = 0
+	LOG_TYPE_FILE    = 1
 )
 
 // App struct
@@ -37,6 +41,111 @@ type App struct {
 	pluginExports map[string]lua.LGFunction
 	plugins       *plugin.Plugins
 	appPrefs      *core.AppPrefs
+	logType       int
+}
+
+// NewApp creates a new App application struct
+func NewApp(appPrefs *core.AppPrefs) *App {
+	return &App{
+		appPrefs:      appPrefs,
+		dev:           *dev,
+		logType:       *logType,
+		pluginExports: make(map[string]lua.LGFunction),
+	}
+}
+
+// startup is called at application startup
+func (a *App) startup(ctx context.Context) {
+	// Perform your setup here
+	a.ctx = ctx
+	runtime.LogSetLogLevel(ctx, logger.TRACE)
+}
+
+// domReady is called after front-end resources have been loaded
+func (a App) domReady(ctx context.Context) {
+	// Add your action here
+}
+
+// beforeClose is called when the application is about to quit,
+// either by clicking the window close button or calling runtime.Quit.
+// Returning true will cause the application to continue, false will continue shutdown as normal.
+func (a *App) beforeClose(ctx context.Context) (prevent bool) {
+	err := a.appPrefs.Close()
+	if err != nil {
+		log.LogError(err.Error())
+	}
+	return false
+}
+
+// shutdown is called at application termination
+func (a *App) shutdown(ctx context.Context) {
+	// Perform your teardown here
+
+}
+
+func (a *App) DevModeEnabled() bool {
+	return a.dev
+}
+
+func (a *App) ClosePrefsDB() error {
+	return a.appPrefs.Close()
+}
+
+func (a *App) GetExclusionPaths() ([]string, error) {
+	return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{})
+}
+
+func (a *App) GetExportDirectory() (string, error) {
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{})
+}
+
+func (a *App) OpenMultipleFilesDialog(display string, filters []string) ([]string, error) {
+	return runtime.OpenMultipleFilesDialog(
+		a.ctx,
+		runtime.OpenDialogOptions{
+			Filters: []runtime.FileFilter{
+				{
+					DisplayName: display,
+					Pattern:     strings.Join(filters, ";"),
+				},
+			},
+		})
+}
+
+func (a *App) OpenDirectoryDialog(display string, filters []string) (string, error) {
+	return runtime.OpenDirectoryDialog(
+		a.ctx,
+		runtime.OpenDialogOptions{
+			Filters: []runtime.FileFilter{
+				{
+					DisplayName: display,
+					Pattern:     strings.Join(filters, ";"),
+				},
+			},
+		})
+}
+
+// fallsback to default on err
+func fileLogger() logger.Logger {
+	logFilePath := filepath.Join(util.GetCacheDir(), "app.log")
+	logFile, err := os.OpenFile(logFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return logger.NewDefaultLogger()
+	}
+
+	defer logFile.Close()
+	golog.SetOutput(logFile)
+
+	return logger.NewFileLogger(logFilePath)
+}
+
+func (a *App) CreateLogger() logger.Logger {
+	switch a.logType {
+	case LOG_TYPE_FILE:
+		return fileLogger()
+	default:
+		return logger.NewDefaultLogger()
+	}
 }
 
 func getDirSize(path string) (int64, error) {
@@ -127,89 +236,6 @@ func getDirInfo(root string) (int64, []types.FileInfo, error) {
 	})
 
 	return total, infos, err
-}
-
-// NewApp creates a new App application struct
-func NewApp(appPrefs *core.AppPrefs) *App {
-	return &App{
-		appPrefs:      appPrefs,
-		dev:           *dev,
-		pluginExports: make(map[string]lua.LGFunction),
-	}
-}
-
-// startup is called at application startup
-func (a *App) startup(ctx context.Context) {
-	// Perform your setup here
-	a.ctx = ctx
-
-	log.InitLogging(ctx)
-	log.LogDebug("app startup")
-	runtime.LogSetLogLevel(ctx, logger.TRACE)
-}
-
-// domReady is called after front-end resources have been loaded
-func (a App) domReady(ctx context.Context) {
-	// Add your action here
-}
-
-// beforeClose is called when the application is about to quit,
-// either by clicking the window close button or calling runtime.Quit.
-// Returning true will cause the application to continue, false will continue shutdown as normal.
-func (a *App) beforeClose(ctx context.Context) (prevent bool) {
-	err := a.appPrefs.Close()
-	if err != nil {
-		log.LogError(err.Error())
-	}
-	return false
-}
-
-// shutdown is called at application termination
-func (a *App) shutdown(ctx context.Context) {
-	// Perform your teardown here
-
-}
-
-func (a *App) DevModeEnabled() bool {
-	return a.dev
-}
-
-func (a *App) ClosePrefsDB() error {
-	return a.appPrefs.Close()
-}
-
-func (a *App) GetExclusionPaths() ([]string, error) {
-	return runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{})
-}
-
-func (a *App) GetExportDirectory() (string, error) {
-	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{})
-}
-
-func (a *App) OpenMultipleFilesDialog(display string, filters []string) ([]string, error) {
-	return runtime.OpenMultipleFilesDialog(
-		a.ctx,
-		runtime.OpenDialogOptions{
-			Filters: []runtime.FileFilter{
-				{
-					DisplayName: display,
-					Pattern:     strings.Join(filters, ";"),
-				},
-			},
-		})
-}
-
-func (a *App) OpenDirectoryDialog(display string, filters []string) (string, error) {
-	return runtime.OpenDirectoryDialog(
-		a.ctx,
-		runtime.OpenDialogOptions{
-			Filters: []runtime.FileFilter{
-				{
-					DisplayName: display,
-					Pattern:     strings.Join(filters, ";"),
-				},
-			},
-		})
 }
 
 func (a *App) emitPluginEvent(event string, data ...interface{}) {

@@ -474,7 +474,7 @@ function CharacterFilters({
               className={cn(
                 selectedElements.includes(element.toLowerCase())
                   ? "bg-primary/50"
-                  : "bg-secondary/20",
+                  : "bg-secondary/40",
                 "rounded-full backdrop-blur-md border-0"
               )}
               onPointerDown={() => toggleElement(element)}

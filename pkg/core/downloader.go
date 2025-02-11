@@ -19,9 +19,9 @@ import (
 
 const (
 	EVENT_DOWNLOAD = "download"
-	SIG_QUEUED     = "queued"
-	SIG_FINISHED   = "finished"
-	SIG_ERROR      = "error"
+	STATE_QUEUED   = "queued"
+	STATE_FINSIHED = "finished"
+	STATE_ERROR    = "error"
 	STATE_UNZIP    = "unzip"
 )
 
@@ -80,7 +80,7 @@ func NewDownloader(
 			d.pool = pond.NewPool(v)
 
 			for _, item := range d.Queue.Items() {
-				if item.State != SIG_FINISHED {
+				if item.State != STATE_FINSIHED {
 					d.submitItem(item.Link, item.Filename, item.meta)
 				}
 			}
@@ -173,7 +173,7 @@ func (d *Downloader) submitItem(link, filename string, meta DLMeta) {
 	d.Queue.Set(link, &DLItem{
 		Filename: filename,
 		Link:     link,
-		State:    SIG_QUEUED,
+		State:    STATE_QUEUED,
 		Fetch:    DataProgress{},
 		Unzip:    DataProgress{},
 		meta:     meta,
@@ -181,7 +181,7 @@ func (d *Downloader) submitItem(link, filename string, meta DLMeta) {
 
 	d.emitter.Emit(
 		"download",
-		SIG_QUEUED,
+		STATE_QUEUED,
 	)
 
 	if !d.pool.Stopped() {
@@ -267,12 +267,12 @@ func cleanup(d *Downloader, link string, err error) {
 	}
 	if err != nil {
 		log.LogError(err.Error())
-		item.State = SIG_ERROR
-		d.emitter.Emit("download", SIG_ERROR)
+		item.State = STATE_ERROR
+		d.emitter.Emit("download", STATE_ERROR)
 	} else {
 		log.LogDebugf("finshed downloading %s err %e", link, err)
-		item.State = SIG_FINISHED
-		d.emitter.Emit("download", SIG_FINISHED)
+		item.State = STATE_FINSIHED
+		d.emitter.Emit("download", STATE_FINSIHED)
 	}
 }
 
@@ -396,6 +396,9 @@ func (d *Downloader) unzipAndInsertToDb(
 	updateProgress func(string, DataProgress),
 ) error {
 	dotIdx := strings.LastIndex(filename, ".")
+	if dotIdx == -1 {
+		dotIdx = len(filename)
+	}
 	var outputDir string
 	if meta.texture {
 		m, err := d.db.SelectModById(meta.modId)
@@ -426,14 +429,20 @@ func (d *Downloader) unzipAndInsertToDb(
 	}
 
 	filePath := file.Name()
-	switch filepath.Ext(filename) {
+
+	log.LogDebug(filePath)
+	log.LogDebug(filepath.Ext(filePath))
+
+	switch filepath.Ext(filePath) {
 	case "":
 		log.LogDebug("copying regular file")
+		onProgress(0, 0)
 		if err = util.CopyRecursivley(filePath, outputDir, true); err != nil {
 			return err
 		}
+		onProgress(100, 100)
 	case ".rar":
-		log.LogDebug("extracting rar " + filename)
+		log.LogDebug("extracting rar " + filePath)
 		xFile := &XFile{
 			FilePath:  filePath,
 			OutputDir: outputDir,
@@ -444,7 +453,7 @@ func (d *Downloader) unzipAndInsertToDb(
 			return err
 		}
 	default:
-		log.LogDebugf("extracting %s", filepath.Ext(filename))
+		log.LogDebugf("extracting %s", filepath.Ext(filePath))
 		if _, err = extract(filePath, outputDir, true, onProgress); err != nil {
 			return err
 		}
@@ -460,7 +469,6 @@ func (d *Downloader) unzipAndInsertToDb(
 		if err != nil {
 			return err
 		}
-
 		path := filepath.Join(outputDir, dirs[0].Name())
 		err = ZipFolder(path)
 		if err != nil {

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"hmm/pkg/api"
 	"hmm/pkg/log"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/alitto/pond/v2"
 )
@@ -27,6 +29,23 @@ type SyncHelper struct {
 	running         map[types.Game]pond.Pool
 	initialComplete map[types.Game]bool
 	rootDir         string
+}
+
+func (s *SyncHelper) RunStartup() {
+	wg := sync.WaitGroup{}
+
+	for _, game := range types.Games {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			if err := s.Sync(game, StartupRequest); err != nil {
+				log.LogError(err.Error())
+			}
+		}()
+	}
+
+	wg.Wait()
 }
 
 func NewSyncHelper(db *DbHelper) *SyncHelper {
@@ -47,26 +66,24 @@ func NewSyncHelper(db *DbHelper) *SyncHelper {
 	}
 }
 
-func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
+func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 
 	dataApi, ok := api.ApiList[game]
 	if !ok {
-		return
+		return errors.New(fmt.Sprintf("invalid data api %v", game))
 	}
-	completed := request == StartupRequest && s.initialComplete[game]
 
+	completed := request == StartupRequest && s.initialComplete[game]
 	if completed {
-		log.LogPrint(fmt.Sprintf("completed Startup Sync for game id %s", dataApi.GetGame().Name()))
-		return
+		return errors.New(fmt.Sprintf("completed Startup Sync for game id %s", dataApi.GetGame().Name()))
 	}
 
 	pool := s.running[game]
-
 	if pool.RunningWorkers() > 0 {
-		return
+		return errors.New("already running a worker")
 	}
 
-	task := pool.Submit(func() {
+	task := pool.SubmitErr(func() error {
 
 		seenMods := []string{}
 		seenTextures := []Pair[int, string]{}
@@ -94,14 +111,14 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 
 		file, err := os.Open(gameDir)
 		if err != nil {
-			return
+			return err
 		}
 		defer file.Close()
 
 		for _, character := range characters {
 
 			if character.Name == "" {
-				return
+				continue
 			}
 
 			charDir := util.GetCharacterDir(character.Name, game)
@@ -176,7 +193,9 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) {
 		s.db.deleteUnusedMods(seenMods, game)
 		s.db.deleteUnusedTextures(seenTextures)
 		s.initialComplete[game] = true
+
+		return nil
 	})
 
-	task.Wait()
+	return task.Wait()
 }

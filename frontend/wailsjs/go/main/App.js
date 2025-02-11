@@ -6,6 +6,10 @@ export function ClosePrefsDB() {
   return window['go']['main']['App']['ClosePrefsDB']();
 }
 
+export function CreateLogger() {
+  return window['go']['main']['App']['CreateLogger']();
+}
+
 export function DevModeEnabled() {
   return window['go']['main']['App']['DevModeEnabled']();
 }

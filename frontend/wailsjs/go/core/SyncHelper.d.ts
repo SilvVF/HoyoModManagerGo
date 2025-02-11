@@ -3,4 +3,6 @@
 import {types} from '../models';
 import {core} from '../models';
 
+export function RunStartup():Promise<void>;
+
 export function Sync(arg1:types.Game,arg2:core.SyncRequest):Promise<void>;

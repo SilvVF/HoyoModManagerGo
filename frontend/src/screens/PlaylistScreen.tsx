@@ -4,7 +4,7 @@ import {
   EnableModById,
   DisableAllModsByGame,
 } from "../../wailsjs/go/core/DbHelper";
-import { useStateProducer } from "@/lib/utils";
+import { cn, useStateProducer } from "@/lib/utils";
 import { types } from "wailsjs/go/models";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { usePlaylistStore } from "@/state/playlistStore";
 import { useShallow } from "zustand/shallow";
 import { playlistGamePref, usePrefrenceAsState } from "@/data/prefs";
@@ -59,7 +58,7 @@ export function PlaylistScreen() {
   )
 }
 
-function PlaylistScreenContent({game, setGame}: {
+function PlaylistScreenContent({ game, setGame }: {
   game: number,
   setGame: (game: number) => void
 }) {
@@ -98,26 +97,37 @@ function PlaylistScreenContent({game, setGame}: {
   return (
     <div className="flex flex-col">
       <div className={`flex flex-row justify-between sticky top-0 z-10 backdrop-blur-md w-full`}>
-        <div className="flex flex-row">
-        {ids.map((id) => {
-          return (
-            <Badge
-              variant={id === game ? "default" : "outline"}
-              className="m-2 backdrop-blur-sm text-sm p-2"
-              onClick={() => setGame(id)}
-            >
-              {gameNameFromId(id)}
-            </Badge>
-          );
-        })}
+        <div className="flex flex-row p-2 me-2">
+          {ids.map((id) => {
+            return (
+              <Button
+                key={id}
+                size={"sm"}
+                variant={
+                  id === game
+                    ? "secondary"
+                    : "outline"
+                }
+                className={cn(
+                  id === game
+                    ? "bg-primary/50"
+                    : "bg-secondary/40",
+                  "rounded-full backdrop-blur-md border-0"
+                )}
+                onPointerDown={() => setGame(id)}
+              >
+                {gameNameFromId(id)}
+              </Button>
+            );
+          })}
         </div>
         <div className="flex flex-row pe-2">
-        <Button
-              className="m-2 backdrop-blur-sm text-sm p-2"
-              onClick={unselectAllMods}
-            >
-              Unselect All
-        </Button>
+          <Button
+            className="m-2 backdrop-blur-sm text-sm p-2"
+            onClick={unselectAllMods}
+          >
+            Unselect All
+          </Button>
         </div>
       </div>
       <div className="static w-full">
@@ -150,7 +160,7 @@ function PlaylistScreenContent({game, setGame}: {
           })}
           <div className="col-span-2 h-12" />
         </div>
-        <div className="flex flex-row absolute bottom-3 end-4">
+        <div className="flex flex-row fixed bottom-4 -translate-y-1 end-6 z-10">
           <SelectPlayListDialog
             playlists={playlists}
             onSelected={(it) => togglePlaylistEnabled(it)}
@@ -172,7 +182,9 @@ function SelectPlayListDialog(props: {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="default">Load</Button>
+        <Button
+          variant="ghost"
+          className="mx-2 rounded-full backdrop-blur-md bg-primary/30">Load</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -204,7 +216,8 @@ function CreatePlaylistDialog(props: { onCreate: (name: string) => void }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="default">Save</Button>
+        <Button variant="ghost"
+          className="mx-2 rounded-full backdrop-blur-md bg-primary/30">Save</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

@@ -7,7 +7,7 @@ import (
 	"context"
 	"hmm/pkg/log"
 	"io"
-	"log/slog"
+	golog "log/slog"
 	"os"
 	"os/exec"
 	"syscall"
@@ -92,18 +92,18 @@ func (c *Cmder) WithOut(writer io.Writer) *Cmder {
 func (c *Cmder) Close() {
 	err := c.cmd.Process.Kill()
 	if err != nil {
-		slog.Error("cannot close cmder", "err", err)
+		golog.Error("cannot close cmder", "err", err)
 	}
 
 	if c.stdout != nil {
 		if err := c.stdout.Close(); err != nil {
-			slog.Error("cannot close cmder stdout", "err", err)
+			golog.Error("cannot close cmder stdout", "err", err)
 		}
 	}
 
 	if c.stderr != nil {
 		if err := c.stderr.Close(); err != nil {
-			slog.Error("cannot close cmder stderr", "err", err)
+			golog.Error("cannot close cmder stderr", "err", err)
 		}
 	}
 }

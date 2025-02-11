@@ -8,11 +8,12 @@ import (
 	"hmm/db"
 	"hmm/pkg/api"
 	"hmm/pkg/core"
+	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/server"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
-	"log"
+	golog "log"
 	"os"
 	"path/filepath"
 
@@ -38,6 +39,7 @@ var ddl string
 
 var dev = flag.Bool("dev", false, "enable dev mode")
 var prefs = flag.Int("prefs", 0, "set prefs mode 0 - DISK (DEFAULT) 1 - MEMORY")
+var logType = flag.Int("log", 0, "set the log type 0 - println, 1 - file")
 
 func main() {
 	// Create an instance of the app structure
@@ -103,12 +105,7 @@ func main() {
 		defaultEmitter,
 	)
 	sync := core.NewSyncHelper(dbHelper)
-
-	go func() {
-		for _, game := range types.Games {
-			sync.Sync(game, core.StartupRequest)
-		}
-	}()
+	go sync.RunStartup()
 
 	keymapper := core.NewKeymapper(dbHelper)
 
@@ -121,21 +118,6 @@ func main() {
 
 	serverManager := server.NewServerManager(appPrefs, dbHelper, generator)
 
-	logFilePath := filepath.Join(util.GetCacheDir(), "app.log")
-	os.Remove(logFilePath)
-	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			log.Println("App crashed with error:", r)
-		}
-	}()
-	defer logFile.Close()
-	// Redirect logs to file
-	log.SetOutput(logFile)
-	// Create application with options
 	err = wails.Run(&options.App{
 		Title:             "hoyomodmanager",
 		Width:             1024,
@@ -154,9 +136,10 @@ func main() {
 			Assets: assets,
 		},
 		Menu:     nil,
-		Logger:   logger.NewFileLogger(logFilePath),
+		Logger:   app.CreateLogger(),
 		LogLevel: logger.DEBUG,
 		OnStartup: func(ctx context.Context) {
+			log.InitLogging(ctx)
 			defaultEmitter.Bind(ctx)
 			serverManager.Listen(ctx)
 			app.startup(ctx)
@@ -237,6 +220,6 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatal(err)
+		golog.Fatal(err)
 	}
 }

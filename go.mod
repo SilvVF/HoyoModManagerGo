@@ -1,13 +1,13 @@
 module hmm
 
-go 1.22.4
+go 1.23.6
 
 require (
 	github.com/alitto/pond/v2 v2.0.4
 	github.com/anaskhan96/soup v1.2.5
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/nwaples/rardecode v1.1.3
-	github.com/wailsapp/wails/v2 v2.9.1
+	github.com/wailsapp/wails/v2 v2.9.2
 	github.com/yuin/gopher-lua v1.1.1
 	gopkg.in/ini.v1 v1.67.0
 )
@@ -46,7 +46,7 @@ require (
 	github.com/tkrajina/go-reflector v0.5.6 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	github.com/wailsapp/go-webview2 v1.0.10 // indirect
+	github.com/wailsapp/go-webview2 v1.0.16 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
 	golang.org/x/crypto v0.23.0 // indirect
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1 // indirect
@@ -54,5 +54,3 @@ require (
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 )
-
-// replace github.com/wailsapp/wails/v2 v2.9.1 => C:\Users\david\go\pkg\mod
