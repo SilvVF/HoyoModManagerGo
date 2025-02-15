@@ -410,6 +410,7 @@ func (d *Downloader) unzipAndInsertToDb(
 	} else {
 		outputDir = filepath.Join(util.GetCharacterDir(meta.character, meta.game), filename[:dotIdx])
 	}
+	outputDir = findUniqueDirName(outputDir)
 
 	log.LogDebugf("set output dir %s", outputDir)
 
@@ -433,28 +434,28 @@ func (d *Downloader) unzipAndInsertToDb(
 	log.LogDebug(filePath)
 	log.LogDebug(filepath.Ext(filePath))
 
-	switch filepath.Ext(filePath) {
-	case "":
-		log.LogDebug("copying regular file")
-		onProgress(0, 0)
-		if err = util.CopyRecursivley(filePath, outputDir, true); err != nil {
-			return err
-		}
-		onProgress(100, 100)
-	case ".rar":
+	ext := filepath.Ext(filePath)
+	switch {
+	case ext == ".rar":
 		log.LogDebug("extracting rar " + filePath)
 		xFile := &XFile{
 			FilePath:  filePath,
 			OutputDir: outputDir,
-			DirMode:   0777,
-			FileMode:  0777,
+			DirMode:   os.ModePerm,
+			FileMode:  os.ModePerm,
 		}
 		if _, _, _, err = extractRAR(xFile, true, onProgress); err != nil {
 			return err
 		}
-	default:
+	case unarrSupported(ext):
 		log.LogDebugf("extracting %s", filepath.Ext(filePath))
 		if _, err = extract(filePath, outputDir, true, onProgress); err != nil {
+			return err
+		}
+	default:
+		log.LogDebug("copying regular file")
+		onProgress(0, 0)
+		if err = util.CopyRecursivley(filePath, filepath.Join(outputDir, filename), true); err != nil {
 			return err
 		}
 	}
@@ -480,7 +481,7 @@ func (d *Downloader) unzipAndInsertToDb(
 	if meta.texture {
 		log.LogDebug("Inserting texture")
 		_, err = d.db.InsertTexture(types.Texture{
-			Filename:       filename[:dotIdx],
+			Filename:       filepath.Base(outputDir),
 			Enabled:        false,
 			PreviewImages:  meta.previewImages,
 			GbId:           meta.gbId,
@@ -493,7 +494,7 @@ func (d *Downloader) unzipAndInsertToDb(
 	} else {
 		log.LogDebug("Inserting mod")
 		_, err = d.db.InsertMod(types.Mod{
-			Filename:       filename[:dotIdx],
+			Filename:       filepath.Base(outputDir),
 			Game:           meta.game,
 			Character:      meta.character,
 			CharacterId:    meta.characterId,
@@ -507,4 +508,28 @@ func (d *Downloader) unzipAndInsertToDb(
 	}
 
 	return err
+}
+
+func unarrSupported(ext string) bool {
+	_, exists := unarrExtensions[ext]
+	return exists
+}
+
+var unarrExtensions = map[string]struct{}{
+	".zip":     {},
+	".rar":     {},
+	".7z":      {},
+	".tar":     {},
+	".gz":      {},
+	".bz2":     {},
+	".xz":      {},
+	".tar.gz":  {},
+	".tar.bz2": {},
+	".tar.xz":  {},
+	".iso":     {},
+	".cab":     {},
+	".lzma":    {},
+	".cpio":    {},
+	".z":       {},
+	".lz":      {},
 }

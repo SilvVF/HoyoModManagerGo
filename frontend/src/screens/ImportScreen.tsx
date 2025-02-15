@@ -65,11 +65,12 @@ export default function ImportScreen() {
 
   const [paths, setPaths] = useState<Map<string, [string, number]>>(new Map());
 
+
+  const allPathsNamed = useMemo(() => Array.from(paths.values()).every((s) => s.length > 0), [paths])
+
   const enableGenerateButton = useMemo<boolean>(() => {
-    return (paths.size > 0) &&
-      (character !== undefined) &&
-      Array.from(paths.values()).every((s) => s.length > 0)
-  }, [character, paths])
+    return (paths.size > 0) && (character !== undefined) && allPathsNamed
+  }, [character, paths, allPathsNamed])
 
 
   const handleGenerateClicked = (
@@ -139,13 +140,21 @@ export default function ImportScreen() {
       >
         Generate
       </Button>
-      <div className="flex flex-col items-start w-full">
-        <img
-          src={character?.avatarUrl}
-          className="object-contain aspect-square h-60"
-        ></img>
-      </div>
       <DropdownMenu>
+        <div className="flex flex-row items-start w-full space-x-4 space-y-4">
+          <DropdownMenuTrigger asChild>
+            <img
+              src={character?.avatarUrl}
+              className="object-contain aspect-square h-60"
+            />
+          </DropdownMenuTrigger>
+          <ul className="text-red-300 text-xl">
+            {!allPathsNamed ? <li key={1}>All imports must have a mod name</li> : undefined}
+            {paths.size <= 0 ? <li key={2}>select at least one mod to import</li> : undefined}
+            {character === undefined ? <li key={3}>select a character to add mods to</li> : undefined}
+          </ul>
+        </div>
+
         <DropdownMenuTrigger asChild>
           <text className="text-4xl py-4 font-semibold w-fit hover:text-secondary-foreground hover:underline">
             {character
@@ -307,25 +316,25 @@ function NamableMod(
       key={path}
       className="flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground"
     >
-      <div className="flex flex-col space-y-1">
-        <div className="flex flex-row items-center justify-between space-x-1">
+      <div className="flex flex-row space-x-2">
+        <div className="flex flex-col justify-between items-start">
           <text className={cn(
-            "text-sm pe-1",
+            "text-sm pb-1",
             (name.length === 0) ? "text-red-300" : "text-zinc-500"
           )}>
             name
           </text>
           <Input className="w-fit" value={name} onInput={(e: any) => setName(e.target.value)} />
         </div>
-        <div className="flex flex-row items-center justify-between space-x-1">
-          <text className="text-sm text-zinc-500 pe-1">GB Id</text>
-          <Input className="w-fit" type="number" value={gbid} onInput={handleIdChange} />
+        <div className="flex flex-col justify-between items-start">
+          <text className="text-sm text-zinc-500 pb-1">GB Id</text>
+          <Input className="w-20" type="number" value={gbid} onInput={handleIdChange} />
         </div>
       </div>
-      <div className="text-zinc-500  max-w-sm overflow-clip text-ellipsis m-2">{path}</div>
+      <div className="text-zinc-500 py-2 overflow-x-auto m-2">{path}</div>
       <Button
         size="icon"
-        className="mx-2"
+        className="mx-2 min-w-[40px]"
         onPointerDown={() => removeItem(path)}
       >
         <svg

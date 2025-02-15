@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -42,6 +43,7 @@ type App struct {
 	plugins       *plugin.Plugins
 	appPrefs      *core.AppPrefs
 	logType       int
+	mutex         sync.Mutex
 }
 
 // NewApp creates a new App application struct
@@ -297,6 +299,9 @@ func (a *App) LoadPlugins() error {
 
 func (a *App) StartPlugins() error {
 
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	if a.plugins != nil {
 		return errors.New("plugins already running")
 	}
@@ -325,6 +330,10 @@ func (a *App) StartPlugins() error {
 }
 
 func (a *App) StopPlugins() error {
+
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	if a.plugins == nil {
 		return errors.New("plugins already stopped")
 	}

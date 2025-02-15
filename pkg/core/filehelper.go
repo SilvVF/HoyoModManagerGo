@@ -185,6 +185,22 @@ func extract(archivePath, path string, unifyRoot bool, onProgress func(progress 
 	return
 }
 
+func findUniqueDirName(basePath string) string {
+	if _, err := os.Stat(basePath); os.IsNotExist(err) {
+		return basePath
+	}
+	dir := basePath
+	count := 1
+	for count < 10 {
+		newDir := fmt.Sprintf("%s (%d)", dir, count)
+		if _, err := os.Stat(newDir); os.IsNotExist(err) {
+			return newDir
+		}
+		count++
+	}
+	return basePath
+}
+
 func extractRAR(xFile *XFile, unifyRoot bool, onProgress func(progress int64, total int64)) (int64, []string, []string, error) {
 	rarReader, err := rardecode.OpenReader(xFile.FilePath, xFile.Password)
 	if err != nil {
