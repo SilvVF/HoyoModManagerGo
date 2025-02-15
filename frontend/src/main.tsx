@@ -12,7 +12,7 @@ import { ModIndexPage } from './screens/mod/ModIndexPage.tsx';
 import SettingsScreen from './screens/SettingsScreen.tsx';
 import { PlaylistScreen } from './screens/PlaylistScreen.tsx';
 import { SearchScreen } from './screens/SearchScreen.tsx';
-import { KeymappingScreen } from './screens/KeyMappingScreen.tsx';
+import { KeymappingScreen } from './screens/EditScreen.tsx';
 import { syncCharacters, SyncType } from './data/sync.ts';
 import BrowserScreen from './screens/BrowserScreen.tsx';
 import ImportScreen from './screens/ImportScreen.tsx';
@@ -24,35 +24,35 @@ const router = createHashRouter([
     children: [
       {
         path: "genshin",
-        loader: async () => { 
-          await syncCharacters(GenshinApi, SyncType.StartupRequest); 
+        loader: async () => {
+          await syncCharacters(GenshinApi, SyncType.StartupRequest);
           return null
         },
-        element: <GameScreen dataApi={GenshinApi} game={Game.Genshin}/>,
+        element: <GameScreen dataApi={GenshinApi} game={Game.Genshin} />,
       },
       {
         path: "starrail",
-        loader: async () => { 
-          await syncCharacters(StarRailApi, SyncType.StartupRequest); 
+        loader: async () => {
+          await syncCharacters(StarRailApi, SyncType.StartupRequest);
           return null
         },
-        element: <GameScreen dataApi={StarRailApi}  game={Game.StarRail}/>,
+        element: <GameScreen dataApi={StarRailApi} game={Game.StarRail} />,
       },
       {
         path: "zenless",
-        loader: async () => { 
-          await syncCharacters(ZenlessApi, SyncType.StartupRequest); 
+        loader: async () => {
+          await syncCharacters(ZenlessApi, SyncType.StartupRequest);
           return null
         },
-        element: <GameScreen dataApi={ZenlessApi}  game={Game.ZZZ}/>,
+        element: <GameScreen dataApi={ZenlessApi} game={Game.ZZZ} />,
       },
       {
         path: "wuwa",
-        loader: async () => { 
+        loader: async () => {
           await syncCharacters(WutheringWavesApi, SyncType.StartupRequest);
-          return null 
+          return null
         },
-        element: <GameScreen dataApi={WutheringWavesApi}  game={Game.WuWa}/>,
+        element: <GameScreen dataApi={WutheringWavesApi} game={Game.WuWa} />,
       },
       {
         path: "playlist",
@@ -80,7 +80,7 @@ const router = createHashRouter([
         children: [
           {
             path: ":id",
-            element:  <ModViewScreen />
+            element: <ModViewScreen />
           },
           {
             path: "cats/:id",
@@ -90,7 +90,7 @@ const router = createHashRouter([
       },
       {
         path: "browser",
-        element: <BrowserScreen src="https://fribbels.github.io/hsr-optimizer/"/>,
+        element: <BrowserScreen src="https://fribbels.github.io/hsr-optimizer/" />,
       },
     ],
     errorElement: <ErrorPage />,

@@ -34,21 +34,6 @@ import { useShallow } from "zustand/shallow";
 
 export function KeymappingScreen() {
   const { modId } = useParams();
-  const load = useKeyMapperStore((state) => state.load);
-  const loadPrevious = useKeyMapperStore((state) => state.loadPrevious);
-  const unload = useKeyMapperStore((state) => state.unload);
-  const save = useKeyMapperStore((state) => state.save);
-  const deleteKeymap = useKeyMapperStore((state) => state.deleteKeymap);
-  const write = useKeyMapperStore((state) => state.write);
-
-  const [held, setHeld] = useState<string[]>([]);
-
-  const saved = useKeyMapperStore(useShallow((state) => state.backups));
-
-  const keymap = useKeyMapperStore(useShallow((state) => state.keymappings));
-
-  const [retry, setRetry] = useState(0);
-  const [err, setErr] = useState<any | undefined>(undefined);
 
   const mod = useStateProducer<types.Mod | undefined>(
     undefined,
@@ -68,17 +53,72 @@ export function KeymappingScreen() {
     [mod]
   );
 
+
+  return (
+    <div className="flex flex-col">
+      <div className="flex flex-row items-end justify-start space-y-4">
+        <img
+          src={character?.avatarUrl}
+          className="object-contain aspect-square h-32"
+        />
+        <div className="flex flex-col">
+          <text className="text-xl font-semibold text-muted-foreground">
+            Editing:
+          </text>
+          <text className="text-3xl font-semibold">{mod?.filename}</text>
+        </div>
+      </div>
+      <ModPreviewImages mod={mod} />
+      <KeybindsUi
+        character={character}
+        mod={mod}
+        modId={modId}
+      />
+    </div>
+  );
+}
+
+function KeybindsUi(
+  { character, mod, modId }: {
+    character: types.Character | undefined,
+    mod: types.Mod | undefined,
+    modId: string | undefined,
+  }
+) {
+
+  const [held, setHeld] = useState<string[]>([]);
+  const load = useKeyMapperStore((state) => state.load);
+  const loadPrevious = useKeyMapperStore((state) => state.loadPrevious);
+  const unload = useKeyMapperStore((state) => state.unload);
+  const save = useKeyMapperStore((state) => state.save);
+  const deleteKeymap = useKeyMapperStore((state) => state.deleteKeymap);
+  const write = useKeyMapperStore((state) => state.write);
+
+  const saved = useKeyMapperStore(useShallow((state) => state.backups));
+
+  const keymap = useKeyMapperStore(useShallow((state) => state.keymappings));
+
+  const [retry, setRetry] = useState(0);
+  const [err, setErr] = useState<any | undefined>(undefined);
+
   useEffect(() => {
     try {
       load(Number(modId))
         .then(() => setErr(undefined))
         .catch((e) => setErr(e));
-    } catch {}
+    } catch { }
 
     return () => {
       unload();
     };
   }, [modId, retry]);
+
+  const writeKeyMap = (section: string, sectionKey: string, keys: string[]) => {
+    if (keys.isEmpty()) {
+      return;
+    }
+    write(section, sectionKey, keys).finally(() => setHeld([]));
+  };
 
   if (err != undefined) {
     return (
@@ -92,85 +132,63 @@ export function KeymappingScreen() {
     );
   }
 
-  const writeKeyMap = (section: string, sectionKey: string, keys: string[]) => {
-    if (keys.isEmpty()) {
-      return;
-    }
-    write(section, sectionKey, keys).finally(() => setHeld([]));
-  };
-
   return (
-    <div className="flex flex-grow">
-      <div className="min-h-screen w-full flex flex-col pb-12 pt-6 px-12 items-start">
-        <div className="flex flex-row items-end justify-start space-y-4">
-          <img
-            src={character?.avatarUrl}
-            className="object-contain aspect-square h-32"
-          />
-          <div className="flex flex-col">
-            <text className="text-xl font-semibold text-muted-foreground">
-              Editing:
-            </text>
-            <text className="text-3xl font-semibold">{mod?.filename}</text>
-          </div>
-        </div>
-        <ModPreviewImages mod={mod} />
-        <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10 space-x-2">
-          <NameDialog
-            title="Keymap name"
-            description="name the current keymap to load later"
-            onSuccess={(text) => save(Number(modId), text)}
-          />
-          <Button
-            onClick={() => load(Number(modId))}
-            className="rounded-full backdrop-blur-md bg-primary/30"
-            size={"lg"}
-            variant={"ghost"}
-          >
-            Reset
-          </Button>
-          <SelectKeymapDialog
-            keymaps={saved}
-            onSelected={(file) => loadPrevious(Number(modId), file)}
-            onDelete={(file) => deleteKeymap(file)}
-          />
-        </div>
-        <div className="w-fit flex flex-col py-4 space-y-3">
-          {keymap.map((bind) => {
-            return (
-              <div className="flex flex-col" key={bind.name + bind.sectionKey}>
-                <div className="flex flex-row items-center space-x-4 m-2">
-                  <div className="flex-grow text-left text-xl me-12">
-                    {bind.name}
-                  </div>
-                  <div className="flex flex-row space-x-4 items-center">
-                    <div className="flex-grow text-lg text-muted-foreground">
-                      {bind.sectionKey}
-                    </div>
-                    <Input
-                      value={bind.key.replaceAll(" ", " + ")}
-                      className="w-96"
-                      tabIndex={-1}
-                      onKeyDown={(event) => {
-                        if (!held.includes(event.key)) {
-                          setHeld((p) => [...p, event.key]);
-                        }
-                      }}
-                      onKeyUp={() =>
-                        writeKeyMap(bind.name, bind.sectionKey, held)
-                      }
-                      readOnly
-                    />
-                  </div>
+    <div className="w-full flex flex-col pb-12 pt-6 px-12 items-start">
+      <div className="fixed bottom-4 -translate-y-1/2 end-12 flex flex-row z-10 space-x-2">
+        <NameDialog
+          title="Keymap name"
+          description="name the current keymap to load later"
+          onSuccess={(text) => save(Number(modId), text)}
+        />
+        <Button
+          onClick={() => load(Number(modId))}
+          className="rounded-full backdrop-blur-md bg-primary/30"
+          size={"lg"}
+          variant={"ghost"}
+        >
+          Reset
+        </Button>
+        <SelectKeymapDialog
+          keymaps={saved}
+          onSelected={(file) => loadPrevious(Number(modId), file)}
+          onDelete={(file) => deleteKeymap(file)}
+        />
+      </div>
+      <div className="w-fit flex flex-col py-4 space-y-3">
+        {keymap.map((bind) => {
+          return (
+            <div className="flex flex-col" key={bind.name + bind.sectionKey}>
+              <div className="flex flex-row items-center space-x-4 m-2">
+                <div className="flex-grow text-left text-xl me-12">
+                  {bind.name}
                 </div>
-                <Separator />
+                <div className="flex flex-row space-x-4 items-center">
+                  <div className="flex-grow text-lg text-muted-foreground">
+                    {bind.sectionKey}
+                  </div>
+                  <Input
+                    value={bind.key.replaceAll(" ", " + ")}
+                    className="w-96"
+                    tabIndex={-1}
+                    onKeyDown={(event) => {
+                      if (!held.includes(event.key)) {
+                        setHeld((p) => [...p, event.key]);
+                      }
+                    }}
+                    onKeyUp={() =>
+                      writeKeyMap(bind.name, bind.sectionKey, held)
+                    }
+                    readOnly
+                  />
+                </div>
               </div>
-            );
-          })}
-        </div>
+              <Separator />
+            </div>
+          );
+        })}
       </div>
     </div>
-  );
+  )
 }
 
 function SelectKeymapDialog(props: {
@@ -212,8 +230,8 @@ function SelectKeymapDialog(props: {
                       <text className="text-muted-foreground overflow-ellipsis">
                         {formatDate(
                           split[split.length - 2] +
-                            "_" +
-                            split[split.length - 1].replace(".ini", "")
+                          "_" +
+                          split[split.length - 1].replace(".ini", "")
                         )}
                       </text>
                     </div>
@@ -340,18 +358,15 @@ function ModPreviewImages(props: { mod: types.Mod | undefined }) {
           onClick={() => {
             api?.scrollTo(api.selectedScrollSnap() - 4);
           }}
-          className="mx-6 rounded-full backdrop-blur-md bg-primary/30"
+          className="absolute start-2  rounded-full backdrop-blur-md bg-primary/30"
         />
         <CarouselNext
           onClick={() => {
             api?.scrollTo(api.selectedScrollSnap() + 4);
           }}
-          className="mx-6 rounded-full backdrop-blur-md bg-primary/30"
+          className="absolute end-2 rounded-full backdrop-blur-md bg-primary/30"
         />
       </Carousel>
-      <text className="align-end">
-        {"Hint: click arr btn alt + <- | -> to scroll"}
-      </text>
     </div>
   );
 }
