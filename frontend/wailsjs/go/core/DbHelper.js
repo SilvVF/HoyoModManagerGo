@@ -94,6 +94,14 @@ export function SelecteTextureById(arg1) {
   return window['go']['core']['DbHelper']['SelecteTextureById'](arg1);
 }
 
+export function UpdateModGbId(arg1, arg2) {
+  return window['go']['core']['DbHelper']['UpdateModGbId'](arg1, arg2);
+}
+
+export function UpdateModImages(arg1, arg2) {
+  return window['go']['core']['DbHelper']['UpdateModImages'](arg1, arg2);
+}
+
 export function UpdateModsEnabledFromSlice(arg1, arg2) {
   return window['go']['core']['DbHelper']['UpdateModsEnabledFromSlice'](arg1, arg2);
 }

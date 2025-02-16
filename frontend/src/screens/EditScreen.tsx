@@ -19,28 +19,47 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { useStateProducer } from "@/lib/utils";
+import { cn, useStateProducer } from "@/lib/utils";
 import { useKeyMapperStore } from "@/state/keymapperStore";
-import { TrashIcon } from "lucide-react";
-import React from "react";
+import { CheckIcon, EditIcon, TrashIcon, XIcon } from "lucide-react";
+import React, { useMemo } from "react";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
+  EnableModById,
+  RenameMod,
   SelectClosestCharacter,
   SelectModById,
 } from "wailsjs/go/core/DbHelper";
 import { types } from "wailsjs/go/models";
 import { useShallow } from "zustand/shallow";
+import { NameDialogContent } from "./GameScreen";
+import { ModActionsDropDown } from "@/components/CharacterInfoCard";
+import * as Downloader from "wailsjs/go/core/Downloader"
+import { Pair } from "@/lib/tsutils";
+import { Switch } from "@/components/ui/switch";
+import { Card } from "@/components/ui/card";
+import { LogPrint } from "wailsjs/runtime/runtime";
+
+type DialogType =
+  | "rename_mod"
+  | "create_tag"
+  | "rename_tag"
+
+export type EditDialog = Pair<DialogType, number>;
 
 export function KeymappingScreen() {
   const { modId } = useParams();
+  const navigate = useNavigate();
 
+  const [modRefreshTrigger, setModRefreshTrigger] = useState(0);
+  const refreshMod = () => setModRefreshTrigger(p => p + 1)
   const mod = useStateProducer<types.Mod | undefined>(
     undefined,
     async (update) => {
       SelectModById(Number(modId)).then((m) => update(m));
     },
-    [modId]
+    [modId, modRefreshTrigger]
   );
 
   const character = useStateProducer<types.Character | undefined>(
@@ -53,40 +72,180 @@ export function KeymappingScreen() {
     [mod]
   );
 
+  const [dialog, setDialog] = useState<EditDialog | undefined>(undefined);
+
+  const dialogSettings = useMemo(() => {
+    return {
+      rename_mod: {
+        title: "Rename mod",
+        description:
+          "rename the current mod (this will change the folder name in files)",
+        onSuccess: (id: number, name: string) => {
+          RenameMod(id, name).then(refreshMod);
+        },
+      },
+      create_tag: {
+        title: "Create tag",
+        description: "create a tag for the mod",
+        onSuccess: () => { },
+      },
+      rename_tag: {
+        title: "Rename tag",
+        description: "Rename the current tag",
+        onSuccess: () => { },
+      },
+    };
+  }, []);
+
+  const [expandImgs, setExpandImgs] = useState(false);
+  const [hoveredImg, setHoveredImg] = useState("");
+
+  const [dialogInput, setDialogInput] = useState("");
+  const handleDialogInputChange = (event: any) => {
+    setDialogInput(event.target.value);
+  };
+
+  const deleteMod = async (id: number) => {
+    Downloader.Delete(id).then(() => navigate(-1));
+  };
+
+  const enableMod = async (id: number, enabled: boolean) => {
+    EnableModById(enabled, id).then(refreshMod);
+  };
+
+  const Settings = useMemo(() => {
+    if (dialog === undefined) return undefined;
+    const curr = dialogSettings[dialog.x];
+    return (
+      <NameDialogContent
+        title={curr.title}
+        description={curr.description}
+        input={dialogInput}
+        onInputChange={handleDialogInputChange}
+        onSuccess={() => curr.onSuccess(dialog.y, dialogInput)}
+      />
+    );
+  }, [dialog, dialogSettings, handleDialogInputChange]);
+
+  if (character === undefined || mod === undefined) {
+    return <></>
+  }
+
+  const hoverImg = expandImgs ? hoveredImg : ""
 
   return (
     <div className="flex flex-col">
       <div className="flex flex-row items-end justify-start space-y-4">
         <img
-          src={character?.avatarUrl}
+          src={character.avatarUrl}
           className="object-contain aspect-square h-32"
         />
-        <div className="flex flex-col">
-          <text className="text-xl font-semibold text-muted-foreground">
-            Editing:
-          </text>
-          <text className="text-3xl font-semibold">{mod?.filename}</text>
+        <div className="flex flex-row items-center w-full">
+          <div className="flex flex-col">
+            <text className="text-xl font-semibold text-muted-foreground">
+              Editing:
+            </text>
+            <div className="flex flex-row items-center space-x-2">
+              <text className="text-3xl font-semibold me-4">{mod.filename}</text>
+              <SetGBId
+                id={mod.gbId}
+                changeId={() => { }}
+              />
+              <div className="w-2" />
+              <Switch
+                checked={mod.enabled}
+                onCheckedChange={() =>
+                  enableMod(mod.id, !mod.enabled)
+                }
+              />
+              <Dialog>
+                {mod ?
+                  <ModActionsDropDown
+                    onEnable={() => enableMod(mod.id, !mod.enabled)}
+                    onDelete={() => deleteMod(mod.id)}
+                    onRename={() =>
+                      setDialog({ x: "rename_mod", y: mod.id })
+                    }
+                    onView={() => {
+                      if (mod.gbId !== 0) {
+                        navigate(`/mods/${mod.gbId}`);
+                      }
+                    }}
+                  />
+                  : undefined}
+                {Settings}
+              </Dialog>
+            </div>
+          </div>
         </div>
       </div>
-      <ModPreviewImages mod={mod} />
-      <KeybindsUi
-        character={character}
+      <ModPreviewImages
         mod={mod}
+        hovered={hoverImg}
+        setHovered={(uri) => setHoveredImg(uri)}
+      />
+      <ImageSelect
+        images={mod.previewImages}
+        addImage={() => { }}
+        hovered={hoverImg}
+        expanded={expandImgs}
+        setExpanded={(exp) => setExpandImgs(exp)}
+        addImageFile={() => { }}
+        onHovered={(uri) => setHoveredImg(uri)}
+        removeImage={() => { }}
+      />
+      <KeybindsUi
         modId={modId}
       />
     </div>
   );
 }
 
+function SetGBId({ id, changeId }: {
+  id: number,
+  changeId: (id: number) => void
+}) {
+
+  const [gbIdInput, setGbIdInput] = useState(id);
+  const handleIdChange = (event: any) => {
+    try {
+      setGbIdInput(Math.max(0, Math.floor(Number(event.target.value))))
+    } catch { }
+  }
+  const onChange = (changed: number, accepted: boolean) => {
+    if (!accepted) {
+      setGbIdInput(id)
+      return
+    }
+    changeId(changed)
+  }
+
+  const idChanged = gbIdInput != id
+
+  return (
+    <div className="flex flex-row space-x-2 items-center">
+      <text className="text-sm text-zinc-500">GB Id</text>
+      <Input type="number" className="w-32" value={gbIdInput} onInput={handleIdChange} />
+      {idChanged ? (
+        <div className="space-x-2" onPointerDown={() => onChange(gbIdInput, false)}>
+          <Button size='icon'>
+            <XIcon />
+          </Button>
+          <Button size='icon' onPointerDown={() => onChange(gbIdInput, true)}>
+            <CheckIcon />
+          </Button>
+        </div>
+      ) : undefined}
+    </div>
+  )
+}
+
 function KeybindsUi(
-  { character, mod, modId }: {
-    character: types.Character | undefined,
-    mod: types.Mod | undefined,
+  { modId }: {
     modId: string | undefined,
   }
 ) {
 
-  const [held, setHeld] = useState<string[]>([]);
   const load = useKeyMapperStore((state) => state.load);
   const loadPrevious = useKeyMapperStore((state) => state.loadPrevious);
   const unload = useKeyMapperStore((state) => state.unload);
@@ -98,6 +257,7 @@ function KeybindsUi(
 
   const keymap = useKeyMapperStore(useShallow((state) => state.keymappings));
 
+  const [held, setHeld] = useState<string[]>([]);
   const [retry, setRetry] = useState(0);
   const [err, setErr] = useState<any | undefined>(undefined);
 
@@ -331,8 +491,9 @@ const formatDate = (dateString: string): string => {
   }).format(dateObj);
 };
 
-function ModPreviewImages(props: { mod: types.Mod | undefined }) {
+function ModPreviewImages(props: { mod: types.Mod | undefined, hovered: string, setHovered: (uri: string) => void }) {
   const [api, setApi] = React.useState<CarouselApi>();
+  const [lastHover, setLastHover] = useState("");
 
   if (props.mod === undefined || props.mod.previewImages.length === 0) {
     return (
@@ -342,13 +503,34 @@ function ModPreviewImages(props: { mod: types.Mod | undefined }) {
     );
   }
 
+  useEffect(() => {
+    const idx = props.mod?.previewImages?.findIndex((imageLink) => {
+      return imageLink === props.hovered
+    })
+    const id = setTimeout(() => {
+      if (idx !== -1 && idx !== undefined && lastHover !== props.hovered) {
+        api?.scrollTo(idx);
+      }
+    }, 200)
+    return () => clearTimeout(id)
+  }, [props.hovered, props.mod, api, lastHover])
+
   return (
     <div className="w-full flex flex-col items-end space-y-1 my-4">
       <Carousel className="w-full" setApi={setApi}>
         <CarouselContent>
           {props.mod?.previewImages.map((url, index) => (
             <CarouselItem key={index} className="basis-1/4">
-              <div className="">
+              <div
+                className={cn(props.hovered === url ? "border-4 border-primary" : "")}
+                onMouseEnter={() => {
+                  setLastHover(url)
+                  props.setHovered(url)
+                }}
+                onMouseLeave={() => {
+                  setLastHover("")
+                  props.setHovered("")
+                }}>
                 <img className="object-cover aspect-square" src={url} />
               </div>
             </CarouselItem>
@@ -371,13 +553,125 @@ function ModPreviewImages(props: { mod: types.Mod | undefined }) {
   );
 }
 
+interface ImageSelectProps extends React.HTMLAttributes<HTMLDivElement> {
+  images: string[];
+  expanded: boolean;
+  hovered: string;
+  setExpanded: (expanded: boolean) => void;
+  addImage: () => void;
+  onHovered: (uri: string) => void;
+  addImageFile: () => void;
+  removeImage: (uri: string) => void;
+}
+
+function ImageSelect({
+  className,
+  images,
+  expanded,
+  setExpanded,
+  hovered,
+  onHovered,
+  addImage,
+  addImageFile,
+  removeImage
+}: ImageSelectProps) {
+  return (
+    <div className="flex flex-col">
+      <Button
+        variant="link"
+        className="w-32 p-2"
+        onPointerDown={() => setExpanded(!expanded)}>
+        Edit Images
+        <EditIcon />
+      </Button>
+      <div className={cn(
+        expanded ? "opacity-100" : "opacity-0 max-h-0 hidden",
+        className
+      )}>
+        <div className="flex flex-row">
+          <Button
+            className="w-full justify-start"
+            variant="ghost"
+            onPointerDown={addImage}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              height="24px"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mr-2 h-4 w-4 fill-foreground"
+              viewBox="0 -960 960 960"
+              width="24px"
+            >
+              <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+            </svg>
+            Add Image Link
+          </Button>
+          <Button
+            className="w-full justify-start"
+            variant="ghost"
+            onPointerDown={addImageFile}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              height="24px"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="mr-2 h-4 w-4 fill-foreground"
+              viewBox="0 -960 960 960"
+              width="24px"
+            >
+              <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
+            </svg>
+            Add Image file
+          </Button>
+        </div>
+        <Card>
+          <div className="space-y-1 p-2 overflow-y-auto max-h-[300px]">
+            {images?.map((uri) => {
+              return (
+                <div
+                  key={uri}
+                  onMouseEnter={() => onHovered(uri)}
+                  onMouseLeave={() => onHovered("")}
+                  className={cn(hovered === uri ? "bg-primary-foreground" : "", "flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground")}
+                >
+                  <div className="text-zinc-500  m-2">{uri}</div>
+                  <Button
+                    size="icon"
+                    className="mx-2"
+                    onPointerDown={() => removeImage(uri)}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      height="24px"
+                      viewBox="0 -960 960 960"
+                      width="24px"
+                    >
+                      <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z" />
+                    </svg>
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 function KeyMapLoadErrorPage(props: {
   err: any;
   id: string | undefined;
   retry: () => void;
 }) {
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center space-y-4">
+    <div className="w-full flex flex-col items-center justify-center space-y-4">
       <text className="text-3xl font-semibold tracking-tight">{`Failed to load keyconfig for mod ${props.id}`}</text>
       <text className="text-2xl font-semibold tracking-tight text-muted-foreground">{`${props.err}`}</text>
       <Button size={"lg"} onPointerDown={props.retry}>

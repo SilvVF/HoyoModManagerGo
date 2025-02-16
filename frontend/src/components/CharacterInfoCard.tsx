@@ -174,7 +174,7 @@ export function ModActionsDropDown(props: {
   onRename: () => void;
   onView: () => void;
   onEnable: () => void;
-  onKeymapEdit: () => void;
+  onKeymapEdit?: () => void;
 }) {
   const [isOpen, setOpen] = useState(false);
 
@@ -226,11 +226,13 @@ export function ModActionsDropDown(props: {
           <span className="w-full">Toggle</span>
           <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={props.onKeymapEdit}>
-          <CheckCheckIcon className="mr-2 h-4 w-4" />
-          <span className="w-full">Edit</span>
-          <DropdownMenuShortcut>⇧e</DropdownMenuShortcut>
-        </DropdownMenuItem>
+        {props.onKeymapEdit ? (
+          <DropdownMenuItem onClick={props.onKeymapEdit}>
+            <CheckCheckIcon className="mr-2 h-4 w-4" />
+            <span className="w-full">Edit</span>
+            <DropdownMenuShortcut>⇧e</DropdownMenuShortcut>
+          </DropdownMenuItem>
+        ) : undefined}
       </DropdownMenuContent>
     </DropdownMenu>
   );

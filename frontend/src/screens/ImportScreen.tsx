@@ -328,7 +328,7 @@ function NamableMod(
         </div>
         <div className="flex flex-col justify-between items-start">
           <text className="text-sm text-zinc-500 pb-1">GB Id</text>
-          <Input className="w-20" type="number" value={gbid} onInput={handleIdChange} />
+          <Input className="w-32" type="number" value={gbid} onInput={handleIdChange} />
         </div>
       </div>
       <div className="text-zinc-500 py-2 overflow-x-auto m-2">{path}</div>

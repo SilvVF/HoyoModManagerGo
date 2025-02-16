@@ -48,6 +48,10 @@ export function SelectTexturesByModId(arg1:number):Promise<Array<types.Texture>>
 
 export function SelecteTextureById(arg1:number):Promise<types.Texture>;
 
+export function UpdateModGbId(arg1:number,arg2:number):Promise<void>;
+
+export function UpdateModImages(arg1:number,arg2:Array<string>):Promise<void>;
+
 export function UpdateModsEnabledFromSlice(arg1:Array<number>,arg2:types.Game):Promise<void>;
 
 export function UpsertCharacter(arg1:types.Character):Promise<void>;

@@ -132,6 +132,14 @@ UPDATE texture SET
     selected = :selected
 WHERE texture.id = :id;
 
+-- name: UpdateModDataById :exec
+UPDATE mod SET
+    gb_id = COALESCE(gb_id, :gbId),
+    preview_images = COALESCE(preview_images, :previewImages),
+    mod_link = COALESCE(mod_link, :modLink),
+    selected = COALESCE(selected, :selected)
+WHERE mod.id = :id LIMIT 1;
+
 -- name: SelectEnabledModsForGame :many
 SELECT * FROM mod WHERE selected AND game = :game;
 

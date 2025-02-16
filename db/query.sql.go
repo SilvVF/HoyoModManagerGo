@@ -832,6 +832,34 @@ func (q *Queries) SelectTexturesByModId(ctx context.Context, modid int64) ([]Tex
 	return items, nil
 }
 
+const updateModDataById = `-- name: UpdateModDataById :exec
+UPDATE mod SET
+    gb_id = COALESCE(gb_id, ?1),
+    preview_images = COALESCE(preview_images, ?2),
+    mod_link = COALESCE(mod_link, ?3),
+    selected = COALESCE(selected, ?4)
+WHERE mod.id = ?5 LIMIT 1
+`
+
+type UpdateModDataByIdParams struct {
+	GbId          sql.NullInt64
+	PreviewImages string
+	ModLink       sql.NullString
+	Selected      bool
+	ID            int64
+}
+
+func (q *Queries) UpdateModDataById(ctx context.Context, arg UpdateModDataByIdParams) error {
+	_, err := q.db.ExecContext(ctx, updateModDataById,
+		arg.GbId,
+		arg.PreviewImages,
+		arg.ModLink,
+		arg.Selected,
+		arg.ID,
+	)
+	return err
+}
+
 const updateModEnabledById = `-- name: UpdateModEnabledById :exec
 UPDATE mod SET
     selected = ?1

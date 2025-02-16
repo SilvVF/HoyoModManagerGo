@@ -553,6 +553,34 @@ func (h *DbHelper) DeletePlaylistById(id int64) error {
 	return err
 }
 
+func (h *DbHelper) UpdateModImages(modId int64, images []string) error {
+	m, err := h.queries.SelectModById(h.ctx, modId)
+	if err != nil {
+		return err
+	}
+	return h.queries.UpdateModDataById(h.ctx, db.UpdateModDataByIdParams{
+		GbId:          m.GbID,
+		PreviewImages: strings.Join(images, "<seperator>"),
+		ModLink:       m.ModLink,
+		Selected:      m.Selected,
+		ID:            m.ID,
+	})
+}
+
+func (h *DbHelper) UpdateModGbId(modId, gbId int64) error {
+	m, err := h.queries.SelectModById(h.ctx, modId)
+	if err != nil {
+		return err
+	}
+	return h.queries.UpdateModDataById(h.ctx, db.UpdateModDataByIdParams{
+		GbId:          sql.NullInt64{Valid: gbId != 0, Int64: gbId},
+		PreviewImages: m.PreviewImages,
+		ModLink:       m.ModLink,
+		Selected:      m.Selected,
+		ID:            m.ID,
+	})
+}
+
 func (h *DbHelper) RenameTexture(id int64, name string) error {
 	dbTexture, err := h.queries.SelectTextureById(h.ctx, id)
 	if err != nil {
