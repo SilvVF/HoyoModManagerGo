@@ -20,6 +20,8 @@ export function GetPluginsState():Promise<main.PluginsState>;
 
 export function GetStats():Promise<types.DownloadStats>;
 
+export function GetUpdates():Promise<Array<types.Update>>;
+
 export function LoadPlugins():Promise<void>;
 
 export function OpenDirectoryDialog(arg1:string,arg2:Array<string>):Promise<string>;

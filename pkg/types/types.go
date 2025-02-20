@@ -118,3 +118,20 @@ type PlaylistWithModsAndTags struct {
 	Playlist     Playlist      `json:"playlist"`
 	ModsWithTags []ModWithTags `json:"modsWithTags"`
 }
+
+type Tool struct {
+	Dl          string `json:"dl"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type Update struct {
+	Game    Game   `json:"game"`
+	Found   bool   `json:"found"`
+	Current string `json:"current"`
+	Newest  Tool   `json:"newest"`
+}
+
+type UpdateResponse struct {
+	Updates []Update `json:"updates"`
+}

@@ -62,15 +62,22 @@ func main() {
 		)
 	}
 	appPrefs := core.NewAppPrefs(pref.NewPrefs(store))
-	app := NewApp(appPrefs)
 	defaultEmitter := core.DefaultEmitter()
 
 	genshinApi := api.ApiList[types.Genshin]
 	starRailApi := api.ApiList[types.StarRail]
 	zenlessApi := api.ApiList[types.ZZZ]
 	wuwaApi := api.ApiList[types.WuWa]
+	preferenceDirs := map[types.Game]pref.Preference[string]{
+		types.Genshin:  appPrefs.GenshinDirPref.Preference,
+		types.ZZZ:      appPrefs.ZZZDirPref.Preference,
+		types.StarRail: appPrefs.HonkaiDirPref.Preference,
+		types.WuWa:     appPrefs.WuwaDirPref.Preference,
+	}
 
 	gbApi := &api.GbApi{}
+
+	app := NewApp(appPrefs, core.NewUpdator(gbApi, preferenceDirs))
 
 	dbfile := filepath.Join(util.GetCacheDir(), "hmm.db")
 
@@ -89,13 +96,6 @@ func main() {
 	}
 
 	queries := db.New(dbSql)
-
-	preferenceDirs := map[types.Game]pref.Preference[string]{
-		types.Genshin:  appPrefs.GenshinDirPref.Preference,
-		types.ZZZ:      appPrefs.ZZZDirPref.Preference,
-		types.StarRail: appPrefs.HonkaiDirPref.Preference,
-		types.WuWa:     appPrefs.WuwaDirPref.Preference,
-	}
 
 	dbHelper := core.NewDbHelper(queries, dbSql)
 	downloader := core.NewDownloader(

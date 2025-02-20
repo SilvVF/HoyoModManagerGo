@@ -34,6 +34,10 @@ export function GetStats() {
   return window['go']['main']['App']['GetStats']();
 }
 
+export function GetUpdates() {
+  return window['go']['main']['App']['GetUpdates']();
+}
+
 export function LoadPlugins() {
   return window['go']['main']['App']['LoadPlugins']();
 }

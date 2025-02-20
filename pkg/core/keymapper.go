@@ -331,8 +331,7 @@ func walkZip(path string) (string, error) {
 
 func WalkDirHandleZip(modDir string, k *KeyMapper) error {
 	return filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
-		log.LogDebug(path)
-		if d.IsDir() || err != nil {
+		if err != nil || d.IsDir() {
 			return nil
 		}
 		if filepath.Ext(path) == ".zip" {

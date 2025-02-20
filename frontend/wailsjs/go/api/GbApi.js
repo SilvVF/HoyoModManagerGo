@@ -13,3 +13,11 @@ export function CategoryContent(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, 
 export function ModPage(arg1) {
   return window['go']['api']['GbApi']['ModPage'](arg1);
 }
+
+export function SubmitterItems(arg1) {
+  return window['go']['api']['GbApi']['SubmitterItems'](arg1);
+}
+
+export function ToolPage(arg1) {
+  return window['go']['api']['GbApi']['ToolPage'](arg1);
+}

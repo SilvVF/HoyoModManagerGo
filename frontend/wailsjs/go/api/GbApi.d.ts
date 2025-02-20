@@ -7,3 +7,7 @@ export function Categories(arg1:number):Promise<Array<api.CategoryListResponseIt
 export function CategoryContent(arg1:number,arg2:number,arg3:number,arg4:api.Sort,arg5:string,arg6:api.NameFilter,arg7:boolean,arg8:boolean,arg9:boolean,arg10:api.ReleaseType,arg11:api.ContentRating):Promise<api.CategoryResponse>;
 
 export function ModPage(arg1:number):Promise<api.ModPageResponse>;
+
+export function SubmitterItems(arg1:number):Promise<api.SubmissionPageResponse>;
+
+export function ToolPage(arg1:number):Promise<api.ModPageResponse>;

@@ -136,13 +136,13 @@ type CategoryResponse struct {
 	ARecords []CategoryRecord `json:"_aRecords,omitempty"`
 }
 
-func (g *GbApi) Categories(id int) []CategoryListResponseItem {
+func (g *GbApi) Categories(id int) ([]CategoryListResponseItem, error) {
 	url := fmt.Sprintf("%s/Mod/Categories?_idCategoryRow=%d&_sSort=a_to_z&_bShowEmpty=true", GB_URL, id)
-
 	resp, err := client.Get(url)
+	empty := make([]CategoryListResponseItem, 0)
 	if err != nil {
 		log.LogPrint(err.Error())
-		return make([]CategoryListResponseItem, 0)
+		return empty, err
 	}
 
 	defer resp.Body.Close()
@@ -150,7 +150,7 @@ func (g *GbApi) Categories(id int) []CategoryListResponseItem {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.LogPrint(err.Error())
-		return make([]CategoryListResponseItem, 0)
+		return empty, err
 	}
 
 	var items []CategoryListResponseItem
@@ -158,18 +158,18 @@ func (g *GbApi) Categories(id int) []CategoryListResponseItem {
 	err = json.Unmarshal(b, &items)
 	if err != nil {
 		log.LogPrint(err.Error())
-		return make([]CategoryListResponseItem, 0)
+		return empty, err
 	}
 
-	return items
+	return items, nil
 }
 
-func (g *GbApi) ModPage(id int) ModPageResponse {
-	url := fmt.Sprintf("%s/Mod/%d/ProfilePage", GB_URL, id)
+func (g *GbApi) SubmitterItems(id int) (SubmissionPageResponse, error) {
+	url := fmt.Sprintf("%s/Member/%d/Submissions/Sublog?_nPage=1&_sSort=p_date&_sDirection=DESC&_sNameOperator=contains", GB_URL, id)
 	resp, err := client.Get(url)
 	if err != nil {
 		log.LogPrint(err.Error())
-		return ModPageResponse{}
+		return SubmissionPageResponse{}, err
 	}
 
 	defer resp.Body.Close()
@@ -177,7 +177,34 @@ func (g *GbApi) ModPage(id int) ModPageResponse {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.LogPrint(err.Error())
-		return ModPageResponse{}
+		return SubmissionPageResponse{}, err
+	}
+
+	var subPage SubmissionPageResponse
+
+	err = json.Unmarshal(b, &subPage)
+	if err != nil {
+		log.LogPrint(err.Error())
+		return SubmissionPageResponse{}, err
+	}
+
+	return subPage, nil
+}
+
+func (g *GbApi) ToolPage(id int) (ModPageResponse, error) {
+	url := fmt.Sprintf("%s/Tool/%d/ProfilePage", GB_URL, id)
+	resp, err := client.Get(url)
+	if err != nil {
+		log.LogPrint(err.Error())
+		return ModPageResponse{}, err
+	}
+
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.LogPrint(err.Error())
+		return ModPageResponse{}, err
 	}
 
 	var modPage ModPageResponse
@@ -185,10 +212,37 @@ func (g *GbApi) ModPage(id int) ModPageResponse {
 	err = json.Unmarshal(b, &modPage)
 	if err != nil {
 		log.LogPrint(err.Error())
-		return ModPageResponse{}
+		return ModPageResponse{}, err
 	}
 
-	return modPage
+	return modPage, nil
+}
+
+func (g *GbApi) ModPage(id int) (ModPageResponse, error) {
+	url := fmt.Sprintf("%s/Mod/%d/ProfilePage", GB_URL, id)
+	resp, err := client.Get(url)
+	if err != nil {
+		log.LogPrint(err.Error())
+		return ModPageResponse{}, err
+	}
+
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.LogPrint(err.Error())
+		return ModPageResponse{}, err
+	}
+
+	var modPage ModPageResponse
+
+	err = json.Unmarshal(b, &modPage)
+	if err != nil {
+		log.LogPrint(err.Error())
+		return ModPageResponse{}, err
+	}
+
+	return modPage, nil
 }
 
 func (g *GbApi) CategoryContent(
@@ -203,7 +257,7 @@ func (g *GbApi) CategoryContent(
 	hasProject bool,
 	releaseType ReleaseType,
 	contentRating ContentRating,
-) CategoryResponse {
+) (CategoryResponse, error) {
 
 	if perPage == 0 {
 		perPage = 15
@@ -247,7 +301,7 @@ func (g *GbApi) CategoryContent(
 	resp, err := client.Get(url.String())
 	if err != nil {
 		log.LogPrint(err.Error())
-		return CategoryResponse{}
+		return CategoryResponse{}, err
 	}
 
 	defer resp.Body.Close()
@@ -255,7 +309,7 @@ func (g *GbApi) CategoryContent(
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.LogPrint(err.Error())
-		return CategoryResponse{}
+		return CategoryResponse{}, err
 	}
 
 	var category CategoryResponse
@@ -263,10 +317,19 @@ func (g *GbApi) CategoryContent(
 	err = json.Unmarshal(b, &category)
 	if err != nil {
 		log.LogPrint(err.Error())
-		return CategoryResponse{}
+		return CategoryResponse{}, err
 	}
 
-	return category
+	return category, nil
+}
+
+type SubmissionPageResponse struct {
+	AMetadata struct {
+		NRecordCount int  `json:"_nRecordCount"`
+		NPerpage     int  `json:"_nPerpage"`
+		BIsComplete  bool `json:"_bIsComplete"`
+	} `json:"_aMetadata"`
+	ARecords []CategoryRecord `json:"_aRecords,omitempty"`
 }
 
 type ModPageResponse struct {

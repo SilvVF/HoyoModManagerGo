@@ -18,18 +18,25 @@ import {
 import {
   GetExportDirectory,
   GetExclusionPaths,
+  GetUpdates,
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, useStateProducerT } from "@/lib/utils";
 import { range } from "@/lib/tsutils";
 import { Slider } from "@/components/ui/slider";
 import { useEffect, useMemo, useState } from "react";
 import {
+  DownloadIcon,
   Edit,
+  GlobeIcon,
+  LucideIcon,
   PlayIcon,
   RefreshCwIcon,
+  SparkleIcon,
   StopCircleIcon,
+  TrainIcon,
   UndoIcon,
+  WavesIcon,
 } from "lucide-react";
 import { ModSizeChart } from "@/components/mod-size-chart";
 import { NameDialog } from "./GameScreen";
@@ -47,8 +54,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChartItem, useStatsState } from "@/state/useStatsState";
 import { LPlugin, usePluginStore } from "@/state/pluginStore";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { types } from "wailsjs/go/models";
+import { Progress } from "@/components/ui/progress";
 
-type SettingsDialog = "edit_port" | "edit_password" | "edit_username";
+type SettingsDialog = "edit_port" | "edit_password" | "edit_username" | "check_updates";
 const AuthType: { [keyof: number]: string } = {
   0: "None",
   1: "Basic",
@@ -81,7 +91,7 @@ export default function SettingsScreen() {
   const initPlugins = usePluginStore((state) => state.init);
   const enablePlugin = usePluginStore((state) => state.enablePlugin);
   const disablePlugin = usePluginStore((state) => state.disablePlugin);
-  
+
 
   const stats = useStatsState(undefined);
 
@@ -164,7 +174,7 @@ export default function SettingsScreen() {
           const pNum = Math.min(Math.max(1024, Number(port.trim())), 49151);
           LogDebug(`setting port to ${pNum}`);
           setServerPort(pNum);
-        } catch {}
+        } catch { }
       },
     },
     edit_username: {
@@ -174,7 +184,7 @@ export default function SettingsScreen() {
       onSuccess: (username: string) => {
         try {
           setUsername(username);
-        } catch {}
+        } catch { }
       },
     },
     edit_password: {
@@ -184,13 +194,13 @@ export default function SettingsScreen() {
       onSuccess: (password: string) => {
         try {
           setPassword(password);
-        } catch {}
+        } catch { }
       },
     },
   };
 
   const dialogSetting =
-    dialog !== undefined ? dialogSettings[dialog] : undefined;
+    (dialog !== undefined && dialog !== "check_updates") ? dialogSettings[dialog] : undefined;
 
   return (
     <div className="flex flex-col w-full h-full px-4">
@@ -200,6 +210,10 @@ export default function SettingsScreen() {
         open={dialog !== undefined}
         onOpenChange={() => setDialog(undefined)}
         onSuccess={(n) => dialogSetting?.onSuccess(n)}
+      />
+      <UpdatesDialog
+        open={dialog === "check_updates"}
+        onOpenChange={(open) => open ? setDialog("check_updates") : setDialog(undefined)}
       />
       <h1 className="text-2xl font-bold my-4 ">Settings</h1>
       <ScrollArea className="max-w-[600]">
@@ -239,6 +253,7 @@ export default function SettingsScreen() {
         available={plugins}
         enabled={enabledPlugins}
       />
+      <Button onClick={() => setDialog("check_updates")}>Check updates</Button>
       <h2 className="text-lg font-semibold tracking-tight mt-4">
         Max download workers
       </h2>
@@ -297,9 +312,8 @@ export default function SettingsScreen() {
         Server auth type
       </h2>
       <div className="flex flex-row w-full justify-between px-4">
-        <div className="text-zinc-500  m-2">{`Auth type: ${
-          authType !== undefined ? AuthType[authType] : ""
-        }`}</div>
+        <div className="text-zinc-500  m-2">{`Auth type: ${authType !== undefined ? AuthType[authType] : ""
+          }`}</div>
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-1">
             <Button size={"icon"}>
@@ -506,8 +520,8 @@ function PluginSettingsItem({
               >
                 <div className="flex flex-col">
                   <text className="text-zinc-500  m-2">{plugin.path}</text>
-                  <text className="text-zinc-500  m-2">{"LastEvent: "+plugin.lastEvent}</text>
-                  <text className="text-zinc-500  m-2">{"Flags: "+plugin.flags}</text>
+                  <text className="text-zinc-500  m-2">{"LastEvent: " + plugin.lastEvent}</text>
+                  <text className="text-zinc-500  m-2">{"Flags: " + plugin.flags}</text>
                 </div>
                 <Checkbox
                   checked={enabled.includes(plugin.path)}
@@ -551,4 +565,129 @@ function SettingsDirItem(props: {
       </Button>
     </div>
   );
+}
+
+
+const games: {
+  [keyof: number]: {
+    game: string,
+    icon: LucideIcon
+  }
+} = {
+  1: { game: "Genshin Impact", icon: SparkleIcon },
+  2: { game: "Honkai Star Rail", icon: TrainIcon },
+  3: { game: "Zenless Zone Zero", icon: GlobeIcon },
+  4: { game: "Wuthering Waves", icon: WavesIcon },
+};
+
+
+// TODO download updated files
+function UpdatesDialog(
+  { open, onOpenChange }: {
+    open: boolean,
+    onOpenChange: (open: boolean) => void
+  }
+) {
+
+  const [retry, setRetry] = useState(0)
+  const [inProgress, setInProgress] = useState<Set<string>>(new Set())
+
+  const { loading, error, value } = useStateProducerT<types.Update[]>([], async (update) => {
+    const updates = await GetUpdates()
+    update(updates)
+  }, [retry])
+
+  const downloadItem = (update: types.Update) => {
+    setInProgress((p) => {
+      p.add(update.newest.dl)
+      return new Set(p)
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[60%] min-h-[80%]">
+        <DialogHeader>
+          <DialogTitle>Mod fix updates</DialogTitle>
+          <DialogDescription>Select updates for mod fix executables</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col items-center justify-center">
+          {loading ? (
+            <div className="flex flex-row items-center justify-end gap-2 text-4xl text-muted-foreground p-2 mx-2">
+              <svg
+                className="h-[32px] w-[32px] animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              {!value.isEmpty() ? "Refreshing" : "Loading..."}
+            </div>
+          ) : undefined}
+          {error ? (
+            <>
+              <text className="text-4xl text-red-300">{error.message.ifEmpty(() => "Unkown error")}</text>
+              <Button onClick={() => setRetry((r) => r + 1)}>Retry</Button>
+            </>
+          ) : undefined}
+          {value.isEmpty() ? undefined : (
+            <Card className="min-w-[100%]">
+              <div className="space-y-1 p-2 overflow-y-auto max-h-[100%]">
+                <ScrollArea className="">
+                  {value.map((v) => {
+                    return (
+                      <div
+                        key={v.game}
+                        className="flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground"
+                      >
+                        <div className="flex flex-col">
+                          <text className="m-2">{games[v.game]["game"]}</text>
+                          <text className="text-zinc-500  m-2">{`Current: ${v.current}`}</text>
+                          <text className="text-zinc-500  m-2">{`Newest: ${v.newest.name}`}</text>
+                        </div>
+                        <Button
+                          onClick={() => { }}
+                        >
+                          <DownloadIcon />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </ScrollArea>
+              </div>
+            </Card>)}
+        </div>
+        <DialogFooter className="sm:justify-start">
+          <DialogClose asChild>
+            <Button type="button" variant="destructive">
+              Cancel
+            </Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="default"
+            >
+              Confirm
+            </Button>
+          </DialogClose>
+
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setRetry((r) => r + 1)}
+          >
+            Refresh
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }

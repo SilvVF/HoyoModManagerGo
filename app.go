@@ -43,17 +43,19 @@ type App struct {
 	pluginExports map[string]lua.LGFunction
 	plugins       *plugin.Plugins
 	appPrefs      *core.AppPrefs
+	updator       *core.Updator
 	logType       int
 	mutex         sync.Mutex
 }
 
 // NewApp creates a new App application struct
-func NewApp(appPrefs *core.AppPrefs) *App {
+func NewApp(appPrefs *core.AppPrefs, updator *core.Updator) *App {
 	return &App{
 		appPrefs:      appPrefs,
 		dev:           *dev,
 		logType:       *logType,
 		pluginExports: make(map[string]lua.LGFunction),
+		updator:       updator,
 	}
 }
 
@@ -65,7 +67,7 @@ func (a *App) startup(ctx context.Context) {
 }
 
 // domReady is called after front-end resources have been loaded
-func (a App) domReady(ctx context.Context) {
+func (a *App) domReady(ctx context.Context) {
 	// Add your action here
 }
 
@@ -182,6 +184,13 @@ func getDirSize(path string) (int64, error) {
 	return totalSize, err
 }
 
+func (a *App) GetUpdates() []types.Update {
+
+	a.updator.CancelJob()
+
+	return a.updator.CheckFixesForUpdate()
+}
+
 func (a *App) GetStats() (*types.DownloadStats, error) {
 	log.LogDebug("Getting stats")
 	bytes, rootInfo, err := getDirInfo(util.GetRootModDir())
@@ -229,6 +238,10 @@ func getDirInfo(root string) (int64, []types.FileInfo, error) {
 	}
 
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+
+		if err != nil {
+			return err
+		}
 
 		relPath := strings.TrimPrefix(path, root)
 		segs := strings.Split(relPath, string(filepath.Separator))
