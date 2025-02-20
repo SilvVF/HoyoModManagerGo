@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"hmm/pkg/core"
 	"hmm/pkg/log"
@@ -99,6 +100,20 @@ func (a *App) GetExclusionPaths() ([]string, error) {
 
 func (a *App) GetExportDirectory() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{})
+}
+
+func (a *App) ReadImageFile(path string) (string, error) {
+
+	if !strings.HasPrefix(path, "file://") {
+		return "", errors.New("invalid path must start with file://")
+	}
+
+	bytes, err := os.ReadFile(path[len("file://"):])
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
 func (a *App) OpenMultipleFilesDialog(display string, filters []string) ([]string, error) {

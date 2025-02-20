@@ -554,30 +554,16 @@ func (h *DbHelper) DeletePlaylistById(id int64) error {
 }
 
 func (h *DbHelper) UpdateModImages(modId int64, images []string) error {
-	m, err := h.queries.SelectModById(h.ctx, modId)
-	if err != nil {
-		return err
-	}
-	return h.queries.UpdateModDataById(h.ctx, db.UpdateModDataByIdParams{
-		GbId:          m.GbID,
+	return h.queries.UpdateModImages(h.ctx, db.UpdateModImagesParams{
 		PreviewImages: strings.Join(images, "<seperator>"),
-		ModLink:       m.ModLink,
-		Selected:      m.Selected,
-		ID:            m.ID,
+		ID:            modId,
 	})
 }
 
 func (h *DbHelper) UpdateModGbId(modId, gbId int64) error {
-	m, err := h.queries.SelectModById(h.ctx, modId)
-	if err != nil {
-		return err
-	}
-	return h.queries.UpdateModDataById(h.ctx, db.UpdateModDataByIdParams{
-		GbId:          sql.NullInt64{Valid: gbId != 0, Int64: gbId},
-		PreviewImages: m.PreviewImages,
-		ModLink:       m.ModLink,
-		Selected:      m.Selected,
-		ID:            m.ID,
+	return h.queries.UpdateModGbId(h.ctx, db.UpdateModGbIdParams{
+		GbId: sql.NullInt64{Valid: gbId > 0, Int64: gbId},
+		ID:   modId,
 	})
 }
 

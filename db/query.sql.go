@@ -832,34 +832,6 @@ func (q *Queries) SelectTexturesByModId(ctx context.Context, modid int64) ([]Tex
 	return items, nil
 }
 
-const updateModDataById = `-- name: UpdateModDataById :exec
-UPDATE mod SET
-    gb_id = COALESCE(gb_id, ?1),
-    preview_images = COALESCE(preview_images, ?2),
-    mod_link = COALESCE(mod_link, ?3),
-    selected = COALESCE(selected, ?4)
-WHERE mod.id = ?5 LIMIT 1
-`
-
-type UpdateModDataByIdParams struct {
-	GbId          sql.NullInt64
-	PreviewImages string
-	ModLink       sql.NullString
-	Selected      bool
-	ID            int64
-}
-
-func (q *Queries) UpdateModDataById(ctx context.Context, arg UpdateModDataByIdParams) error {
-	_, err := q.db.ExecContext(ctx, updateModDataById,
-		arg.GbId,
-		arg.PreviewImages,
-		arg.ModLink,
-		arg.Selected,
-		arg.ID,
-	)
-	return err
-}
-
 const updateModEnabledById = `-- name: UpdateModEnabledById :exec
 UPDATE mod SET
     selected = ?1
@@ -873,6 +845,54 @@ type UpdateModEnabledByIdParams struct {
 
 func (q *Queries) UpdateModEnabledById(ctx context.Context, arg UpdateModEnabledByIdParams) error {
 	_, err := q.db.ExecContext(ctx, updateModEnabledById, arg.Selected, arg.ID)
+	return err
+}
+
+const updateModGbFilename = `-- name: UpdateModGbFilename :exec
+UPDATE mod SET
+    gb_file_name = ?1
+WHERE mod.id = ?2
+`
+
+type UpdateModGbFilenameParams struct {
+	GbFilename sql.NullString
+	ID         int64
+}
+
+func (q *Queries) UpdateModGbFilename(ctx context.Context, arg UpdateModGbFilenameParams) error {
+	_, err := q.db.ExecContext(ctx, updateModGbFilename, arg.GbFilename, arg.ID)
+	return err
+}
+
+const updateModGbId = `-- name: UpdateModGbId :exec
+UPDATE mod SET
+    gb_id = ?1
+WHERE mod.id = ?2
+`
+
+type UpdateModGbIdParams struct {
+	GbId sql.NullInt64
+	ID   int64
+}
+
+func (q *Queries) UpdateModGbId(ctx context.Context, arg UpdateModGbIdParams) error {
+	_, err := q.db.ExecContext(ctx, updateModGbId, arg.GbId, arg.ID)
+	return err
+}
+
+const updateModImages = `-- name: UpdateModImages :exec
+UPDATE mod SET
+    preview_images = ?1
+WHERE mod.id = ?2
+`
+
+type UpdateModImagesParams struct {
+	PreviewImages string
+	ID            int64
+}
+
+func (q *Queries) UpdateModImages(ctx context.Context, arg UpdateModImagesParams) error {
+	_, err := q.db.ExecContext(ctx, updateModImages, arg.PreviewImages, arg.ID)
 	return err
 }
 

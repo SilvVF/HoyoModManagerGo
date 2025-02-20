@@ -46,6 +46,10 @@ export function OpenMultipleFilesDialog(arg1, arg2) {
   return window['go']['main']['App']['OpenMultipleFilesDialog'](arg1, arg2);
 }
 
+export function ReadImageFile(arg1) {
+  return window['go']['main']['App']['ReadImageFile'](arg1);
+}
+
 export function StartPlugins() {
   return window['go']['main']['App']['StartPlugins']();
 }

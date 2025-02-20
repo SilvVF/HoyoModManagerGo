@@ -22,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn, useStateProducer } from "@/lib/utils";
 import { useKeyMapperStore } from "@/state/keymapperStore";
 import { CheckIcon, EditIcon, TrashIcon, XIcon } from "lucide-react";
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -30,23 +30,47 @@ import {
   RenameMod,
   SelectClosestCharacter,
   SelectModById,
+  UpdateModGbId,
+  UpdateModImages,
 } from "wailsjs/go/core/DbHelper";
 import { types } from "wailsjs/go/models";
 import { useShallow } from "zustand/shallow";
 import { NameDialogContent } from "./GameScreen";
 import { ModActionsDropDown } from "@/components/CharacterInfoCard";
 import * as Downloader from "wailsjs/go/core/Downloader"
-import { Pair } from "@/lib/tsutils";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
-import { LogPrint } from "wailsjs/runtime/runtime";
+import { OpenMultipleFilesDialog, ReadImageFile } from "wailsjs/go/main/App";
 
 type DialogType =
   | "rename_mod"
   | "create_tag"
   | "rename_tag"
+  | "set_mod_image"
 
-export type EditDialog = Pair<DialogType, number>;
+const imageFileExtensions = [
+  "*.jpg",
+  "*.jpeg",
+  "*.png",
+  "*.gif",
+  "*.bmp",
+  "*.webp",
+  "*.tiff",
+  "*.tif",
+  "*.ico",
+  "*.svg"
+];
+
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+
 
 export function KeymappingScreen() {
   const { modId } = useParams();
@@ -54,6 +78,7 @@ export function KeymappingScreen() {
 
   const [modRefreshTrigger, setModRefreshTrigger] = useState(0);
   const refreshMod = () => setModRefreshTrigger(p => p + 1)
+
   const mod = useStateProducer<types.Mod | undefined>(
     undefined,
     async (update) => {
@@ -72,7 +97,7 @@ export function KeymappingScreen() {
     [mod]
   );
 
-  const [dialog, setDialog] = useState<EditDialog | undefined>(undefined);
+  const [dialog, setDialog] = useState<DialogType | undefined>(undefined);
 
   const dialogSettings = useMemo(() => {
     return {
@@ -94,8 +119,19 @@ export function KeymappingScreen() {
         description: "Rename the current tag",
         onSuccess: () => { },
       },
+      set_mod_image: {
+        title: "Add image url",
+        description: "input a url to add to the mod",
+        onSuccess: (id: number, url: string) => {
+          if (mod !== undefined && isValidUrl(url)) {
+            const set = new Set(mod.previewImages)
+            set.add(url)
+            UpdateModImages(id, Array.from(set)).then(refreshMod)
+          }
+        },
+      },
     };
-  }, []);
+  }, [mod]);
 
   const [expandImgs, setExpandImgs] = useState(false);
   const [hoveredImg, setHoveredImg] = useState("");
@@ -114,57 +150,84 @@ export function KeymappingScreen() {
   };
 
   const Settings = useMemo(() => {
-    if (dialog === undefined) return undefined;
-    const curr = dialogSettings[dialog.x];
+    if (dialog === undefined || mod === undefined) return undefined;
+    const curr = dialogSettings[dialog];
     return (
       <NameDialogContent
         title={curr.title}
         description={curr.description}
         input={dialogInput}
         onInputChange={handleDialogInputChange}
-        onSuccess={() => curr.onSuccess(dialog.y, dialogInput)}
+        onSuccess={() => {
+          curr.onSuccess(mod.id, dialogInput)
+          setDialogInput("")
+        }}
       />
     );
-  }, [dialog, dialogSettings, handleDialogInputChange]);
+  }, [mod, dialog, dialogSettings, dialogInput, handleDialogInputChange]);
+
+
+  const removeImageFile = (uri: string, mod: types.Mod) => {
+    const set = new Set(mod.previewImages)
+    set.delete(uri)
+    UpdateModImages(mod.id, Array.from(set)).then(refreshMod)
+  }
+
+  const addImageFile = () => {
+    OpenMultipleFilesDialog("select an image", imageFileExtensions).then((files) => {
+      if (files === undefined || files.isEmpty()) {
+        return
+      }
+      const set = new Set(mod?.previewImages ?? [])
+      for (const file of files) {
+        set.add("file://" + file)
+      }
+      UpdateModImages(mod?.id ?? -1, Array.from(set)).then(refreshMod)
+    })
+  }
+
+  const updateModGbId = (gbId: number) => UpdateModGbId(mod?.id ?? -1, gbId).then(refreshMod)
+
+  const hoverImg = expandImgs ? hoveredImg : ""
 
   if (character === undefined || mod === undefined) {
     return <></>
   }
 
-  const hoverImg = expandImgs ? hoveredImg : ""
 
   return (
     <div className="flex flex-col">
-      <div className="flex flex-row items-end justify-start space-y-4">
-        <img
-          src={character.avatarUrl}
-          className="object-contain aspect-square h-32"
-        />
-        <div className="flex flex-row items-center w-full">
-          <div className="flex flex-col">
-            <text className="text-xl font-semibold text-muted-foreground">
-              Editing:
-            </text>
-            <div className="flex flex-row items-center space-x-2">
-              <text className="text-3xl font-semibold me-4">{mod.filename}</text>
-              <SetGBId
-                id={mod.gbId}
-                changeId={() => { }}
-              />
-              <div className="w-2" />
-              <Switch
-                checked={mod.enabled}
-                onCheckedChange={() =>
-                  enableMod(mod.id, !mod.enabled)
-                }
-              />
-              <Dialog>
+      <Dialog open={dialog !== undefined} onOpenChange={(open) => setDialog((prev) => open ? prev : undefined)}>
+        <div className="flex flex-row items-end justify-start space-y-4">
+          <img
+            src={character.avatarUrl}
+            className="object-contain aspect-square h-32"
+          />
+          <div className="flex flex-row items-center w-full">
+            <div className="flex flex-col">
+              <text className="text-xl font-semibold text-muted-foreground">
+                Editing:
+              </text>
+              <div className="flex flex-row items-center space-x-2">
+                <text className="text-3xl font-semibold me-4">{mod.filename}</text>
+                <SetGBId
+                  id={mod.gbId}
+                  changeId={updateModGbId}
+                />
+                <div className="w-2" />
+                <Switch
+                  checked={mod.enabled}
+                  onCheckedChange={() =>
+                    enableMod(mod.id, !mod.enabled)
+                  }
+                />
+
                 {mod ?
                   <ModActionsDropDown
                     onEnable={() => enableMod(mod.id, !mod.enabled)}
                     onDelete={() => deleteMod(mod.id)}
                     onRename={() =>
-                      setDialog({ x: "rename_mod", y: mod.id })
+                      setDialog("rename_mod")
                     }
                     onView={() => {
                       if (mod.gbId !== 0) {
@@ -174,60 +237,63 @@ export function KeymappingScreen() {
                   />
                   : undefined}
                 {Settings}
-              </Dialog>
+
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <ModPreviewImages
-        mod={mod}
-        hovered={hoverImg}
-        setHovered={(uri) => setHoveredImg(uri)}
-      />
-      <ImageSelect
-        images={mod.previewImages}
-        addImage={() => { }}
-        hovered={hoverImg}
-        expanded={expandImgs}
-        setExpanded={(exp) => setExpandImgs(exp)}
-        addImageFile={() => { }}
-        onHovered={(uri) => setHoveredImg(uri)}
-        removeImage={() => { }}
-      />
-      <KeybindsUi
-        modId={modId}
-      />
+        <ModPreviewImages
+          mod={mod}
+          hovered={hoverImg}
+          setHovered={(uri) => setHoveredImg(uri)}
+        />
+        <ImageSelect
+          images={mod.previewImages}
+          addImage={() => setDialog("set_mod_image")}
+          hovered={hoverImg}
+          expanded={expandImgs}
+          setExpanded={(exp) => setExpandImgs(exp)}
+          addImageFile={addImageFile}
+          onHovered={(uri) => setHoveredImg(uri)}
+          removeImage={(uri) => removeImageFile(uri, mod)}
+        />
+        <KeybindsUi
+          modId={modId}
+        />
+      </Dialog>
     </div>
   );
 }
 
 function SetGBId({ id, changeId }: {
   id: number,
-  changeId: (id: number) => void
+  changeId: (id: number) => Promise<void>
 }) {
 
   const [gbIdInput, setGbIdInput] = useState(id);
+  const idChanged = useMemo(() => id != gbIdInput, [id, gbIdInput])
+
   const handleIdChange = (event: any) => {
     try {
       setGbIdInput(Math.max(0, Math.floor(Number(event.target.value))))
     } catch { }
   }
   const onChange = (changed: number, accepted: boolean) => {
-    if (!accepted) {
+    if (accepted) {
+      changeId(changed)
+        .then(() => setGbIdInput(changed))
+        .catch(() => setGbIdInput(id))
+    } else {
       setGbIdInput(id)
-      return
     }
-    changeId(changed)
   }
-
-  const idChanged = gbIdInput != id
 
   return (
     <div className="flex flex-row space-x-2 items-center">
       <text className="text-sm text-zinc-500">GB Id</text>
       <Input type="number" className="w-32" value={gbIdInput} onInput={handleIdChange} />
       {idChanged ? (
-        <div className="space-x-2" onPointerDown={() => onChange(gbIdInput, false)}>
+        <div className="space-x-2" onPointerDown={() => onChange(id, false)}>
           <Button size='icon'>
             <XIcon />
           </Button>
@@ -495,7 +561,21 @@ function ModPreviewImages(props: { mod: types.Mod | undefined, hovered: string, 
   const [api, setApi] = React.useState<CarouselApi>();
   const [lastHover, setLastHover] = useState("");
 
-  if (props.mod === undefined || props.mod.previewImages.length === 0) {
+  useEffect(() => {
+    const images = props.mod?.previewImages
+    if (!images) {
+      return
+    }
+    const idx = images.findIndex((url) => url === props.hovered)
+    const id = setTimeout(() => {
+      if (idx >= 0 && idx <= images.length && lastHover !== props.hovered) {
+        api?.scrollTo(idx);
+      }
+    }, 200)
+    return () => clearTimeout(id)
+  }, [props.hovered, props.mod, api, lastHover])
+
+  if (props.mod?.previewImages === undefined || props.mod.previewImages.length === 0) {
     return (
       <div className="p-6 flex items-center justify-center">
         <text className="text-lg text-muted-foreground">No preview images</text>
@@ -503,37 +583,22 @@ function ModPreviewImages(props: { mod: types.Mod | undefined, hovered: string, 
     );
   }
 
-  useEffect(() => {
-    const idx = props.mod?.previewImages?.findIndex((imageLink) => {
-      return imageLink === props.hovered
-    })
-    const id = setTimeout(() => {
-      if (idx !== -1 && idx !== undefined && lastHover !== props.hovered) {
-        api?.scrollTo(idx);
-      }
-    }, 200)
-    return () => clearTimeout(id)
-  }, [props.hovered, props.mod, api, lastHover])
-
   return (
     <div className="w-full flex flex-col items-end space-y-1 my-4">
       <Carousel className="w-full" setApi={setApi}>
         <CarouselContent>
-          {props.mod?.previewImages.map((url, index) => (
-            <CarouselItem key={index} className="basis-1/4">
-              <div
-                className={cn(props.hovered === url ? "border-4 border-primary" : "")}
-                onMouseEnter={() => {
-                  setLastHover(url)
-                  props.setHovered(url)
-                }}
-                onMouseLeave={() => {
-                  setLastHover("")
-                  props.setHovered("")
-                }}>
-                <img className="object-cover aspect-square" src={url} />
-              </div>
-            </CarouselItem>
+          {props?.mod?.previewImages?.map((url) => (
+            <ImagePreviewItem
+              url={url}
+              onMouseEnter={() => {
+                setLastHover(url)
+                props.setHovered(url)
+              }}
+              onMouseLeave={() => {
+                setLastHover("")
+                props.setHovered("")
+              }}
+              hovered={props.hovered} />
           ))}
         </CarouselContent>
         <CarouselPrevious
@@ -551,6 +616,32 @@ function ModPreviewImages(props: { mod: types.Mod | undefined, hovered: string, 
       </Carousel>
     </div>
   );
+}
+
+const ImagePreviewItem = ({ url, hovered, onMouseEnter, onMouseLeave }: { url: string, hovered: string, onMouseEnter: () => void, onMouseLeave: () => void }) => {
+  const ref = useRef<HTMLImageElement>(null)
+
+  useEffect(() => {
+    if (url.startsWith("file://") && ref.current) {
+      ReadImageFile(url).then((base64) => {
+        const dotIdx = url.lastIndexOf(".")
+        if (ref.current) {
+          ref.current.src = `data:image/${url.slice(dotIdx, url.length)};base64,${base64}`
+        }
+      })
+    }
+  }, [url, ref])
+
+  return (
+    <CarouselItem key={url} className="basis-1/4">
+      <div
+        className={cn(hovered === url ? "border-4 border-primary" : "")}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}>
+        <img ref={ref} className="object-cover aspect-square" src={url} />
+      </div>
+    </CarouselItem>
+  )
 }
 
 interface ImageSelectProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -585,14 +676,14 @@ function ImageSelect({
         <EditIcon />
       </Button>
       <div className={cn(
-        expanded ? "opacity-100" : "opacity-0 max-h-0 hidden",
+        expanded ? "opacity-100 visible" : "opacity-0 max-h-0 hidden",
         className
       )}>
         <div className="flex flex-row">
           <Button
             className="w-full justify-start"
             variant="ghost"
-            onPointerDown={addImage}
+            onClick={() => addImage()}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -632,7 +723,7 @@ function ImageSelect({
         </div>
         <Card>
           <div className="space-y-1 p-2 overflow-y-auto max-h-[300px]">
-            {images?.map((uri) => {
+            {images.map((uri) => {
               return (
                 <div
                   key={uri}

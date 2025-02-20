@@ -26,6 +26,8 @@ export function OpenDirectoryDialog(arg1:string,arg2:Array<string>):Promise<stri
 
 export function OpenMultipleFilesDialog(arg1:string,arg2:Array<string>):Promise<Array<string>>;
 
+export function ReadImageFile(arg1:string):Promise<string>;
+
 export function StartPlugins():Promise<void>;
 
 export function StopPlugins():Promise<void>;
