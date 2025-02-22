@@ -62,7 +62,7 @@ const serverPasswordPref = ServerPasswordPref as GoPref<string>;
 const serverAuthTypePref = ServerAuthTypePref as GoPref<number>;
 
 const cleanModDirPref = CleanModDirPref as GoPref<boolean>;
-const rootModDirPRef = RootModDirPref as GoPref<string>;
+const rootModDirPref = RootModDirPref as GoPref<string>;
 
 export function usePrefrenceAsStateDefault<T extends any>(
   defaultValue: T,
@@ -159,5 +159,5 @@ export {
   serverUsernamePref,
   cleanModDirPref,
   pluginsPref,
-  rootModDirPRef,
+  rootModDirPref as rootModDirPRef,
 };

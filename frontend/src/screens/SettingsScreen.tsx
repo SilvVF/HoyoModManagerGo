@@ -14,15 +14,15 @@ import {
   serverPasswordPref,
   serverAuthTypePref,
   cleanModDirPref,
+  rootModDirPRef,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
   GetExclusionPaths,
-  GetUpdates,
-  DownloadModFix,
+  OpenDirectoryDialog,
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
-import { cn, ProducedState, useStateProducerT } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { range } from "@/lib/tsutils";
 import { Slider } from "@/components/ui/slider";
 import { useEffect, useMemo, useState } from "react";
@@ -57,7 +57,6 @@ import { ChartItem, useStatsState } from "@/state/useStatsState";
 import { LPlugin, usePluginStore } from "@/state/pluginStore";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { types } from "wailsjs/go/models";
-import { create } from "zustand";
 import { useUpdatesStore } from "@/state/updateStore";
 
 type SettingsDialog = "edit_port" | "edit_password" | "edit_username" | "check_updates";
@@ -82,6 +81,7 @@ export default function SettingsScreen() {
     maxDownloadWorkersPref
   );
   const [cleanModDir, setCleanModDir] = usePrefrenceAsState(cleanModDirPref);
+  const [mmmDir] = usePrefrenceAsState(rootModDirPRef);
 
   const [dialog, setDialog] = useState<SettingsDialog | undefined>(undefined);
   const [sliderValue, setSliderValue] = useState(maxDownloadWorkers ?? 1);
@@ -93,7 +93,6 @@ export default function SettingsScreen() {
   const initPlugins = usePluginStore((state) => state.init);
   const enablePlugin = usePluginStore((state) => state.enablePlugin);
   const disablePlugin = usePluginStore((state) => state.disablePlugin);
-
 
   const stats = useStatsState(undefined);
 
@@ -119,8 +118,13 @@ export default function SettingsScreen() {
         value: zzzDir,
         setValue: setZZZdir,
       },
+      {
+        name: "Zenless Zone Zero",
+        value: zzzDir,
+        setValue: setZZZdir,
+      },
     ],
-    [honkaiDir, zzzDir, genshinDir, setHonkaiDir, setZZZdir, setGenshinDir]
+    [honkaiDir, zzzDir, genshinDir, wuwaDir, setHonkaiDir, setZZZdir, setGenshinDir, setWuwaDir]
   );
 
   const openDialogAndSet = async (setDir: (s: string) => void) => {
@@ -150,6 +154,15 @@ export default function SettingsScreen() {
   const removeFromExclusions = (path: string) => {
     setIgnore((prev) => prev?.filter((it) => it !== path));
   };
+
+  const getNewRootModDir = () => {
+    OpenDirectoryDialog("select a dir to store mods", []).then((dir) => {
+      if (!dir || dir.length <= 0) {
+        return
+      }
+
+    })
+  }
 
   useEffect(
     () => setSliderValue(maxDownloadWorkers ?? 1),
@@ -202,7 +215,9 @@ export default function SettingsScreen() {
   };
 
   const dialogSetting =
-    (dialog !== undefined && dialog !== "check_updates") ? dialogSettings[dialog] : undefined;
+    (dialog !== undefined && Object.keys(dialogSettings).find((k) => k === dialog))
+      ? dialogSettings[dialog]
+      : undefined;
 
   return (
     <div className="flex flex-col w-full h-full px-4">
@@ -228,7 +243,7 @@ export default function SettingsScreen() {
             })}
         </div>
       </ScrollArea>
-      <h2 className="text-lg font-semibold tracking-tight">Export Locations</h2>
+      <h2 className="text-lg font-semibold tracking-tight mt-8">Export Locations</h2>
       {items.map((item) => {
         return (
           <SettingsDirItem
@@ -238,6 +253,24 @@ export default function SettingsScreen() {
           />
         );
       })}
+      <div>
+        <SettingsDirItem
+          name={"Mod Manager folder"}
+          setDir={getNewRootModDir}
+          dir={mmmDir}
+        />
+      </div>
+      <h2 className="text-lg font-semibold tracking-tight">
+        Mod Fix Updates
+      </h2>
+      <div className="flex items-center m-2 p-2 justify-between rounded-lg hover:bg-primary-foreground">
+        <text className="text-zinc-500">check game bannana for mod fix executables</text>
+        <Button
+          onPointerDown={() => setDialog("check_updates")}
+        >
+          check for updates
+        </Button>
+      </div>
       <h2 className="text-lg font-semibold tracking-tight">
         Generation Exclusions
       </h2>
@@ -255,11 +288,10 @@ export default function SettingsScreen() {
         available={plugins}
         enabled={enabledPlugins}
       />
-      <Button onClick={() => setDialog("check_updates")}>Check updates</Button>
       <h2 className="text-lg font-semibold tracking-tight mt-4">
         Max download workers
       </h2>
-      <div className="px-4 flex flex-row justify-between">
+      <div className="px-4 flex flex-row justify-between rounded-lg p-4 hover:bg-primary-foreground">
         {maxDownloadWorkers ? (
           <Slider
             className="w-3/4"
@@ -273,29 +305,33 @@ export default function SettingsScreen() {
         ) : undefined}
         <div className="text-lg font-semibold tracking-tight mx-4">{`Max workers: ${sliderValue} `}</div>
       </div>
-      <div className="flex items-center space-x-6 my-6">
-        <Checkbox
-          checked={spaceSaver ?? false}
-          onCheckedChange={(v) => setSpaceSaver(v as boolean)}
-        />
-        <label
-          htmlFor="terms"
-          className="text-xl font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
-          Enable space saver
-        </label>
-      </div>
-      <div className="flex items-center space-x-6 my-6">
-        <Checkbox
-          checked={cleanModDir ?? false}
-          onCheckedChange={(v) => setCleanModDir(v as boolean)}
-        />
-        <label
-          htmlFor="terms"
-          className="text-xl font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
-          Clean mod export directory when generating
-        </label>
+      <div className="space-y-4">
+        <div className="flex flex-row items-center justify-between m-2 p-2 rounded-lg hover:bg-primary-foreground">
+          <label
+            htmlFor="terms"
+            className="text-xl font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            Enable space saver
+          </label>
+          <Checkbox
+            className="h-10 w-10"
+            checked={spaceSaver ?? false}
+            onCheckedChange={(v) => setSpaceSaver(v as boolean)}
+          />
+        </div>
+        <div className="flex flex-row items-center justify-between m-2 p-2 rounded-lg hover:bg-primary-foreground">
+          <label
+            htmlFor="terms"
+            className="text-xl font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            Clean mod export directory when generating
+          </label>
+          <Checkbox
+            className="h-10 w-10"
+            checked={cleanModDir ?? false}
+            onCheckedChange={(v) => setCleanModDir(v as boolean)}
+          />
+        </div>
       </div>
       <h2 className="text-lg font-semibold tracking-tight mt-4">Http server</h2>
       <div className="px-4 flex flex-row justify-between">
@@ -582,7 +618,6 @@ const games: {
   4: { game: "Wuthering Waves", icon: WavesIcon },
 };
 
-// TODO download updated files
 function UpdatesDialog(
   { open, onOpenChange }: {
     open: boolean,
