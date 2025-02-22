@@ -33,11 +33,12 @@ func (s *StringPreference) Get() string {
 	return string(v)
 }
 
-func (s *StringPreference) Set(value string) {
+func (s *StringPreference) Set(value string) error {
 	err := s.db.Put([]byte(s.key), []byte(value))
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (s *StringPreference) IsSet() bool {
@@ -45,11 +46,12 @@ func (s *StringPreference) IsSet() bool {
 	return exist && err == nil
 }
 
-func (s *StringPreference) Delete() {
+func (s *StringPreference) Delete() error {
 	err := s.db.Delete([]byte(s.key))
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (s *StringPreference) DefaultValue() string {
@@ -92,11 +94,12 @@ func (p *IntPreference) Get() int {
 	return i
 }
 
-func (p *IntPreference) Set(value int) {
+func (p *IntPreference) Set(value int) error {
 	err := p.db.Put([]byte(p.key), []byte(strconv.Itoa(value)))
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (p *IntPreference) IsSet() bool {
@@ -104,11 +107,12 @@ func (p *IntPreference) IsSet() bool {
 	return exist && err == nil
 }
 
-func (p *IntPreference) Delete() {
+func (p *IntPreference) Delete() error {
 	err := p.db.Delete([]byte(p.key))
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (p *IntPreference) DefaultValue() int {
@@ -147,13 +151,14 @@ func (p *LongPreference) Get() int64 {
 	return int64(binary.LittleEndian.Uint64(v))
 }
 
-func (p *LongPreference) Set(value int64) {
+func (p *LongPreference) Set(value int64) error {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, uint64(value))
 	err := p.db.Put([]byte(p.key), b)
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (p *LongPreference) IsSet() bool {
@@ -161,11 +166,12 @@ func (p *LongPreference) IsSet() bool {
 	return exist && err == nil
 }
 
-func (p *LongPreference) Delete() {
+func (p *LongPreference) Delete() error {
 	err := p.db.Delete([]byte(p.key))
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (p *LongPreference) DefaultValue() int64 {
@@ -204,13 +210,14 @@ func (p *FloatPreference) Get() float32 {
 	return float32(binary.LittleEndian.Uint32(v))
 }
 
-func (p *FloatPreference) Set(value float32) {
+func (p *FloatPreference) Set(value float32) error {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint32(b, math.Float32bits(value))
 	err := p.db.Put([]byte(p.key), b)
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (p *FloatPreference) IsSet() bool {
@@ -218,11 +225,12 @@ func (p *FloatPreference) IsSet() bool {
 	return exist && err == nil
 }
 
-func (p *FloatPreference) Delete() {
+func (p *FloatPreference) Delete() error {
 	err := p.db.Delete([]byte(p.key))
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (p *FloatPreference) DefaultValue() float32 {
@@ -261,7 +269,7 @@ func (p *BooleanPreference) Get() bool {
 	return v[0] == 1
 }
 
-func (p *BooleanPreference) Set(value bool) {
+func (p *BooleanPreference) Set(value bool) error {
 	var b []byte
 	if value {
 		b = []byte{1}
@@ -272,6 +280,7 @@ func (p *BooleanPreference) Set(value bool) {
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (p *BooleanPreference) IsSet() bool {
@@ -279,11 +288,12 @@ func (p *BooleanPreference) IsSet() bool {
 	return exist && err == nil
 }
 
-func (p *BooleanPreference) Delete() {
+func (p *BooleanPreference) Delete() error {
 	err := p.db.Delete([]byte(p.key))
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (p *BooleanPreference) DefaultValue() bool {
@@ -330,7 +340,7 @@ func (p *StringSlicePreference) Get() []string {
 	return strs
 }
 
-func (p *StringSlicePreference) Set(value []string) {
+func (p *StringSlicePreference) Set(value []string) error {
 	buf := &bytes.Buffer{}
 	gob.NewEncoder(buf).Encode(value)
 	bs := buf.Bytes()
@@ -339,6 +349,7 @@ func (p *StringSlicePreference) Set(value []string) {
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (p *StringSlicePreference) IsSet() bool {
@@ -346,11 +357,12 @@ func (p *StringSlicePreference) IsSet() bool {
 	return exist && err == nil
 }
 
-func (p *StringSlicePreference) Delete() {
+func (p *StringSlicePreference) Delete() error {
 	err := p.db.Delete([]byte(p.key))
 	if err != nil {
 		log.LogError(err.Error())
 	}
+	return err
 }
 
 func (p *StringSlicePreference) DefaultValue() []string {

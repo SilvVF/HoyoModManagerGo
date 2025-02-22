@@ -28,9 +28,9 @@ type PrefrenceDb interface {
 type Preference[T any] interface {
 	Key() string
 	Get() T
-	Set(value T)
+	Set(value T) error
 	IsSet() bool
-	Delete()
+	Delete() error
 	DefaultValue() T
 	Watch() (<-chan T, context.CancelFunc)
 }

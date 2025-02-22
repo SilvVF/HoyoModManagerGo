@@ -63,7 +63,7 @@ func GetGameDir(game types.Game) string {
 
 var rootModDirCallback func() string
 
-func SetRootModDir(callback func() string) {
+func SetRootModDirFn(callback func() string) {
 	rootModDirCallback = callback
 }
 
@@ -137,6 +137,51 @@ func ExtractDateFromFilename(filename string) (time.Time, error) {
 	}
 
 	return parsedTime, nil
+}
+
+func CopyRecursivleyProgFn(src string, dst string, overwrite bool, onProgress func(progress int64, total int64)) error {
+	srcInfo, err := os.Stat(src)
+
+	total := srcInfo.Size()
+	copy := int64(0)
+
+	onProgress(copy, total)
+
+	if err != nil {
+		return fmt.Errorf("cannot stat source dir: %w", err)
+	}
+	err = os.MkdirAll(dst, srcInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("cannot create destination dir: %w", err)
+	}
+	err = filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+
+		err = CopyFile(path, dstPath, overwrite)
+		if err != nil {
+			return err
+		}
+
+		copy += info.Size()
+		onProgress(copy, total)
+
+		return err
+	})
+
+	onProgress(total, total)
+
+	return err
 }
 
 func CopyRecursivley(src string, dst string, overwrite bool) error {

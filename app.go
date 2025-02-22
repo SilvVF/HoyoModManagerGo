@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -189,6 +190,45 @@ func (a *App) GetUpdates() []types.Update {
 	a.updator.CancelJob()
 
 	return a.updator.CheckFixesForUpdate()
+}
+
+func (a *App) ChangeRootModDir(absolutePath string, copyOver bool) error {
+
+	dirPref := a.appPrefs.RootModDirPref
+	prevDir := dirPref.Get()
+
+	if err := dirPref.Set(absolutePath); err != nil {
+		return err
+	}
+
+	if !copyOver {
+		return nil
+	}
+
+	runtime.EventsEmit(a.ctx, "change_dir", "start")
+
+	sem := make(chan struct{}, 1)
+
+	sendEvent := func(progress, total int64) {
+		go func() {
+			sem <- struct{}{}
+
+			runtime.EventsEmit(a.ctx, "change_dir", "progress", core.DataProgress{Total: total, Progress: progress})
+
+			ctx, cancel := context.WithTimeout(a.ctx, time.Millisecond*100)
+			defer cancel()
+
+			<-ctx.Done()
+			<-sem
+		}()
+	}
+
+	err := util.CopyRecursivleyProgFn(prevDir, absolutePath, false, sendEvent)
+	sem <- struct{}{}
+
+	runtime.EventsEmit(a.ctx, "change_dir", "error", err.Error())
+
+	return err
 }
 
 func (a *App) GetStats() (*types.DownloadStats, error) {

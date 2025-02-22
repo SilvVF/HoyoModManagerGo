@@ -63,10 +63,7 @@ func main() {
 	}
 	appPrefs := core.NewAppPrefs(pref.NewPrefs(store))
 	defaultEmitter := core.DefaultEmitter()
-
-	if appPrefs.RootModDirPref.IsSet() {
-		util.SetRootModDir(appPrefs.RootModDirPref.Get)
-	}
+	util.SetRootModDirFn(appPrefs.RootModDirPref.Get)
 
 	genshinApi := api.ApiList[types.Genshin]
 	starRailApi := api.ApiList[types.StarRail]
