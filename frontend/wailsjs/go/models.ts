@@ -845,6 +845,7 @@ export namespace types {
 	
 	export class Tool {
 	    dl: string;
+	    fname: string;
 	    name: string;
 	    description: string;
 	
@@ -855,6 +856,7 @@ export namespace types {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.dl = source["dl"];
+	        this.fname = source["fname"];
 	        this.name = source["name"];
 	        this.description = source["description"];
 	    }

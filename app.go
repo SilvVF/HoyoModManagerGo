@@ -208,10 +208,17 @@ func (a *App) ChangeRootModDir(absolutePath string, copyOver bool) error {
 	runtime.EventsEmit(a.ctx, "change_dir", "start")
 
 	sem := make(chan struct{}, 1)
+	var lastUnsent core.DataProgress
 
 	sendEvent := func(progress, total int64) {
 		go func() {
-			sem <- struct{}{}
+			// try to aquire the sem or debounce
+			select {
+			case sem <- struct{}{}:
+			default:
+				lastUnsent = core.DataProgress{Progress: progress, Total: total}
+				return
+			}
 
 			runtime.EventsEmit(a.ctx, "change_dir", "progress", core.DataProgress{Total: total, Progress: progress})
 
@@ -226,9 +233,21 @@ func (a *App) ChangeRootModDir(absolutePath string, copyOver bool) error {
 	err := util.CopyRecursivleyProgFn(prevDir, absolutePath, false, sendEvent)
 	sem <- struct{}{}
 
-	runtime.EventsEmit(a.ctx, "change_dir", "error", err.Error())
+	if lastUnsent.Total != 0 {
+		runtime.EventsEmit(a.ctx, "change_dir", "progress", lastUnsent)
+	}
+
+	if err != nil {
+		runtime.EventsEmit(a.ctx, "change_dir", "error", err.Error())
+	} else {
+		runtime.EventsEmit(a.ctx, "change_dir", "finished")
+	}
 
 	return err
+}
+
+func (a *App) DownloadModFix(game types.Game, old, name, link string) error {
+	return a.updator.DownloadModFix(game, old, name, link)
 }
 
 func (a *App) GetStats() (*types.DownloadStats, error) {

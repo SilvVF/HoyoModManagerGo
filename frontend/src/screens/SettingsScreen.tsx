@@ -19,9 +19,10 @@ import {
   GetExportDirectory,
   GetExclusionPaths,
   GetUpdates,
+  DownloadModFix,
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
-import { cn, useStateProducerT } from "@/lib/utils";
+import { cn, ProducedState, useStateProducerT } from "@/lib/utils";
 import { range } from "@/lib/tsutils";
 import { Slider } from "@/components/ui/slider";
 import { useEffect, useMemo, useState } from "react";
@@ -56,7 +57,8 @@ import { ChartItem, useStatsState } from "@/state/useStatsState";
 import { LPlugin, usePluginStore } from "@/state/pluginStore";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { types } from "wailsjs/go/models";
-import { Progress } from "@/components/ui/progress";
+import { create } from "zustand";
+import { useUpdatesStore } from "@/state/updateStore";
 
 type SettingsDialog = "edit_port" | "edit_password" | "edit_username" | "check_updates";
 const AuthType: { [keyof: number]: string } = {
@@ -580,7 +582,6 @@ const games: {
   4: { game: "Wuthering Waves", icon: WavesIcon },
 };
 
-
 // TODO download updated files
 function UpdatesDialog(
   { open, onOpenChange }: {
@@ -589,58 +590,74 @@ function UpdatesDialog(
   }
 ) {
 
-  const [retry, setRetry] = useState(0)
-  const [inProgress, setInProgress] = useState<Set<string>>(new Set())
+  const { loading, value, error } = useUpdatesStore(useShallow((state) => {
+    return {
+      loading: state.loading,
+      value: state.value,
+      error: state.error
+    }
+  }))
+  const start = useUpdatesStore(state => state.start)
+  useEffect(() => { start() }, [])
 
-  const { loading, error, value } = useStateProducerT<types.Update[]>([], async (update) => {
-    const updates = await GetUpdates()
-    update(updates)
-  }, [retry])
+  const downloadItem = useUpdatesStore((state) => state.downloadItem)
+  const inProgress = useUpdatesStore(useShallow((state) => state.inProgress))
+  const refresh = useUpdatesStore(useShallow((state) => state.refresh))
 
-  const downloadItem = (update: types.Update) => {
-    setInProgress((p) => {
-      p.add(update.newest.dl)
-      return new Set(p)
-    })
+  const updateAll = (updates: types.Update[]) => {
+    for (const update of updates) {
+      downloadItem(update)
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[60%] min-h-[80%]">
-        <DialogHeader>
-          <DialogTitle>Mod fix updates</DialogTitle>
-          <DialogDescription>Select updates for mod fix executables</DialogDescription>
-        </DialogHeader>
+        <div className="flex flex-row justify-between">
+          <DialogHeader>
+            <DialogTitle>
+              <text>Mod fix updates</text>
+
+            </DialogTitle>
+            <DialogDescription>Select updates for mod fix executables</DialogDescription>
+          </DialogHeader>
+          {loading ? <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground rounded-full mx-2">
+            <svg
+              className="h-4 w-4 animate-spin"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            Refreshing...
+          </div> : undefined}
+        </div>
+
+        {(error && value.isEmpty()) ? (
+          <div className="flex flex-row relative t-0 items-center justify-end gap-2 text-4xl text-muted-foreground p-2 mx-2">
+            <text>Failed to load updates</text>
+          </div>
+        ) : undefined}
+
+
+        {(loading && value.isEmpty()) ? (
+          <div className="flex flex-row relative t-0 items-center justify-end gap-2 text-4xl text-muted-foreground p-2 mx-2">
+            <Skeleton className="h-96 w-[100%]" />
+          </div>
+        ) : undefined}
+
         <div className="flex flex-col items-center justify-center">
-          {loading ? (
-            <div className="flex flex-row items-center justify-end gap-2 text-4xl text-muted-foreground p-2 mx-2">
-              <svg
-                className="h-[32px] w-[32px] animate-spin"
-                xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-              </svg>
-              {!value.isEmpty() ? "Refreshing" : "Loading..."}
-            </div>
-          ) : undefined}
-          {error ? (
-            <>
-              <text className="text-4xl text-red-300">{error.message.ifEmpty(() => "Unkown error")}</text>
-              <Button onClick={() => setRetry((r) => r + 1)}>Retry</Button>
-            </>
-          ) : undefined}
           {value.isEmpty() ? undefined : (
             <Card className="min-w-[100%]">
               <div className="space-y-1 p-2 overflow-y-auto max-h-[100%]">
-                <ScrollArea className="">
+                <ScrollArea>
                   {value.map((v) => {
                     return (
                       <div
@@ -652,11 +669,32 @@ function UpdatesDialog(
                           <text className="text-zinc-500  m-2">{`Current: ${v.current}`}</text>
                           <text className="text-zinc-500  m-2">{`Newest: ${v.newest.name}`}</text>
                         </div>
-                        <Button
-                          onClick={() => { }}
-                        >
-                          <DownloadIcon />
-                        </Button>
+                        {inProgress.has(v.newest.dl) ? (
+                          <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
+                            <svg
+                              className="h-4 w-4 animate-spin"
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="24"
+                              height="24"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                            </svg>
+                            Downloading...
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => downloadItem(v)}
+                          >
+                            <DownloadIcon />
+                          </Button>
+                        )
+                        }
                       </div>
                     )
                   })}
@@ -670,19 +708,17 @@ function UpdatesDialog(
               Cancel
             </Button>
           </DialogClose>
-          <DialogClose asChild>
-            <Button
-              type="button"
-              variant="default"
-            >
-              Confirm
-            </Button>
-          </DialogClose>
-
+          <Button
+            type="button"
+            variant="default"
+            onClick={() => updateAll(value)}
+          >
+            Update All
+          </Button>
           <Button
             type="button"
             variant="secondary"
-            onClick={() => setRetry((r) => r + 1)}
+            onClick={refresh}
           >
             Refresh
           </Button>
@@ -691,3 +727,4 @@ function UpdatesDialog(
     </Dialog>
   )
 }
+

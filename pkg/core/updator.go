@@ -2,13 +2,18 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hmm/pkg/api"
 	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
+	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -48,6 +53,68 @@ func (u *Updator) CheckFixesForUpdate() []types.Update {
 	u.cancel = cancel
 
 	return u.checkFixesForUpdateCancellable(context)
+}
+
+func (u *Updator) DownloadModFix(game types.Game, old, fname, link string) error {
+	outputDir, ok := u.exportDirs[game]
+	if !ok {
+		return errors.New("output dir not set")
+	}
+
+	res, err := http.Get(link)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	ext := filepath.Ext(fname)
+	if ext != ".exe" && !slices.Contains([]string{".zip", ".rar", ".7z"}, ext) {
+		return errors.New("file is not an executable")
+	}
+
+	path := filepath.Join(outputDir.Get(), fname)
+	// the file is truncated by default
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	if _, err = io.Copy(file, res.Body); err != nil {
+		return err
+	}
+	file.Close()
+
+	removeIfNotOverwritten := func(newFile string) {
+		// if they are the same extraction would have overwritten
+		// dont want to delete the file that was just extracted
+		log.LogDebug(old)
+		log.LogDebug(newFile)
+		if old != newFile {
+			os.Remove(filepath.Join(outputDir.Get(), old))
+		}
+	}
+
+	switch filepath.Ext(file.Name()) {
+	case ".exe":
+		removeIfNotOverwritten(file.Name())
+		return err
+	case ".rar":
+		_, files, _, err := extractRAR(&XFile{
+			FilePath:  path,
+			OutputDir: filepath.Dir(path),
+			FileMode:  os.ModePerm,
+			DirMode:   os.ModePerm,
+		}, false, func(progress, total int64) {})
+		if files != nil && len(files) > 0 {
+			removeIfNotOverwritten(filepath.Base(files[0]))
+		}
+		return err
+	default:
+		files, err := extract(path, filepath.Dir(path), false, func(progress, total int64) {})
+		if files != nil && len(files) > 0 {
+			removeIfNotOverwritten(filepath.Base(files[0]))
+		}
+		return err
+	}
 }
 
 func (u *Updator) checkFixesForUpdateCancellable(ctx context.Context) []types.Update {
@@ -197,6 +264,7 @@ func (u *Updator) checkNetworkForUpdate(game types.Game, res chan<- Pair[int, an
 					Dl:          file.SDownloadURL,
 					Name:        page.SName,
 					Description: file.SDescription,
+					FName:       file.SFile,
 				},
 			}
 			break

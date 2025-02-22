@@ -121,6 +121,7 @@ type PlaylistWithModsAndTags struct {
 
 type Tool struct {
 	Dl          string `json:"dl"`
+	FName       string `json:"fname"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }

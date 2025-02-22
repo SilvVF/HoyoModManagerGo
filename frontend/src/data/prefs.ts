@@ -22,6 +22,7 @@ import * as ServerUsernamePref from "../../wailsjs/go/core/ServerUsernamePref";
 import * as ServerAuthTypePref from "../../wailsjs/go/core/ServerAuthTypePref";
 import * as CleanModDirPref from "../../wailsjs/go/core/CleanModExportDirPref";
 import * as EnabledPluginsPref from "../../wailsjs/go/core/EnabledPluginsPref";
+import * as RootModDirPref from "../../wailsjs/go/core/RootModDirPref"
 
 export type GoPref<T extends any> = {
   DefaultValue(): Promise<T>;
@@ -61,40 +62,41 @@ const serverPasswordPref = ServerPasswordPref as GoPref<string>;
 const serverAuthTypePref = ServerAuthTypePref as GoPref<number>;
 
 const cleanModDirPref = CleanModDirPref as GoPref<boolean>;
+const rootModDirPRef = RootModDirPref as GoPref<string>;
 
 export function usePrefrenceAsStateDefault<T extends any>(
   defaultValue: T,
   pref: GoPref<T>
 ): [T, Dispatch<SetStateAction<T | undefined>>] {
-    const [isSet, setIsSet] = useState(0);
-    const [state, setState] = useState<T| undefined>(defaultValue);
-  
-    const refresh = () => {
-      pref.Get().then((value) => {
-        setState(value);
-        setIsSet(1);
-      });
-    };
-  
-    useEffect(() => {
-      refresh();
-    }, [pref]);
-  
-    useEffect(() => {
-      const s = state;
-      const set = isSet;
-  
-      if (s !== undefined && set > 1) {
-        pref.Set(s);
-      } else if (s === undefined && set > 1) {
-        setIsSet(0);
-        setState(defaultValue);
-        pref.Delete().then(refresh);
-      } else if (set == 1) {
-          setIsSet(prev => prev + 1)
-      }
-    }, [state]);
-  
+  const [isSet, setIsSet] = useState(0);
+  const [state, setState] = useState<T | undefined>(defaultValue);
+
+  const refresh = () => {
+    pref.Get().then((value) => {
+      setState(value);
+      setIsSet(1);
+    });
+  };
+
+  useEffect(() => {
+    refresh();
+  }, [pref]);
+
+  useEffect(() => {
+    const s = state;
+    const set = isSet;
+
+    if (s !== undefined && set > 1) {
+      pref.Set(s);
+    } else if (s === undefined && set > 1) {
+      setIsSet(0);
+      setState(defaultValue);
+      pref.Delete().then(refresh);
+    } else if (set == 1) {
+      setIsSet(prev => prev + 1)
+    }
+  }, [state]);
+
   return [state ?? defaultValue, setState];
 }
 
@@ -126,7 +128,7 @@ export function usePrefrenceAsState<T extends any>(
       setState(undefined);
       pref.Delete().then(refresh);
     } else if (set == 1) {
-        setIsSet(prev => prev + 1)
+      setIsSet(prev => prev + 1)
     }
   }, [state]);
 
@@ -157,4 +159,5 @@ export {
   serverUsernamePref,
   cleanModDirPref,
   pluginsPref,
+  rootModDirPRef,
 };

@@ -189,6 +189,7 @@ func main() {
 			appPrefs.SpaceSaverPref,
 			appPrefs.CleanModExportDirPref,
 			appPrefs.EnabledPluginsPref,
+			appPrefs.RootModDirPref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{
