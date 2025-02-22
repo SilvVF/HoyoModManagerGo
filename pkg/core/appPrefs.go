@@ -3,6 +3,7 @@ package core
 import (
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
+	"hmm/pkg/util"
 )
 
 type AppPrefs struct {
@@ -30,6 +31,7 @@ type AppPrefs struct {
 	SpaceSaverPref         *SpaceSaverPref
 	CleanModExportDirPref  *CleanModExportDirPref
 	EnabledPluginsPref     *EnabledPluginsPref
+	RootModDirPref         *RootModDirPref
 }
 
 func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
@@ -105,6 +107,9 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 		&EnabledPluginsPref{
 			Preference: store.GetStringSlice("enabled_plugins", []string{}),
 		},
+		&RootModDirPref{
+			Preference: store.GetString("root_mod_dir", util.GetRootModDir()),
+		},
 	}
 }
 
@@ -127,6 +132,8 @@ type HonkaiDirPref struct{ pref.Preference[string] }
 type GenshinDirPref struct{ pref.Preference[string] }
 type ZZZDirPref struct{ pref.Preference[string] }
 type WuwaDirPref struct{ pref.Preference[string] }
+
+type RootModDirPref struct{ pref.Preference[string] }
 
 type IgnoreDirPref struct{ pref.Preference[[]string] }
 type CleanModExportDirPref struct{ pref.Preference[bool] }

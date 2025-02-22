@@ -61,7 +61,18 @@ func GetGameDir(game types.Game) string {
 	return filepath.Join(GetRootModDir(), game.Name())
 }
 
+var rootModDirCallback func() string
+
+func SetRootModDir(callback func() string) {
+	rootModDirCallback = callback
+}
+
 func GetRootModDir() string {
+
+	if rootModDirCallback != nil {
+		return rootModDirCallback()
+	}
+
 	return filepath.Join(GetCacheDir(), "mods")
 }
 
