@@ -159,5 +159,5 @@ export {
   serverUsernamePref,
   cleanModDirPref,
   pluginsPref,
-  rootModDirPref as rootModDirPRef,
+  rootModDirPref,
 };

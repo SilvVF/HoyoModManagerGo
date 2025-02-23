@@ -4,7 +4,7 @@ import App from './App.tsx'
 import './index.css'
 import GameScreen from './screens/GameScreen.tsx';
 import { Game, GenshinApi, StarRailApi, WutheringWavesApi, ZenlessApi } from './data/dataapi.ts';
-import { createHashRouter, RouterProvider, useNavigate, useRouteError } from 'react-router-dom';
+import { createHashRouter, Navigate, RouterProvider, useNavigate, useRouteError } from 'react-router-dom';
 import ModBrowseScreen from './screens/mod/ModBrowseScreen.tsx';
 import { ModViewScreen } from './screens/mod/ModViewScreen.tsx';
 import { Button } from './components/ui/button.tsx';
@@ -22,6 +22,10 @@ const router = createHashRouter([
     path: "/",
     element: <App />,
     children: [
+      {
+        index: true,
+        element: <Navigate to="/genshin" replace />,
+      },
       {
         path: "genshin",
         loader: async () => {

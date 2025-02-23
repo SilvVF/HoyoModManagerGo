@@ -62,6 +62,10 @@ export function ReadImageFile(arg1) {
   return window['go']['main']['App']['ReadImageFile'](arg1);
 }
 
+export function RemoveAll(arg1) {
+  return window['go']['main']['App']['RemoveAll'](arg1);
+}
+
 export function StartPlugins() {
   return window['go']['main']['App']['StartPlugins']();
 }

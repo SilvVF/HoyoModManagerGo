@@ -14,7 +14,6 @@ import {
   serverPasswordPref,
   serverAuthTypePref,
   cleanModDirPref,
-  rootModDirPRef,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
@@ -25,7 +24,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { range } from "@/lib/tsutils";
 import { Slider } from "@/components/ui/slider";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DownloadIcon,
   Edit,
@@ -58,8 +57,10 @@ import { LPlugin, usePluginStore } from "@/state/pluginStore";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { types } from "wailsjs/go/models";
 import { useUpdatesStore } from "@/state/updateStore";
+import { TransferState, useModTransferStore } from "@/state/modTransferStore";
+import { Game } from "@/data/dataapi";
 
-type SettingsDialog = "edit_port" | "edit_password" | "edit_username" | "check_updates";
+type SettingsDialog = "edit_port" | "edit_password" | "edit_username" | "check_updates" | "migrate_mods_dir";
 const AuthType: { [keyof: number]: string } = {
   0: "None",
   1: "Basic",
@@ -81,7 +82,6 @@ export default function SettingsScreen() {
     maxDownloadWorkersPref
   );
   const [cleanModDir, setCleanModDir] = usePrefrenceAsState(cleanModDirPref);
-  const [mmmDir] = usePrefrenceAsState(rootModDirPRef);
 
   const [dialog, setDialog] = useState<SettingsDialog | undefined>(undefined);
   const [sliderValue, setSliderValue] = useState(maxDownloadWorkers ?? 1);
@@ -90,9 +90,11 @@ export default function SettingsScreen() {
     useShallow((state) => state.enabledFiles)
   );
   const plugins = usePluginStore(useShallow((state) => state.plugins));
-  const initPlugins = usePluginStore((state) => state.init);
   const enablePlugin = usePluginStore((state) => state.enablePlugin);
   const disablePlugin = usePluginStore((state) => state.disablePlugin);
+
+  const startTransfer = useModTransferStore((state) => state.start)
+  const rootModDir = useModTransferStore(useShallow((state) => state.prevDir))
 
   const stats = useStatsState(undefined);
 
@@ -160,7 +162,8 @@ export default function SettingsScreen() {
       if (!dir || dir.length <= 0) {
         return
       }
-
+      startTransfer(dir);
+      setDialog("migrate_mods_dir");
     })
   }
 
@@ -169,9 +172,6 @@ export default function SettingsScreen() {
     [maxDownloadWorkers]
   );
 
-  useEffect(() => {
-    initPlugins();
-  }, []);
 
   const dialogSettings: {
     [key: string]: {
@@ -232,6 +232,11 @@ export default function SettingsScreen() {
         open={dialog === "check_updates"}
         onOpenChange={(open) => open ? setDialog("check_updates") : setDialog(undefined)}
       />
+      <MigrateModsDirDialog
+        stats={stats ? stats[0] : undefined}
+        open={dialog === "migrate_mods_dir"}
+        onOpenChange={(open) => open ? setDialog("migrate_mods_dir") : setDialog(undefined)}
+      />
       <h1 className="text-2xl font-bold my-4 ">Settings</h1>
       <ScrollArea className="max-w-[600]">
         <div className="flex flex-row overflow-x-scroll space-x-2">
@@ -257,7 +262,7 @@ export default function SettingsScreen() {
         <SettingsDirItem
           name={"Mod Manager folder"}
           setDir={getNewRootModDir}
-          dir={mmmDir}
+          dir={rootModDir}
         />
       </div>
       <h2 className="text-lg font-semibold tracking-tight">
@@ -582,7 +587,7 @@ function PluginSettingsItem({
 
 function SettingsDirItem(props: {
   name: string;
-  setDir: () => void;
+  setDir?: (() => void);
   dir: string | undefined;
 }) {
   return (
@@ -591,23 +596,205 @@ function SettingsDirItem(props: {
         <h2 className="space-y-1 text-primary">{props.name}</h2>
         <div className="text-zinc-500">{props.dir?.ifEmpty(() => "unset")}</div>
       </div>
-      <Button size="icon" className="mx-2" onPointerDown={props.setDir}>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          height="24px"
-          viewBox="0 -960 960 960"
-          width="24px"
-        >
-          <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z" />
-        </svg>
-      </Button>
+      {props.setDir ?
+        <Button size="icon" className="mx-2" onPointerDown={props.setDir}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            height="24px"
+            viewBox="0 -960 960 960"
+            width="24px"
+          >
+            <path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z" />
+          </svg>
+        </Button> : undefined
+      }
+
     </div>
   );
 }
 
 
+const transferText: {
+  [key in TransferState]: {
+    title: string,
+    description: string,
+  }
+} = {
+  "confirm": {
+    title: "Confirm transfer",
+    description: "would you like to transfer all current mods to the new dest",
+  },
+  "idle": {
+    title: "Loading",
+    description: "setting up mod transfer",
+  },
+  "loading": {
+    title: "Transfer in progress",
+    description: "moving all mods to the new destination",
+  },
+  success: {
+    title: "Transfer Complete",
+    description: "all mods moved to new destintation",
+  },
+  error: {
+    title: "Failed to transfer",
+    description: "an error occured while transfering mods",
+  }
+}
+
+type TransferAction = {
+  pos: boolean,
+  text: string,
+  inProgres?: boolean,
+  action: () => void
+}
+
+function useModTransferActions(closeDialog: () => void): TransferAction[] {
+
+  const state = useModTransferStore(useShallow(state => state.state))
+  const confirm = useModTransferStore(state => state.confirm)
+  const deleting = useModTransferStore(useShallow(state => state.deleting))
+  const pendingDelete = useModTransferStore(useShallow(state => state.pendingDelete))
+  const clearOldDir = useModTransferStore(useShallow(state => state.clearOldDir))
+
+  if (state === "loading") {
+    return [
+      { pos: false, text: "Cancel", action: () => { } }
+    ]
+  } else if (state === "confirm") {
+    return [
+      { pos: false, text: "Cancel", action: closeDialog },
+      { pos: true, text: "Set without Transfer", action: () => confirm(false) },
+      { pos: true, text: "Transfer", action: () => confirm(true) },
+    ]
+  } else if (state === "success") {
+    return [
+      { pos: false, text: "Continue without deleting", action: closeDialog },
+      { pos: true, text: "Delete old directory", action: clearOldDir, inProgres: deleting }
+    ]
+  } else if (state === "error") {
+    return [
+      { pos: false, text: "Cancel", action: closeDialog },
+      { pos: true, text: "Retry", action: () => { } }
+    ]
+  } else if (state === "delete" && pendingDelete !== undefined) {
+    return [
+      { pos: false, text: "Continue without deleting", action: closeDialog },
+      { pos: true, text: "Retry Deleting old directory", action: clearOldDir, inProgres: deleting }
+    ]
+  } else if (state === "delete" && pendingDelete === undefined) {
+    return [
+      { pos: true, text: "Complete", action: closeDialog },
+    ]
+  }
+  return [{ pos: false, text: "Cancel", action: closeDialog }]
+}
+
+function MigrateModsDirDialog(
+  { open, onOpenChange, stats }: {
+    open: boolean,
+    onOpenChange: (open: boolean) => void,
+    stats: ChartItem | undefined
+  }
+) {
+
+  const state = useModTransferStore(state => state.state)
+  const actions = useModTransferActions(() => onOpenChange(false))
+
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (state === "success" || state === "error" || state === "idle") {
+      onOpenChange(open)
+    }
+  }, [state])
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-[60%] min-h-[80%]">
+        <DialogHeader>
+          <DialogTitle>
+            {transferText[state]["title"]}
+          </DialogTitle>
+          <DialogDescription>
+            {transferText[state]["description"]}
+          </DialogDescription>
+        </DialogHeader>
+        <Card className="w-[100%] h-[60vh] overflow-auto">
+          <MigrateModsContent state={state} stats={stats} />
+        </Card>
+        <DialogFooter className="sm:justify-start">
+          {actions.map((action) => {
+            return (
+              <Button
+                type="button"
+                variant={action.pos ? "default" : "destructive"}
+                onClick={action.action}
+              >
+                {action.text}
+              </Button>
+            )
+
+          })}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog >
+  )
+}
+
+function MigrateModsContent({ state, stats }: { state: TransferState, stats: ChartItem | undefined }) {
+
+  const { prevDir, newDir } = useModTransferStore(
+    useShallow((state) => ({ prevDir: state.prevDir, newDir: state.newDir }))
+  )
+
+  if (state === "idle") {
+    return (
+      <Skeleton className="w-96 h-96" />
+    )
+  } else if (state === "confirm") {
+    return (
+      <div className="flex flex-row h-fit">
+        <div className="flex flex-col">
+          <p className="p-6 text-lg font-semibold">
+            Confirm whether you want to transfer the mods from<> </>
+            <span className="text-primary font-bold">Current location </span> to<> </>
+            <span className="text-primary font-bold">New Location </span>.
+            This transfer will copy all mods to<> </>
+            <span className="text-primary font-bold">New Location</span> and<> </>
+            <span className="underline">prompt you to clear</span> the old folder after a successful transfer.
+            If you don't want to transfer, you can<> </>
+            <span className="underline">manually set the destination</span><> </>and move the mods yourself.
+          </p>
+          <SettingsDirItem
+            name="Current location"
+            dir={prevDir}
+          />
+          <SettingsDirItem
+            name="New location"
+            dir={newDir}
+          />
+        </div>
+        {stats ? <SizeChart item={stats} /> : undefined}
+      </div>
+    )
+  } else if (state === "loading") {
+    return (
+      <div>loading</div>
+    )
+  } else if (state === "success") {
+    return (
+      <div>success</div>
+    )
+  } else if (state === "error") {
+    return (
+      <div>error</div>
+    )
+  } else { <></> }
+}
+
+
+
 const games: {
-  [keyof: number]: {
+  [key: number]: {
     game: string,
     icon: LucideIcon
   }
@@ -621,7 +808,7 @@ const games: {
 function UpdatesDialog(
   { open, onOpenChange }: {
     open: boolean,
-    onOpenChange: (open: boolean) => void
+    onOpenChange: (open: boolean) => void,
   }
 ) {
 
@@ -652,7 +839,6 @@ function UpdatesDialog(
           <DialogHeader>
             <DialogTitle>
               <text>Mod fix updates</text>
-
             </DialogTitle>
             <DialogDescription>Select updates for mod fix executables</DialogDescription>
           </DialogHeader>
@@ -690,8 +876,8 @@ function UpdatesDialog(
 
         <div className="flex flex-col items-center justify-center">
           {value.isEmpty() ? undefined : (
-            <Card className="min-w-[100%]">
-              <div className="space-y-1 p-2 overflow-y-auto max-h-[100%]">
+            <Card className="min-w-[100%] min-h-[60vh]">
+              <div className="space-y-1 p-2 overflow-y-auto">
                 <ScrollArea>
                   {value.map((v) => {
                     return (

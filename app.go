@@ -192,12 +192,12 @@ func (a *App) GetUpdates() []types.Update {
 	return a.updator.CheckFixesForUpdate()
 }
 
-func (a *App) ChangeRootModDir(absolutePath string, copyOver bool) error {
+func (a *App) ChangeRootModDir(dest string, copyOver bool) error {
 
 	dirPref := a.appPrefs.RootModDirPref
 	prevDir := dirPref.Get()
 
-	if err := dirPref.Set(absolutePath); err != nil {
+	if err := dirPref.Set(dest); err != nil {
 		return err
 	}
 
@@ -208,6 +208,7 @@ func (a *App) ChangeRootModDir(absolutePath string, copyOver bool) error {
 	runtime.EventsEmit(a.ctx, "change_dir", "start")
 
 	sem := make(chan struct{}, 1)
+	debounce := time.Millisecond * 100
 	var lastUnsent core.DataProgress
 
 	sendEvent := func(progress, total int64) {
@@ -222,7 +223,7 @@ func (a *App) ChangeRootModDir(absolutePath string, copyOver bool) error {
 
 			runtime.EventsEmit(a.ctx, "change_dir", "progress", core.DataProgress{Total: total, Progress: progress})
 
-			ctx, cancel := context.WithTimeout(a.ctx, time.Millisecond*100)
+			ctx, cancel := context.WithTimeout(a.ctx, debounce)
 			defer cancel()
 
 			<-ctx.Done()
@@ -230,7 +231,7 @@ func (a *App) ChangeRootModDir(absolutePath string, copyOver bool) error {
 		}()
 	}
 
-	err := util.CopyRecursivleyProgFn(prevDir, absolutePath, false, sendEvent)
+	err := util.CopyRecursivleyProgFn(prevDir, dest, false, sendEvent)
 	sem <- struct{}{}
 
 	if lastUnsent.Total != 0 {
@@ -244,6 +245,10 @@ func (a *App) ChangeRootModDir(absolutePath string, copyOver bool) error {
 	}
 
 	return err
+}
+
+func (a *App) RemoveAll(path string) error {
+	return os.RemoveAll(path)
 }
 
 func (a *App) DownloadModFix(game types.Game, old, name, link string) error {

@@ -119,6 +119,14 @@ func main() {
 
 	serverManager := server.NewServerManager(appPrefs, dbHelper, generator)
 
+	var bgColor *options.RGBA
+	theme := appPrefs.DarkTheme.Get()
+	if theme == "dark" || theme == "system" {
+		bgColor = options.NewRGB(4, 4, 4)
+	} else {
+		bgColor = options.NewRGB(240, 240, 240)
+	}
+
 	err = wails.Run(&options.App{
 		Title:             "hoyomodmanager",
 		Width:             1024,
@@ -132,7 +140,7 @@ func main() {
 		Frameless:         false,
 		StartHidden:       false,
 		HideWindowOnClose: false,
-		BackgroundColour:  options.NewRGB(255, 255, 255),
+		BackgroundColour:  bgColor,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

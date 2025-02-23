@@ -15,7 +15,6 @@ export interface PluginState {
   enabledFiles: string[];
   started: boolean;
   listen: () => CancelFn;
-  init: () => Promise<void>;
   reload: () => Promise<void>;
   enablePlugin: (path: string) => Promise<void>;
   disablePlugin: (path: string) => Promise<void>;
@@ -48,6 +47,13 @@ type PluginEvent = {
 };
 
 function subscribeToPluginUpdates(set: StoreSet): () => void {
+
+  setPluginState(set);
+  pluginsPref
+    .Get()
+    .then((enabledFiles) => set({ enabledFiles: enabledFiles }))
+    .catch(() => set({ enabledFiles: [] }));
+
   const cancel = EventsOn("plugins_event", (data) => {
     let pluginEvent: PluginEvent;
     try {
@@ -57,11 +63,11 @@ function subscribeToPluginUpdates(set: StoreSet): () => void {
       return;
     }
 
-    LogDebug("from the toy lang: "+pluginEvent.data.toString());
+    LogDebug(pluginEvent.data.toString());
   });
 
   StartPlugins().catch(() => {
-      cancel()
+    cancel()
   })
 
   return cancel;
@@ -94,14 +100,7 @@ export const usePluginStore = create<PluginState>((set, get) => ({
   enabledFiles: [],
   started: false,
   listen: () => subscribeToPluginUpdates(set),
-  reload:  LoadPlugins,
-  init: async () => {
-    setPluginState(set);
-    pluginsPref
-      .Get()
-      .then((enabledFiles) => set({ enabledFiles: enabledFiles }))
-      .catch(() => set({ enabledFiles: [] }));
-  },
+  reload: LoadPlugins,
   enablePlugin: async (path: string) => {
     const enabled = [...get().enabledFiles.filter((it) => it != path), path];
     pluginsPref.Set(enabled).then(() => {
