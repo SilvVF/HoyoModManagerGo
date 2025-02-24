@@ -1,12 +1,8 @@
 package ios.silv.hoyomod
 
-import android.content.SharedPreferences
-import android.util.Log
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -36,44 +32,26 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocal
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.modifier.ModifierLocalModifierNode
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.edit
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import ios.silv.hoyomod.theme.MyApplicationTheme
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 
@@ -96,7 +74,7 @@ fun SettingsDialog(
         onDismissRequest = { onDismiss() },
         title = {
             Text(
-                text = "Settings",
+                text = stringResource(R.string.settings),
                 style = MaterialTheme.typography.titleLarge,
             )
         },
@@ -110,7 +88,7 @@ fun SettingsDialog(
         },
         confirmButton = {
             Text(
-                text = "dismiss",
+                text = stringResource(R.string.dismiss),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
@@ -134,13 +112,13 @@ private fun isValidAddress(address: String): Boolean {
 private fun ColumnScope.SettingsPanel() {
     val scope = rememberCoroutineScope()
     val sharedPreferences = LocalSharedPreferences.current
-    SettingsDialogSectionTitle(text = "Config")
+    SettingsDialogSectionTitle(text = stringResource(R.string.config))
     Column {
         SettingsEditTextItem(
             modifier = Modifier.fillMaxWidth(),
             key = PrefKeys.ADDR,
-            label = "Server address",
-            supportingText = "ex. \"192.168.1.251:6969\"",
+            label = stringResource(R.string.server_address),
+            supportingText = stringResource(R.string.addr_hint),
             default = "",
             validate = { text ->
                 isValidAddress(text)
@@ -149,44 +127,46 @@ private fun ColumnScope.SettingsPanel() {
         SettingsEditTextItem(
             modifier = Modifier.fillMaxWidth(),
             key = PrefKeys.USERNAME,
-            label = "Username",
+            label = stringResource(R.string.username),
             supportingText = "",
             default = "",
         )
         SettingsEditTextItem(
             modifier = Modifier.fillMaxWidth(),
             key = PrefKeys.PASSWORD,
-            label = "Password",
+            label = stringResource(R.string.password),
             supportingText = "",
             default = "",
         )
         val modsAvailable by LocalSharedPreferences.collectPreferenceAsState(PrefKeys.MODS_AVAILABLE,false)
         SettingsDialogCheckboxRow(
-            text = "only show characters with mods",
+            text = stringResource(R.string.mods_available_label),
             selected = modsAvailable,
             onClick = {
                 scope.launch { sharedPreferences.set(PrefKeys.MODS_AVAILABLE, !modsAvailable) }
             }
         )
     }
-    SettingsDialogSectionTitle(text = "Theme")
+    SettingsDialogSectionTitle(text = stringResource(R.string.theme))
     Column(Modifier.selectableGroup()) {
-        val theme by LocalSharedPreferences.collectPreferenceAsState(PrefKeys.THEME,"default")
+        val default =  stringResource(R.string.theme_default)
+        val theme by LocalSharedPreferences.collectPreferenceAsState(PrefKeys.THEME, default)
         SettingsDialogThemeChooserRow(
-            text = "default",
-            selected = theme == "default",
+            text = default,
+            selected = theme == default,
             onClick = {
                 scope.launch {
-                    sharedPreferences.set(PrefKeys.THEME, "default")
+                    sharedPreferences.set(PrefKeys.THEME,  default)
                 }
             },
         )
+        val android = stringResource(R.string.theme_android)
         SettingsDialogThemeChooserRow(
-            text = "android",
-            selected = theme == "android",
+            text = android,
+            selected = theme == android,
             onClick = {
                 scope.launch {
-                    sharedPreferences.set(PrefKeys.THEME, "android")
+                    sharedPreferences.set(PrefKeys.THEME, android)
                 }
             },
         )
@@ -194,10 +174,10 @@ private fun ColumnScope.SettingsPanel() {
     AnimatedVisibility(visible = true) {
         Column {
             val dynamic by LocalSharedPreferences.collectPreferenceAsState(PrefKeys.DYNAMIC_COLOR,true)
-            SettingsDialogSectionTitle(text = "Dynamic color")
+            SettingsDialogSectionTitle(text = stringResource(R.string.dynamic_color_label))
             Column(Modifier.selectableGroup()) {
                 SettingsDialogThemeChooserRow(
-                    text = "use dynamic color",
+                    text = stringResource(R.string.dynamic_color_hint),
                     selected = dynamic,
                     onClick = {
                         scope.launch {
@@ -206,7 +186,7 @@ private fun ColumnScope.SettingsPanel() {
                     },
                 )
                 SettingsDialogThemeChooserRow(
-                    text = "use app theme",
+                    text = stringResource(R.string.app_theme_hint),
                     selected = !dynamic,
                     onClick = {
                         scope.launch {
@@ -217,33 +197,36 @@ private fun ColumnScope.SettingsPanel() {
             }
         }
     }
-    SettingsDialogSectionTitle(text = "Theme mode")
+    SettingsDialogSectionTitle(text = stringResource(R.string.theme_mode_label))
     Column(Modifier.selectableGroup()) {
-        val themeMode by LocalSharedPreferences.collectPreferenceAsState(PrefKeys.THEME_MODE,"system")
+        val system = stringResource(R.string.system_theme)
+        val themeMode by LocalSharedPreferences.collectPreferenceAsState(PrefKeys.THEME_MODE,system)
         SettingsDialogThemeChooserRow(
-            text = "use system theme",
-            selected = themeMode == "system",
+            text = stringResource(R.string.system_theme_hint),
+            selected = themeMode == system,
             onClick = {
                 scope.launch {
-                    sharedPreferences.set(PrefKeys.THEME_MODE, "system")
+                    sharedPreferences.set(PrefKeys.THEME_MODE, system)
                 }
             },
         )
+        val light = stringResource(R.string.light_theme)
         SettingsDialogThemeChooserRow(
-            text = "light",
-            selected = themeMode == "light",
+            text = light,
+            selected = themeMode == light,
             onClick = {
                 scope.launch {
-                    sharedPreferences.set(PrefKeys.THEME_MODE, "light")
+                    sharedPreferences.set(PrefKeys.THEME_MODE, light)
                 }
             },
         )
+        val dark = stringResource(R.string.dark_theme)
         SettingsDialogThemeChooserRow(
-            text = "dark",
-            selected = themeMode == "dark",
+            text = dark,
+            selected = themeMode == dark,
             onClick = {
                 scope.launch {
-                    sharedPreferences.set(PrefKeys.THEME_MODE, "dark")
+                    sharedPreferences.set(PrefKeys.THEME_MODE, dark)
                 }
             },
         )
@@ -297,7 +280,7 @@ private fun SettingsEditTextItem(
         trailingIcon = {
             AnimatedContent(
                 targetState = editing,
-                label = "editing_address"
+                label = label
             ) { targetState ->
                 if (targetState) {
                     Row {
@@ -309,7 +292,7 @@ private fun SettingsEditTextItem(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
-                                contentDescription = "cancel"
+                                contentDescription = stringResource(R.string.close)
                             )
                         }
                         IconButton(
@@ -328,7 +311,7 @@ private fun SettingsEditTextItem(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Done,
-                                contentDescription = "save"
+                                contentDescription = stringResource(R.string.confirm)
                             )
                         }
                     }
@@ -340,7 +323,7 @@ private fun SettingsEditTextItem(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Edit,
-                            contentDescription = "edit",
+                            contentDescription = stringResource(R.string.edit),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }

@@ -41,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -48,6 +49,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -118,7 +122,6 @@ class MainActivity : ComponentActivity() {
                         modsState = modsState,
                         search = { search },
                         jobs = jobs,
-                        settingsVisible = settingsVisible,
                         actions = Actions(
                             startGenerateJob = { game ->
                                 viewmodel.startGenerateJob(game)
@@ -153,6 +156,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Stable
+@Immutable
 data class Actions(
     val startGenerateJob: (game: Int) -> Unit = {},
     val restartJob: (GenJob) -> Unit = {},
@@ -161,7 +166,7 @@ data class Actions(
     val onSearchChange: (TextFieldValue) -> Unit = {},
     val onSettingsVisibilityChanged: (Boolean) -> Unit = {},
     val toggleHasModsFilter: () -> Unit = {},
-    val toggleMod: (game: Int, id: Int, enabled: Boolean) -> Unit = {_, _, _ ->}
+    val toggleMod: (game: Int, id: Int, enabled: Boolean) -> Unit = { _, _, _ -> }
 )
 
 fun gameFromPage(page: Int): Int = page + 1
@@ -170,16 +175,21 @@ fun gameFromPage(page: Int): Int = page + 1
 @Composable
 fun MainScreenContent(
     modsState: ModsState,
-    settingsVisible: Boolean,
     search: () -> TextFieldValue,
     jobs: Map<Int, GenJob>,
     actions: Actions,
 ) {
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val tabs = remember {
-        mutableStateListOf(
-            "Genshin", "Star Rail", "Zenless", "Wuthering Waves"
-        )
+        with(context) {
+            mutableStateListOf(
+                getString(R.string.genshin),
+                getString(R.string.star_rail),
+                getString(R.string.zenless),
+                getString(R.string.wuthering_waves)
+            )
+        }
     }
 
     val pagerState = rememberPagerState { tabs.size }
@@ -193,7 +203,7 @@ fun MainScreenContent(
                     Icon(imageVector = Icons.Filled.Refresh, null)
                 },
                 text = {
-                    Text(text = "Generate")
+                    Text(text = stringResource(R.string.generate))
                 }
             )
         },
@@ -201,13 +211,12 @@ fun MainScreenContent(
             StackingSnackBarHost(jobs, actions, snackbarHostState)
         },
         topBar = {
-           TopAppBarPagerIndicator(
-               pagerState,
-               tabs,
-               settingsVisible,
-               search,
-               actions
-           )
+            TopAppBarPagerIndicator(
+                pagerState,
+                tabs,
+                search,
+                actions
+            )
         }
     ) { innerPadding ->
         PullToRefreshBox(
@@ -224,6 +233,7 @@ fun MainScreenContent(
                         onRetry = { actions.refresh() },
                         message = modsState.msg
                     )
+
                     ModsState.Loading -> LoadingScreen()
                     is ModsState.Success -> {
                         val data = modsState.data[gameFromPage(page)].orEmpty()
@@ -236,7 +246,7 @@ fun MainScreenContent(
                                 actions
                             )
                         } else {
-                            SuccessScreen(
+                            ModDataSuccessContent(
                                 data = data,
                                 onEnableMod = { id, enabled ->
                                     actions.toggleMod(gameFromPage(page), id, enabled)
@@ -267,12 +277,16 @@ fun EmptySuccessPage(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "No characters found for game ${tabs.getOrNull(page)} query: ${query().text}",
+            text = stringResource(
+                R.string.no_characters_found_for_game_query,
+                tabs.getOrNull(page).orEmpty(),
+                query().text
+            ),
             textAlign = TextAlign.Center
         )
         if (modsState.modsAvailable) {
             Button(onClick = { actions.toggleHasModsFilter() }) {
-                Text(text = "Show all characters")
+                Text(text = stringResource(R.string.show_all_characters))
             }
         }
     }
@@ -283,7 +297,6 @@ fun EmptySuccessPage(
 fun TopAppBarPagerIndicator(
     pagerState: PagerState,
     tabs: SnapshotStateList<String>,
-    settingsVisible: Boolean,
     search: () -> TextFieldValue,
     actions: Actions,
     modifier: Modifier = Modifier
@@ -291,14 +304,14 @@ fun TopAppBarPagerIndicator(
     val scope = rememberCoroutineScope()
     Column(modifier) {
         TopAppBar(
-            title = { Text("HoyoModManager") },
+            title = { Text(stringResource(R.string.app_title)) },
             actions = {
                 IconButton(onClick = {
                     actions.onSettingsVisibilityChanged(true)
                 }) {
                     Icon(
                         imageVector = Icons.Filled.Settings,
-                        contentDescription = "settings"
+                        contentDescription = stringResource(R.string.settings)
                     )
                 }
             }
@@ -311,11 +324,11 @@ fun TopAppBarPagerIndicator(
                     value = search(),
                     onValueChange = { actions.onSearchChange(it) },
                     singleLine = true,
-                    placeholder = { Text("Search...") },
+                    placeholder = { Text(stringResource(R.string.search_placeholder)) },
                     trailingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Search,
-                            contentDescription = "search"
+                            contentDescription = stringResource(R.string.search)
                         )
                     },
                     shape = MaterialTheme.shapes.extraLarge,
@@ -358,10 +371,9 @@ fun StackingSnackBarHost(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         jobs.forEach { (_, job) ->
             Snackbar(
-                modifier = Modifier.padding(1.dp),
                 dismissAction = {
                     JobDismissAction(job, actions)
                 }
@@ -369,16 +381,17 @@ fun StackingSnackBarHost(
                 Text(
                     text = when (job) {
                         is GenJob.Complete -> if (job.error != null) {
-                            "${job.id} job failed ${job.error}"
+                            stringResource(R.string.job_failed, job.id, job.error)
                         } else {
-                            "${job.id} job completed"
+                            stringResource(R.string.job_completed, job.id)
                         }
 
-                        is GenJob.Loading -> "${job.id} job in progress"
+                        is GenJob.Loading -> stringResource(R.string.job_loading, job.id)
                     }
                 )
             }
         }
+        SnackbarHost(snackbarHostState)
     }
 }
 
@@ -398,13 +411,13 @@ fun JobDismissAction(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
-                            contentDescription = null
+                            contentDescription = stringResource(R.string.refresh)
                         )
                     }
                     Button(onClick = { actions.confirmJob(job) }) {
                         Icon(
                             imageVector = Icons.Filled.Close,
-                            contentDescription = null
+                            contentDescription = stringResource(R.string.close)
                         )
                     }
                 }
@@ -412,7 +425,7 @@ fun JobDismissAction(
                 Button(onClick = { actions.confirmJob(job) }) {
                     Icon(
                         imageVector = Icons.Filled.Check,
-                        contentDescription = null
+                        contentDescription = stringResource(R.string.confirm)
                     )
                 }
             }
@@ -423,7 +436,7 @@ fun JobDismissAction(
 }
 
 @Composable
-fun SuccessScreen(
+fun ModDataSuccessContent(
     data: List<ModsWithTagsAndTextures.Data>,
     onEnableMod: (id: Int, enabled: Boolean) -> Unit
 ) {
@@ -434,7 +447,6 @@ fun SuccessScreen(
     ) {
         items(data, key = { it.characters.id }) { mwt ->
             ElevatedCard(
-                onClick = { /*TODO*/ },
                 modifier = Modifier
                     .padding(8.dp)
                     .fillMaxWidth()
@@ -506,10 +518,10 @@ fun ErrorScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = message ?: "Unknown Error",
+            text = stringResource(R.string.could_not_load_data, message ?: "Unknown Error"),
         )
         Button(onClick = onRetry) {
-            Text(text = "Retry")
+            Text(text = stringResource(R.string.retry))
         }
     }
 }
