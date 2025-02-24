@@ -2,13 +2,8 @@ package ios.silv.hoyomod
 
 import android.app.Application
 import android.content.SharedPreferences
-import android.preference.PreferenceManager
 import ios.silv.hoyomod.log.AndroidLogcatLogger
 import ios.silv.hoyomod.log.LogPriority
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
@@ -21,20 +16,13 @@ class App: Application() {
         AndroidLogcatLogger.installOnDebuggableApp(this, minPriority = LogPriority.VERBOSE)
 
         sharedPreferences = applicationContext.getSharedPreferences(
-            PreferenceManager.getDefaultSharedPreferencesName(applicationContext),
-            0
+            packageName + "_preferences",
+            MODE_PRIVATE
         )
-    }
-
-    override fun onTerminate() {
-        super.onTerminate()
-        applicationScope.cancel()
     }
 
     companion object {
         lateinit var sharedPreferences: SharedPreferences
-
-        val applicationScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
         val client by lazy {
             OkHttpClient.Builder()
