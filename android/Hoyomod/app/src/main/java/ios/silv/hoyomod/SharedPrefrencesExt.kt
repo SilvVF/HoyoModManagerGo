@@ -16,6 +16,7 @@ import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import ios.silv.hoyomod.log.logcat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
@@ -51,7 +52,9 @@ suspend inline fun <reified T> SharedPreferences.set(key: String, value: T): Boo
                 }
             }
         }
-    }.onFailure { it.printStackTrace() }.isSuccess
+    }
+        .onFailure { logcat { it.stackTraceToString() } }
+        .isSuccess
 }
 
 suspend inline fun <reified T> SharedPreferences.get(key: String, default: T): T {
@@ -66,17 +69,18 @@ suspend inline fun <reified T> SharedPreferences.get(key: String, default: T): T
             } as T
         }
     }
-        .onFailure { it.printStackTrace() }
+        .onFailure { logcat { it.stackTraceToString() } }
         .getOrDefault(default)
 }
 
 inline fun <reified T> SharedPreferences.changesAsFlow(watchKey: String, default: T) = callbackFlow {
+
+    send(get<T>(watchKey, default))
+
     val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key == watchKey) {
             runBlocking {
-                prefs.get<T>(watchKey, default)?.let {
-                    send(it)
-                }
+                send(prefs.get<T>(watchKey, default))
             }
         }
     }
@@ -95,24 +99,8 @@ inline fun <reified T> CompositionLocal<SharedPreferences>.collectPreferenceAsSt
     val preferences = this.current
 
     return produceState(initialValue = default) {
-        value = preferences.get(key, default)
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            callbackFlow {
-                val listener =
-                    SharedPreferences.OnSharedPreferenceChangeListener { prefs, prefKey ->
-                        if (prefKey == key) {
-                            runBlocking {
-                                send(prefs.get<T>(prefKey, default))
-                            }
-                        }
-                    }
-                try {
-                    preferences.registerOnSharedPreferenceChangeListener(listener)
-                    awaitCancellation()
-                } finally {
-                    preferences.unregisterOnSharedPreferenceChangeListener(listener)
-                }
-            }
+            preferences.changesAsFlow(key, default)
                 .flowOn(Dispatchers.IO)
                 .collect { value = it }
         }

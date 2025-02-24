@@ -1,290 +1,201 @@
 package ios.silv.hoyomod
 
 import android.content.SharedPreferences
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import ios.silv.hoyomod.net.GET
+import ios.silv.hoyomod.net.HmmApi
 import ios.silv.hoyomod.net.ModsWithTagsAndTextures
-import ios.silv.hoyomod.net.POST
-import ios.silv.hoyomod.net.await
-import ios.silv.hoyomod.net.awaitSuccess
-import ios.silv.hoyomod.net.parseAs
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.time.withTimeout
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
-import okio.IOException
-import java.time.LocalDateTime
-import kotlin.time.Duration.Companion.seconds
+
+private const val SEARCH_KEY = "search"
+private const val JOBS_KEY = "jobs"
 
 class MainViewModel(
-    savedStateHandle: SavedStateHandle,
-    private val preferences: SharedPreferences
+    private val api: HmmApi,
+    private val prefs: SharedPreferences,
+    private val savedStateHandle: SavedStateHandle,
 ): ViewModel() {
 
-    val jobs = mutableStateMapOf<Int, Job>()
+    private var refreshJob: Job? = null
 
-    private val ipAddressFlow = preferences.changesAsFlow(PrefKeys.ADDR, "")
-        .onStart { emit(preferences.get(PrefKeys.ADDR, "")) }
-        .stateIn(
-            viewModelScope,
-            SharingStarted.Lazily,
-            null
-        )
+    private val _jobs = MutableStateFlowMap<Int, GenJob>(savedStateHandle[JOBS_KEY] ?: emptyMap())
+    val jobs: StateFlow<Map<Int, GenJob>> get() = _jobs
 
-    private val modsAvailable = preferences
-        .changesAsFlow(PrefKeys.MODS_AVAILABLE, false)
-        .onStart { emit(preferences.get(PrefKeys.MODS_AVAILABLE, false)) }
+    private val ipAddressFlow = prefs
+        .changesAsFlow(PrefKeys.ADDR, "")
+        .produceIn(viewModelScope)
 
-    val search = MutableSavedState(savedStateHandle, "search", "")
+    private val modsAvailable = prefs.changesAsFlow(PrefKeys.MODS_AVAILABLE, false)
 
-    private val _state: MutableStateFlow<State> = MutableStateFlow(State.Loading)
-    val state: StateFlow<State> get() = _state
+    private val error = MutableStateFlow<Throwable?>(null)
+    private val _search = MutableStateFlow(TextFieldValue(savedStateHandle[SEARCH_KEY] ?: ""))
+    val search: StateFlow<TextFieldValue> get() = _search
+    private val modsData = MutableStateFlowMap<Int, List<ModsWithTagsAndTextures.Data>>(emptyMap())
 
-    private val dataFlow = ipAddressFlow.filterNotNull().mapLatest { addr ->
-        runCatching {
-            val resp = withContext(Dispatchers.IO) {
-                App.client.GET("http://$addr$DATA_ROUTE")
-                    .awaitSuccess()
-                    .parseAs<List<ModsWithTagsAndTextures>>()
+    private fun Map<Int, List<ModsWithTagsAndTextures.Data>>.applyFilters(available: Boolean, search: String) =
+        mapValues { (_, modList) ->
+            modList.filterIf(available) { item ->
+                item.modWithTags.isNotEmpty()
+            }.filterIf(search.isNotBlank()) { item ->
+                item.characters.name.contains(search, ignoreCase = true)
             }
-            resp.associateBy(
-                keySelector = { it.game },
-                valueTransform = { it.data }
-            )
-        }.onFailure { it.printStackTrace() }
+        }
+
+    val state = combine(
+        modsData.asStateFlow(),
+        _search.map { it.text },
+        error.asStateFlow(),
+        modsAvailable
+    ) { mods, search, err, available ->
+        if (err != null && mods.isEmpty()) {
+            ModsState.Failure(err.localizedMessage ?: "Unknown error occurred")
+        } else {
+            ModsState.Success(available, mods.applyFilters(available, search))
+        }
     }
-        .restartableStateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000L),
-            null
-        )
+        .stateInUi(viewModelScope, ModsState.Loading)
 
     init {
         viewModelScope.launch {
-            combine(
-                dataFlow,
-                search.asFlow(),
-                modsAvailable,
-                ::Triple
-            ).collect { (data, query, hasMods) ->
-                _state.update {
-                    data?.fold(
-                        onSuccess = {
-                            State.Success(
-                               data = it.mapValues { (_, mwt) ->
-                                   mwt
-                                       .filterIf(hasMods) { item -> item.modWithTags.isNotEmpty() }
-                                       .filterIf(query.isNotBlank()) {item -> item.characters.name.contains(query, ignoreCase = true) }
-                               },
-                                modsAvailable = hasMods
-                            )
-                        },
-                        onFailure = { State.Failure(it.localizedMessage) }
-                    ) ?: State.Loading
-                }
+            for (ip in ipAddressFlow) {
+                refresh()
             }
         }
     }
 
-    fun search(text: String) {
-        search.value = text
+    fun refresh() {
+        viewModelScope.launch {
+            refreshJob?.cancelAndJoin()
+            refreshJob = launch {
+                refreshData()
+            }
+        }
+    }
+
+    private suspend fun refreshData() {
+        api.data().onSuccess { modData ->
+            val modsByGame = modData.associateBy(
+                keySelector = { it.game },
+                valueTransform = { it.data }
+            )
+            modsData.mutate {
+                clear()
+                putAll(modsByGame)
+            }
+        }
+            .onFailure { exception ->
+                modsData.mutate { clear() }
+                error.emit(exception)
+            }
+    }
+
+
+    fun search(text: TextFieldValue) {
+        _search.value = text
     }
 
     fun toggleHasModsFilter() {
         viewModelScope.launch {
-            preferences.set(PrefKeys.MODS_AVAILABLE, !preferences.get(PrefKeys.MODS_AVAILABLE, false))
+            prefs.set(
+                PrefKeys.MODS_AVAILABLE,
+                !prefs.get(PrefKeys.MODS_AVAILABLE, false)
+            )
         }
     }
 
     fun toggleMod(game: Int, id: Int, enabled: Boolean) {
         viewModelScope.launch {
-            runCatching {
-                val addr = ipAddressFlow.value
-                val res = withContext(Dispatchers.IO) {
-                    App.client.POST(
-                        "http://$addr$UPDATE_MOD",
-                           body = TogglePostRequest(id, enabled)
-                    )
-                        .awaitSuccess()
-                }
-                if (res.isSuccessful) { refreshGame(game) }
+            api.toggleMod(id, enabled).onSuccess {
+                refreshGame(game)
+            }.onFailure {
+
             }
-                .onFailure {
-                    it.printStackTrace()
-                }
         }
+    }
+
+    private suspend fun startPollingJob(jobId: Int, game: Int) {
+        api.pollJobStatus(jobId, game) { status ->
+            _jobs[jobId] = if (status.isComplete) {
+                GenJob.Loading(jobId, game)
+            } else {
+                GenJob.Complete(jobId, game, status.error)
+            }
+        }
+            .onSuccess { refreshGame(game) }
+            .onFailure { e ->
+                _jobs[jobId] = GenJob.Complete(
+                    jobId, game,
+                    error = when {
+                        e is TimeoutCancellationException -> "polling timed out"
+                        else -> e.message
+                    }
+                )
+            }
+    }
+
+    fun confirmJob(jobId: Int) {
+        _jobs.mutate { remove(jobId) }
     }
 
     fun startGenerateJob(game: Int) {
-        App.applicationScope.launch(Dispatchers.IO) {
-            kotlin.runCatching {
-                val addr = ipAddressFlow.value
-                val res = App.client.POST(
-                    "http://$addr/generate",
-                    body = GeneratePostRequest(game)
-                )
-                    .awaitSuccess()
-                    .parseAs<GenerateResponse>()
-                jobs[res.jobId] = Job.Loading(res.jobId, game)
-
-               runCatching {
-                    withTimeout(45.seconds) {
-                        pollJobStatus(res.jobId, game, App.client)
-                    }
+        viewModelScope.launch {
+            api.startGenerationJob(game)
+                .onSuccess { (jobId) ->
+                    startPollingJob(jobId, game)
                 }
-                   .onSuccess { refreshGame(game) }
-                   .onFailure {
-                       jobs[res.jobId] = when {
-                           it is TimeoutCancellationException -> Job.Complete(res.jobId, game, "polling timed out")
-                           jobs[res.jobId] is Job.Loading -> Job.Complete(res.jobId, game, "unknown error")
-                           else -> jobs[res.jobId] ?: return@launch
-                       }
-                   }
-            }
-        }
-    }
-
-    private tailrec suspend fun pollJobStatus(jobId: Int, game: Int, client: OkHttpClient) {
-        val request = Request.Builder()
-            .url("http://${ipAddressFlow.value}/poll-generation?jobId=$jobId")
-            .build()
-        val response = client.newCall(request).await()
-        if (response.isSuccessful) {
-            val status = response.parseAs<JobStatus>()
-            if (status.isComplete) {
-                jobs[jobId] = Job.Complete(jobId, game, status.error)
-            } else {
-                jobs[jobId] = Job.Loading(jobId, game)
-                pollJobStatus(jobId, game, client)
-            }
-        } else if (response.code == 204) {
-            jobs[jobId] = Job.Loading(jobId, game)
-            pollJobStatus(jobId, game, client)
         }
     }
 
 
     private suspend fun refreshGame(game: Int) {
-        runCatching {
-            val addr = ipAddressFlow.value
-            val res = withContext(Dispatchers.IO) {
-                App.client.newCall(
-                    Request.Builder()
-                        .url("http://$addr${GAME_ROUTE(game)}")
-                        .build()
-                )
-                    .awaitSuccess()
-                    .parseAs<List<ModsWithTagsAndTextures.Data>>()
-            }
-            _state.update { state ->
-                when(state) {
-                    is State.Success -> state.copy(
-                        data = buildMap {
-                            putAll(state.data)
-                            put(game, res)
-                        }.mapValues { (_, mwt) ->
-                            mwt
-                                .filterIf(state.modsAvailable) { item -> item.modWithTags.isNotEmpty() }
-                                .filterIf(search.value.isNotBlank()) { item ->
-                                    item.characters.name.contains(search.value, ignoreCase = true)
-                                }
-                        }
-                    )
-                    else -> state
-                }
+        api.gameData(game).onSuccess { gameData ->
+            modsData.mutate {
+                this[game] = gameData
             }
         }
-            .onFailure { it.printStackTrace() }
     }
 
-    fun restart() {
-        dataFlow.restart()
+    override fun onCleared() {
+        super.onCleared()
+        refreshJob?.cancel()
+        savedStateHandle[SEARCH_KEY] = _search.value
+        savedStateHandle[JOBS_KEY] = _jobs.value
     }
 
-    @Serializable
-    data class TogglePostRequest(
-        @SerialName("mod_id")
-        val id:      Int,
-        @SerialName("enabled")
-        val enabled: Boolean,
-    )
-
-    @Serializable
-    data class JobStatus(
-        val jobId: Int? = null,
-        val status: String? = null,
-        val completedAt: String? = null,
-        val error: String? = null
-    ) {
-        val isComplete = status == "completed" || status == "failed"
-    }
-
-    @Serializable
-    data class GeneratePostRequest(
-        @SerialName("game")
-        val game: Int
-    )
-
-    @Serializable
-    data class GenerateResponse(
-        @SerialName("job_id")
-        val jobId: Int
-    )
-
-    sealed class  Job(open val id: Int, open val game: Int) {
+    sealed class  GenJob(open val id: Int, open val game: Int) {
         data class Complete(
             override val id: Int,
             override val game: Int,
             val error: String? = null,
-        ): Job(id, game)
+        ): GenJob(id, game)
         data class Loading(
             override val id: Int,
             override val game: Int,
-        ): Job(id, game)
+        ): GenJob(id, game)
     }
 
 
-    sealed class State {
-        data object Loading: State()
-        data class Failure(val msg: String?): State()
+    sealed class ModsState(
+        open val modsAvailable: Boolean = false,
+    ) {
+        data object Loading: ModsState()
+        data class Failure(
+            val msg: String?,
+        ): ModsState(false)
         data class Success(
+            override val modsAvailable: Boolean,
             val data: Map<Int, List<ModsWithTagsAndTextures.Data>>,
-            val modsAvailable: Boolean,
-        ): State()
-    }
-
-    companion object {
-        private const val DATA_ROUTE = "/data"
-        private val GAME_ROUTE = { game: Int -> "/data/$game" }
-        private const val UPDATE_MOD = "/update/mod"
+        ): ModsState(modsAvailable)
     }
 }

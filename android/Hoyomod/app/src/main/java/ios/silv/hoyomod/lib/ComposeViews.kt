@@ -66,48 +66,6 @@ import kotlin.math.abs
  */
 
 /**
- * 快捷使用remember { mutableStateOf(T) }
- * Quick use remember { mutableStateOf(T) }
- */
-@Composable
-inline fun <T> rememberMutableStateOf(
-    crossinline initValue: @DisallowComposableCalls () -> T
-) = remember { mutableStateOf(initValue()) }
-
-@Composable
-inline fun <T> rememberMutableStateOf(
-    key1: Any?,
-    crossinline initValue: @DisallowComposableCalls () -> T
-): MutableState<T> = remember(key1 = key1) { mutableStateOf(initValue()) }
-
-@Composable
-inline fun <T> rememberMutableStateOf(
-    key1: Any?,
-    key2: Any?,
-    crossinline initValue: @DisallowComposableCalls () -> T
-): MutableState<T> = remember(key1 = key1, key2 = key2) { mutableStateOf(initValue()) }
-
-@Composable
-inline fun <T> rememberMutableStateOf(
-    key1: Any?,
-    key2: Any?,
-    key3: Any?,
-    crossinline initValue: @DisallowComposableCalls () -> T
-): MutableState<T> = remember(key1 = key1, key2 = key2, key3 = key3) { mutableStateOf(initValue()) }
-
-@Composable
-fun <T> rememberMutableStateListOf(): SnapshotStateList<T> = remember { SnapshotStateList() }
-
-@Composable
-inline fun <T> rememberMutableStateListOf(
-    crossinline initValue: @DisallowComposableCalls () -> List<T>
-): SnapshotStateList<T> = remember {
-    SnapshotStateList<T>().apply {
-        addAll(initValue())
-    }
-}
-
-/**
  * creator: lt  2024/1/3  lt.dygzs@qq.com
  * effect : 稳定的[Flow],在Compose中也是稳定的
  *          Stable [Flow], also stable in Compose
@@ -185,22 +143,22 @@ fun TextPagerIndicator(
         selectTextColor = selectTextColor,
         onIndicatorClick = onIndicatorClick,
         selectIndicatorItem = {
-            var width by rememberMutableStateOf { 0.dp }
+            var width by remember { mutableStateOf(0.dp) }
             val offsetPercentWithSelect by offsetPercentWithSelectFlow.collectAsState(0f)
             val selectIndex by selectIndexFlow.collectAsState(0)
             LaunchedEffect(texts, offsetPercentWithSelect, selectIndex) {
                 width = density.run {
                     //当前选中的指示器宽度
-                    val width =
+                    val constrainedWidth =
                         maxOf(dp20, indicatorsInfo.getIndicatorSize(selectIndex) - dp20)
                     if (offsetPercentWithSelect == 0f)
-                        return@run width.toDp()
+                        return@run constrainedWidth.toDp()
                     val index = selectIndex + if (offsetPercentWithSelect > 0) 1 else -1
                     //将要选中的指示器宽度
                     val toWidth =
                         maxOf(dp20, indicatorsInfo.getIndicatorSize(index) - dp20)
                     //通过百分比计算出实际宽度
-                    abs(offsetPercentWithSelect).getPercentageValue(width, toWidth).toDp()
+                    abs(offsetPercentWithSelect).getPercentageValue(constrainedWidth, toWidth).toDp()
                 }
             }
             Box(modifier = Modifier.fillMaxHeight()) {
@@ -395,7 +353,7 @@ fun PagerIndicator(
     val coroutineScope = rememberCoroutineScope()
     //用户滑动的偏移
     val offset = remember { Animatable(0f) }
-    var minOffset by rememberMutableStateOf { 0f }
+    var minOffset by remember { mutableFloatStateOf(0f) }
     val scrollState = remember(userCanScroll) {
         ScrollableState {
             val oldOffset = offset.value

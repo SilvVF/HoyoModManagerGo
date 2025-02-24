@@ -1,8 +1,37 @@
 package ios.silv.hoyomod.net
 
-
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
+@Serializable
+data class TogglePostRequest(
+    @SerialName("mod_id")
+    val id:      Int,
+    @SerialName("enabled")
+    val enabled: Boolean,
+)
+
+@Serializable
+data class JobStatus(
+    val jobId: Int? = null,
+    val status: String? = null,
+    val completedAt: String? = null,
+    val error: String? = null
+) {
+    val isComplete = status == "completed" || status == "failed"
+}
+
+@Serializable
+data class GeneratePostRequest(
+    @SerialName("game")
+    val game: Int
+)
+
+@Serializable
+data class GenerateResponse(
+    @SerialName("job_id")
+    val jobId: Int
+)
 
 @Serializable
 data class ModsWithTagsAndTextures(
