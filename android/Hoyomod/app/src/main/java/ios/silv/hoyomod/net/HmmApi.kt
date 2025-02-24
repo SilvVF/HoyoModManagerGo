@@ -66,18 +66,19 @@ class HmmApi(
         }
     }
 
-    suspend fun pollJobStatus(
+    suspend fun pollUntilSuccess(
         jobId: Int,
-        game: Int,
-        onStatus: (JobStatus) -> Unit,
-    ) = withContext(Dispatchers.IO) {
+        onStatus: (JobStatus) -> Unit = {},
+    ): Result<JobStatus> = withContext(Dispatchers.IO) {
         runCatching {
             val request = Request.Builder()
                 .url("http://${getAddr()}/poll-generation?jobId=$jobId")
                 .build()
 
+            var lastStatus: JobStatus?
+            var endMillis = 0L
+
             withTimeout(30.seconds) {
-                var endMillis = 0L
                 do {
                     val elapsed =  (System.currentTimeMillis() - endMillis).milliseconds
                     val delay = 5.seconds.inWholeMilliseconds - elapsed.inWholeMilliseconds
@@ -89,11 +90,15 @@ class HmmApi(
                     val response = client
                         .newCall(request)
                         .await()
-                    val status = response.parseAs<JobStatus>()
+
+                    lastStatus = runCatching { response.parseAs<JobStatus>() }
+                        .onSuccess { onStatus(it) }
+                        .getOrNull()
+
                     endMillis = System.currentTimeMillis()
-                    onStatus(status)
-                } while(response.code == 204 || !status.isComplete)
+                } while(response.code == 204 || !lastStatus!!.isComplete)
             }
+            lastStatus!!
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ios.silv.hoyomod.log.logcat
 import ios.silv.hoyomod.net.HmmApi
 import ios.silv.hoyomod.net.ModsWithTagsAndTextures
 import kotlinx.coroutines.Job
@@ -125,15 +126,14 @@ class MainViewModel(
     }
 
     private suspend fun startPollingJob(jobId: Int, game: Int) {
-        api.pollJobStatus(jobId, game) { status ->
-            _jobs[jobId] = if (status.isComplete) {
-                GenJob.Loading(jobId, game)
-            } else {
-                GenJob.Complete(jobId, game, status.error)
-            }
+        api.pollUntilSuccess(jobId) { status ->
+            logcat { "received status from server $status" }
         }
-            .onSuccess { refreshGame(game) }
+            .onSuccess { status ->
+                 _jobs[jobId] = GenJob.Complete(jobId, game, status.error)
+            }
             .onFailure { e ->
+                logcat { "job $jobId failed with exception\n${e.stackTraceToString()}" }
                 _jobs[jobId] = GenJob.Complete(
                     jobId, game,
                     error = when {
@@ -152,7 +152,11 @@ class MainViewModel(
         viewModelScope.launch {
             api.startGenerationJob(game)
                 .onSuccess { (jobId) ->
+                    _jobs[jobId] = GenJob.Loading(jobId, game)
                     startPollingJob(jobId, game)
+                }
+                .onFailure {
+                    logcat { it.stackTraceToString() }
                 }
         }
     }

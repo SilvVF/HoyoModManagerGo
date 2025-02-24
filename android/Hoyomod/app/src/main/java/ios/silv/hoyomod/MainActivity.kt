@@ -71,7 +71,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
-import ios.silv.hoyomod.MainViewModel.*
+import ios.silv.hoyomod.MainViewModel.GenJob
+import ios.silv.hoyomod.MainViewModel.ModsState
 import ios.silv.hoyomod.lib.TextPagerIndicator
 import ios.silv.hoyomod.lib.toStableFlow
 import ios.silv.hoyomod.net.HmmApi
@@ -105,7 +106,7 @@ class MainActivity : ComponentActivity() {
                     val search by viewmodel.search.collectAsStateWithLifecycle()
                     val jobs by viewmodel.jobs.collectAsStateWithLifecycle()
 
-                    var settingsVisible by rememberSaveable { mutableStateOf(true) }
+                    var settingsVisible by rememberSaveable { mutableStateOf(false) }
 
                     if (settingsVisible) {
                         SettingsDialog {

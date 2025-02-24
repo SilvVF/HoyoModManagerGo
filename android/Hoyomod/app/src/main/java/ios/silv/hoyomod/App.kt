@@ -3,6 +3,8 @@ package ios.silv.hoyomod
 import android.app.Application
 import android.content.SharedPreferences
 import android.preference.PreferenceManager
+import ios.silv.hoyomod.log.AndroidLogcatLogger
+import ios.silv.hoyomod.log.LogPriority
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -15,6 +17,9 @@ class App: Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        AndroidLogcatLogger.installOnDebuggableApp(this, minPriority = LogPriority.VERBOSE)
+
         sharedPreferences = applicationContext.getSharedPreferences(
             PreferenceManager.getDefaultSharedPreferencesName(applicationContext),
             0
