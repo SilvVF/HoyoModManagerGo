@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.SharedPreferences
 import android.preference.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
@@ -28,7 +29,7 @@ class App: Application() {
     companion object {
         lateinit var sharedPreferences: SharedPreferences
 
-        val applicationScope = CoroutineScope(SupervisorJob())
+        val applicationScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
         val client by lazy {
             OkHttpClient.Builder()
