@@ -5,16 +5,20 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import ios.silv.hoyomod.log.LogcatLogger.PrintLogger.asLog
 import ios.silv.hoyomod.log.logcat
 import ios.silv.hoyomod.net.HmmApi
 import ios.silv.hoyomod.net.ModsWithTagsAndTextures
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.launch
@@ -36,6 +40,9 @@ class MainViewModel(
     private val ipAddressFlow = prefs
         .changesAsFlow(PrefKeys.ADDR, "")
         .produceIn(viewModelScope)
+
+    private val _events = Channel<String>(UNLIMITED)
+    val events = _events.consumeAsFlow().produceIn(viewModelScope)
 
     private val modsAvailable = prefs.changesAsFlow(PrefKeys.MODS_AVAILABLE, false)
 
@@ -119,8 +126,9 @@ class MainViewModel(
         viewModelScope.launch {
             api.toggleMod(id, enabled).onSuccess {
                 refreshGame(game)
-            }.onFailure {
-
+            }.onFailure { t ->
+                logcat { t.asLog() }
+                _events.send(t.localizedMessage.orEmpty())
             }
         }
     }
@@ -133,7 +141,7 @@ class MainViewModel(
                  _jobs[jobId] = GenJob.Complete(jobId, game, status.error)
             }
             .onFailure { e ->
-                logcat { "job $jobId failed with exception\n${e.stackTraceToString()}" }
+                logcat { "job $jobId failed with exception\n${e.asLog()}" }
                 _jobs[jobId] = GenJob.Complete(
                     jobId, game,
                     error = when {
@@ -155,8 +163,9 @@ class MainViewModel(
                     _jobs[jobId] = GenJob.Loading(jobId, game)
                     startPollingJob(jobId, game)
                 }
-                .onFailure {
-                    logcat { it.stackTraceToString() }
+                .onFailure { t ->
+                    logcat { t.asLog() }
+                    _events.send(t.localizedMessage.orEmpty())
                 }
         }
     }
@@ -168,6 +177,9 @@ class MainViewModel(
                 this[game] = gameData
             }
         }
+            .onFailure { t ->
+                _events.send(t.localizedMessage.orEmpty())
+            }
     }
 
     override fun onCleared() {

@@ -39,4 +39,5 @@
     <string name="light_theme">light</string>
     <string name="dark_theme">dark</string>
     <string name="edit">edit</string>
+    <string name="error_occurred">An error occurred: %1$s</string>
 </resources>

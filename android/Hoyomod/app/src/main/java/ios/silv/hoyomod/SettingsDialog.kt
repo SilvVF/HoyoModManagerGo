@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -58,6 +60,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsDialog(
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val configuration = LocalConfiguration.current
 
@@ -70,7 +73,11 @@ fun SettingsDialog(
      */
     AlertDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
-        modifier = Modifier.widthIn(max = configuration.screenWidthDp.dp - 80.dp),
+        containerColor = Color.Transparent,
+        shape =  MaterialTheme.shapes.medium,
+        modifier = modifier
+            .widthIn(max = configuration.screenWidthDp.dp - 80.dp)
+            .heightIn(max = configuration.screenHeightDp.dp - 80.dp),
         onDismissRequest = { onDismiss() },
         title = {
             Text(

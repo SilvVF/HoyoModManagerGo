@@ -61,6 +61,9 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material3.android)
 
+    implementation(libs.haze)
+    implementation(libs.haze.materials)
+
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 

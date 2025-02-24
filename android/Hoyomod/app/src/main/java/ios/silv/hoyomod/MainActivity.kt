@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalHazeMaterialsApi::class, ExperimentalMaterial3Api::class)
+
 package ios.silv.hoyomod
 
 import android.os.Bundle
@@ -13,6 +15,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,10 +34,12 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -46,6 +52,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -63,18 +70,28 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 import ios.silv.hoyomod.MainViewModel.GenJob
 import ios.silv.hoyomod.MainViewModel.ModsState
 import ios.silv.hoyomod.lib.TextPagerIndicator
@@ -100,6 +117,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val snackbarHostState = SnackbarHostState()
+
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                for (event in viewmodel.events) {
+                    snackbarHostState.showSnackbar(
+                        getString(R.string.error_occurred, event),
+                        withDismissAction = true
+                    )
+                }
+            }
+        }
+
         setContent {
             CompositionLocalProvider(
                 LocalSharedPreferences provides App.sharedPreferences
@@ -109,19 +139,28 @@ class MainActivity : ComponentActivity() {
                     val modsState by viewmodel.state.collectAsStateWithLifecycle()
                     val search by viewmodel.search.collectAsStateWithLifecycle()
                     val jobs by viewmodel.jobs.collectAsStateWithLifecycle()
+                    val hazeState = remember { HazeState() }
 
                     var settingsVisible by rememberSaveable { mutableStateOf(false) }
 
                     if (settingsVisible) {
-                        SettingsDialog {
-                            settingsVisible = !settingsVisible
-                        }
+                        SettingsDialog(
+                            onDismiss = { settingsVisible = !settingsVisible },
+                            modifier = Modifier
+                                .clip(MaterialTheme.shapes.medium)
+                                .hazeEffect(
+                                    state = hazeState,
+                                    style = HazeMaterials.thin(MaterialTheme.colorScheme.surfaceContainer)
+                                )
+                        )
                     }
 
                     MainScreenContent(
                         modsState = modsState,
                         search = { search },
                         jobs = jobs,
+                        snackbarHostState = snackbarHostState,
+                        hazeState = hazeState,
                         actions = Actions(
                             startGenerateJob = { game ->
                                 viewmodel.startGenerateJob(game)
@@ -171,16 +210,17 @@ data class Actions(
 
 fun gameFromPage(page: Int): Int = page + 1
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenContent(
+    modifier: Modifier = Modifier,
     modsState: ModsState,
     search: () -> TextFieldValue,
     jobs: Map<Int, GenJob>,
+    hazeState: HazeState,
+    snackbarHostState: SnackbarHostState,
     actions: Actions,
 ) {
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
     val tabs = remember {
         with(context) {
             mutableStateListOf(
@@ -195,27 +235,49 @@ fun MainScreenContent(
     val pagerState = rememberPagerState { tabs.size }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { actions.startGenerateJob(gameFromPage(pagerState.currentPage)) },
                 icon = {
                     Icon(imageVector = Icons.Filled.Refresh, null)
                 },
+                containerColor = Color.Transparent,
                 text = {
                     Text(text = stringResource(R.string.generate))
-                }
+                },
+                elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
+                modifier = Modifier
+                    .clip(
+                        MaterialTheme.shapes.medium
+                    )
+                    .hazeSource(hazeState, 1f)
+                    .hazeEffect(
+                        state = hazeState,
+                        style = HazeMaterials.thin(MaterialTheme.colorScheme.primary)
+                    )
             )
         },
         snackbarHost = {
-            StackingSnackBarHost(jobs, actions, snackbarHostState)
+            StackingSnackBarHost(
+                jobs,
+                actions,
+                snackbarHostState,
+                hazeState,
+            )
         },
         topBar = {
             TopAppBarPagerIndicator(
                 pagerState,
                 tabs,
                 search,
-                actions
+                actions,
+                Modifier
+                    .hazeSource(hazeState, 1f)
+                    .hazeEffect(
+                        state = hazeState,
+                        style = HazeMaterials.thin()
+                    )
             )
         }
     ) { innerPadding ->
@@ -225,8 +287,14 @@ fun MainScreenContent(
         ) {
             HorizontalPager(
                 state = pagerState,
-                contentPadding = innerPadding,
-                modifier = Modifier.fillMaxSize()
+                contentPadding = PaddingValues(
+                    start = innerPadding.calculateStartPadding(LocalLayoutDirection.current),
+                    end = innerPadding.calculateEndPadding(LocalLayoutDirection.current),
+                    bottom = innerPadding.calculateBottomPadding()
+                ),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .hazeSource(state = hazeState, 0f)
             ) { page ->
                 when (modsState) {
                     is ModsState.Failure -> ErrorScreen(
@@ -248,6 +316,9 @@ fun MainScreenContent(
                         } else {
                             ModDataSuccessContent(
                                 data = data,
+                                paddingValues = PaddingValues(
+                                    innerPadding.calculateTopPadding(),
+                                ),
                                 onEnableMod = { id, enabled ->
                                     actions.toggleMod(gameFromPage(page), id, enabled)
                                 }
@@ -292,6 +363,7 @@ fun EmptySuccessPage(
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopAppBarPagerIndicator(
@@ -302,10 +374,25 @@ fun TopAppBarPagerIndicator(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
-    Column(modifier) {
+    val modsAvailable by LocalSharedPreferences.collectPreferenceAsState(
+        PrefKeys.MODS_AVAILABLE,
+        false
+    )
+    Column(
+        modifier
+    ) {
         TopAppBar(
             title = { Text(stringResource(R.string.app_title)) },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent
+            ),
             actions = {
+                Checkbox(
+                    modsAvailable,
+                    onCheckedChange = {
+                        actions.toggleHasModsFilter()
+                    },
+                )
                 IconButton(onClick = {
                     actions.onSettingsVisibilityChanged(true)
                 }) {
@@ -369,11 +456,16 @@ fun StackingSnackBarHost(
     jobs: Map<Int, GenJob>,
     actions: Actions,
     snackbarHostState: SnackbarHostState,
+    hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         jobs.forEach { (_, job) ->
             Snackbar(
+                modifier = Modifier.hazeEffect(
+                    state = hazeState,
+                    style = HazeMaterials.thin()
+                ),
                 dismissAction = {
                     JobDismissAction(job, actions)
                 }
@@ -391,7 +483,13 @@ fun StackingSnackBarHost(
                 )
             }
         }
-        SnackbarHost(snackbarHostState)
+        SnackbarHost(
+            snackbarHostState,
+            modifier = Modifier.hazeEffect(
+                state = hazeState,
+                style = HazeMaterials.thin()
+            ),
+        )
     }
 }
 
@@ -438,13 +536,16 @@ fun JobDismissAction(
 @Composable
 fun ModDataSuccessContent(
     data: List<ModsWithTagsAndTextures.Data>,
-    onEnableMod: (id: Int, enabled: Boolean) -> Unit
+    onEnableMod: (id: Int, enabled: Boolean) -> Unit,
+    paddingValues: PaddingValues,
 ) {
     val context = LocalContext.current
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(4.dp)
     ) {
+        item {
+            Spacer(Modifier.height(paddingValues.calculateTopPadding()))
+        }
         items(data, key = { it.characters.id }) { mwt ->
             ElevatedCard(
                 modifier = Modifier
