@@ -110,9 +110,8 @@ sync gradle and hit run button or
 <img src="https://github.com/user-attachments/assets/61cb2762-6aa4-4b17-928a-48a8ee0822db" width="500">
 
 ### Android
-<img src="https://github.com/user-attachments/assets/117a83e5-42d8-41c4-9bbc-c7c6c01f44d5" width="200">
-<img src="https://github.com/user-attachments/assets/3f6291b6-c79e-4a93-829b-e7dda34210e8" width="200">
-<img src="https://github.com/user-attachments/assets/577f9bea-60ff-4561-9274-4788dcc2fc47" width="200">
+![Screenshot_20250225_143012_Hoyomod](https://github.com/user-attachments/assets/2e18e498-6216-468f-a0a8-4540623bfd8f)
+![Screenshot_20250225_143024_Hoyomod](https://github.com/user-attachments/assets/eea00524-6581-4962-92bd-30bfa65e1224)
 
 
 
