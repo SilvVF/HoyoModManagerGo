@@ -102,7 +102,7 @@ const useSearchStore = create<SearchState>((set, get) => ({
     dataResults: [],
   },
   searching: false,
-  _cancelSearch: () => {},
+  _cancelSearch: () => { },
   _performSearch: async () => {
     if (get().searching) return;
     set({ searching: true });
@@ -253,13 +253,13 @@ export function SearchScreen() {
       <SearchOverlayOptions
         dialog={dialog}
         setDialog={setDialog}
-        refreshCharacters={() => {}}
+        refreshCharacters={() => { }}
       />
       <SearchBar />
       <div className="w-full flex flex-col p-4">
         <h3>
           Search specific categorys by prefixing with a bang '!' ex. !character
-          Ayaka
+          Ayaka. Also urls in the form of https://gamebanana.com/mods/(.+)/
         </h3>
         <div className="flex flex-row space-x-4 p-4">
           <h6>!tag</h6>
@@ -277,7 +277,7 @@ export function SearchScreen() {
       </div>
       <Dialog>
         {results.urlResults.map((res) => (
-          <div onClick={() => navigate(res.path)}>{res.text}</div>
+          <Button onClick={() => navigate(res.path)}>{res.text}</Button>
         ))}
         <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 w-full">
           {results.dataResults.map((res) => {
@@ -345,12 +345,12 @@ function SearchOverlayOptions({
       create_tag: {
         title: "Create tag",
         description: "create a tag for the mod",
-        onSuccess: () => {},
+        onSuccess: () => { },
       },
       rename_tag: {
         title: "Rename tag",
         description: "Rename the current tag",
-        onSuccess: () => {},
+        onSuccess: () => { },
       },
       rename_texture: {
         title: "Rename Texture",
