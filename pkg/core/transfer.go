@@ -18,7 +18,7 @@ const (
 	eventProgress   = "progress"
 	eventError      = "error"
 	eventFinsihshed = "finished"
-	debounce        = time.Millisecond * 100
+	debounce        = time.Second * 1
 )
 
 type Transfer struct {
@@ -63,9 +63,11 @@ func backupDatabase() error {
 
 func (t *Transfer) ChangeRootModDir(dest string, copyOver bool) (err error) {
 
+	prevDir := t.dirPref.Get()
+
 	defer func() {
 		if err == nil {
-			t.canRemove[dest] = struct{}{}
+			t.canRemove[prevDir] = struct{}{}
 			err := backupDatabase()
 			if err != nil {
 				log.LogError(err.Error())
@@ -73,8 +75,6 @@ func (t *Transfer) ChangeRootModDir(dest string, copyOver bool) (err error) {
 			t.sync.RunAll(SyncRequestLocal)
 		}
 	}()
-
-	prevDir := t.dirPref.Get()
 
 	if err = t.dirPref.Set(dest); err != nil {
 		return err

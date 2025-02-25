@@ -620,15 +620,15 @@ const transferText: {
     description: string,
   }
 } = {
-  "confirm": {
+  confirm: {
     title: "Confirm transfer",
     description: "would you like to transfer all current mods to the new dest",
   },
-  "idle": {
+  idle: {
     title: "Loading",
     description: "setting up mod transfer",
   },
-  "loading": {
+  loading: {
     title: "Transfer in progress",
     description: "moving all mods to the new destination",
   },
@@ -656,15 +656,14 @@ type TransferAction = {
 function useModTransferActions(closeDialog: () => void): TransferAction[] {
 
   const state = useModTransferStore(useShallow(state => state.state))
+  const start = useModTransferStore(state => state.start)
   const confirm = useModTransferStore(state => state.confirm)
   const deleting = useModTransferStore(useShallow(state => state.deleting))
   const pendingDelete = useModTransferStore(useShallow(state => state.pendingDelete))
   const clearOldDir = useModTransferStore(useShallow(state => state.clearOldDir))
 
   if (state === "loading") {
-    return [
-      { pos: false, text: "Cancel", action: () => { } }
-    ]
+    return []
   } else if (state === "confirm") {
     return [
       { pos: false, text: "Cancel", action: closeDialog },
@@ -673,13 +672,13 @@ function useModTransferActions(closeDialog: () => void): TransferAction[] {
     ]
   } else if (state === "success") {
     return [
-      { pos: false, text: "Continue without deleting", action: closeDialog },
-      { pos: true, text: "Delete old directory", action: clearOldDir, inProgres: deleting }
+      { pos: false, text: "Delete old directory", action: clearOldDir, inProgres: deleting },
+      { pos: true, text: "Continue without deleting", action: closeDialog },
     ]
   } else if (state === "error") {
     return [
       { pos: false, text: "Cancel", action: closeDialog },
-      { pos: true, text: "Retry", action: () => { } }
+      { pos: true, text: "Retry", action: () => start }
     ]
   } else if (state === "delete" && pendingDelete !== undefined) {
     return [
@@ -752,6 +751,9 @@ function MigrateModsContent({ state, stats }: { state: TransferState, stats: Cha
   const progress = useModTransferStore(
     useShallow((state) => state.progress)
   )
+  const pendingDelete = useModTransferStore(
+    useShallow((state) => state.pendingDelete)
+  )
 
   if (state === "idle") {
     return (
@@ -785,8 +787,8 @@ function MigrateModsContent({ state, stats }: { state: TransferState, stats: Cha
     )
   } else if (state === "loading") {
     return (
-      <div className="h-full w-full">
-        <div className="flex flex-row items-center justify-start space-x-2">
+      <div className="flex flex-col h-full w-full justify-center items-center p-4">
+        <div className="flex flex-row items-center w-full justify-start space-x-2">
           <Progress
             value={
               progress.total !== 0 ? (progress.progress / progress.total) * 100 : 0
@@ -804,13 +806,47 @@ function MigrateModsContent({ state, stats }: { state: TransferState, stats: Cha
     )
   } else if (state === "success") {
     return (
-      <div>success</div>
+      <div className="flex flex-col h-full min-w-full justify-center items-center">
+        <text className="text-xl font-semibold">Successfully moved mods dir</text>
+        <SettingsDirItem
+          name="Root Mods dir"
+          dir={prevDir}
+        />
+        <text className="p-6">
+          Select whether to delete<> </>
+          <span className="text-primary font-bold">{pendingDelete}</span> <br></br>Otherwise select continue without deleting and manually delete it
+        </text>
+      </div>
     )
   } else if (state === "error") {
     return (
-      <div>error</div>
+      <div className="flex flex-col h-full min-w-full justify-center items-center">
+        <text className="text-xl font-semibold">
+          An error occured while transfering.
+        </text>
+      </div>
     )
-  } else { <></> }
+  } else if (state === "delete") {
+
+    if (pendingDelete) {
+      return (
+        <div className="flex flex-col h-full min-w-full justify-center items-center">
+          <text className="text-xl font-semibold">
+            An error occured while trying to delete the dir.
+          </text>
+        </div>
+      )
+    } else {
+      return (
+        <div className="flex flex-col h-full min-w-full justify-center items-center">
+          <text className="text-xl font-semibold">
+            Successfully deleted old dir.
+          </text>
+        </div>
+      )
+    }
+  }
+  return <></>
 }
 
 

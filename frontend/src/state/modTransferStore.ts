@@ -10,12 +10,6 @@ import { create } from "zustand";
 const CHANGE_EVENT = "change_dir"
 type E_TYPE = "progress" | "error" | "finished"
 
-
-type Event = {
-    type: E_TYPE
-    data: any
-}
-
 export type TransferState = "idle" | "confirm" | "loading" | "error" | "success" | "delete"
 
 export type TransferProgress = {
@@ -119,13 +113,12 @@ export const useModTransferStore = create<ModTransferStore>((set, get) => ({
         })
             .catch()
 
-        return EventsOn(CHANGE_EVENT, (data: Event) => {
+        return EventsOn(CHANGE_EVENT, (type: E_TYPE, data: TransferProgress | string | undefined) => {
             try {
-                switch (data.type) {
+                switch (type) {
                     case "progress":
-                        const prog = data.data as TransferProgress
                         set({
-                            progress: prog
+                            progress: (data as TransferProgress)
                         })
                         break
                     case "finished":
@@ -135,7 +128,7 @@ export const useModTransferStore = create<ModTransferStore>((set, get) => ({
                         break
                     case "error":
                         set({
-                            error: (data.data.toString()),
+                            error: data as string,
                         })
                         break
                 }

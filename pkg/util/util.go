@@ -143,17 +143,36 @@ func ExtractDateFromFilename(filename string) (time.Time, error) {
 	return parsedTime, nil
 }
 
+func DirSize(path string) (int64, error) {
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	return size, err
+}
+
 func CopyRecursivleyProgFn(src string, dst string, overwrite bool, onProgress func(progress int64, total int64)) error {
 	srcInfo, err := os.Stat(src)
-
-	total := srcInfo.Size()
-	copy := int64(0)
-
-	onProgress(copy, total)
 
 	if err != nil {
 		return fmt.Errorf("cannot stat source dir: %w", err)
 	}
+
+	size, err := DirSize(src)
+	if err != nil {
+		return err
+	}
+	total := size
+	copy := int64(0)
+
+	onProgress(copy, total)
+
 	err = os.MkdirAll(dst, srcInfo.Mode())
 	if err != nil {
 		return fmt.Errorf("cannot create destination dir: %w", err)
