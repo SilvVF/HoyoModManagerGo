@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -190,65 +189,6 @@ func (a *App) GetUpdates() []types.Update {
 	a.updator.CancelJob()
 
 	return a.updator.CheckFixesForUpdate()
-}
-
-func (a *App) ChangeRootModDir(dest string, copyOver bool) error {
-
-	dirPref := a.appPrefs.RootModDirPref
-	prevDir := dirPref.Get()
-
-	if err := dirPref.Set(dest); err != nil {
-		return err
-	}
-
-	if !copyOver {
-		return nil
-	}
-
-	runtime.EventsEmit(a.ctx, "change_dir", "start")
-
-	sem := make(chan struct{}, 1)
-	debounce := time.Millisecond * 100
-	var lastUnsent core.DataProgress
-
-	sendEvent := func(progress, total int64) {
-		go func() {
-			// try to aquire the sem or debounce
-			select {
-			case sem <- struct{}{}:
-			default:
-				lastUnsent = core.DataProgress{Progress: progress, Total: total}
-				return
-			}
-
-			runtime.EventsEmit(a.ctx, "change_dir", "progress", core.DataProgress{Total: total, Progress: progress})
-
-			ctx, cancel := context.WithTimeout(a.ctx, debounce)
-			defer cancel()
-
-			<-ctx.Done()
-			<-sem
-		}()
-	}
-
-	err := util.CopyRecursivleyProgFn(prevDir, dest, false, sendEvent)
-	sem <- struct{}{}
-
-	if lastUnsent.Total != 0 {
-		runtime.EventsEmit(a.ctx, "change_dir", "progress", lastUnsent)
-	}
-
-	if err != nil {
-		runtime.EventsEmit(a.ctx, "change_dir", "error", err.Error())
-	} else {
-		runtime.EventsEmit(a.ctx, "change_dir", "finished")
-	}
-
-	return err
-}
-
-func (a *App) RemoveAll(path string) error {
-	return os.RemoveAll(path)
 }
 
 func (a *App) DownloadModFix(game types.Game, old, name, link string) error {

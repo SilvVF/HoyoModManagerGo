@@ -76,6 +76,10 @@ func GetRootModDir() string {
 	return filepath.Join(GetCacheDir(), "mods")
 }
 
+func GetDbFile() string {
+	return filepath.Join(GetCacheDir(), "hmm.db")
+}
+
 func FileExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {

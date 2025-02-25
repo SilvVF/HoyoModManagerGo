@@ -58,7 +58,6 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { types } from "wailsjs/go/models";
 import { useUpdatesStore } from "@/state/updateStore";
 import { TransferState, useModTransferStore } from "@/state/modTransferStore";
-import { Game } from "@/data/dataapi";
 
 type SettingsDialog = "edit_port" | "edit_password" | "edit_username" | "check_updates" | "migrate_mods_dir";
 const AuthType: { [keyof: number]: string } = {
@@ -639,6 +638,10 @@ const transferText: {
   error: {
     title: "Failed to transfer",
     description: "an error occured while transfering mods",
+  },
+  delete: {
+    title: "Delete old dir",
+    description: "Delete old dir"
   }
 }
 

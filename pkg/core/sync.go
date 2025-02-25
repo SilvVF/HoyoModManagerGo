@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	StartupRequest          = 0
-	SyncRequestLocal        = 1
-	SyncRequestForceNetwork = 2
+	StartupRequest          SyncRequest = 0
+	SyncRequestLocal        SyncRequest = 1
+	SyncRequestForceNetwork SyncRequest = 2
 )
 
 type SyncRequest int
@@ -28,10 +28,9 @@ type SyncHelper struct {
 	db              *DbHelper
 	running         map[types.Game]pond.Pool
 	initialComplete map[types.Game]bool
-	rootDir         string
 }
 
-func (s *SyncHelper) RunStartup() {
+func (s *SyncHelper) RunAll(request SyncRequest) {
 	wg := sync.WaitGroup{}
 
 	for _, game := range types.Games {
@@ -39,7 +38,7 @@ func (s *SyncHelper) RunStartup() {
 
 		go func() {
 			defer wg.Done()
-			if err := s.Sync(game, StartupRequest); err != nil {
+			if err := s.Sync(game, request); err != nil {
 				log.LogError(err.Error())
 			}
 		}()
@@ -62,7 +61,6 @@ func NewSyncHelper(db *DbHelper) *SyncHelper {
 		db:              db,
 		running:         pools,
 		initialComplete: m,
-		rootDir:         util.GetRootModDir(),
 	}
 }
 

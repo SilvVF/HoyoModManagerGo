@@ -45,6 +45,7 @@ func main() {
 	// Create an instance of the app structure
 	flag.Parse()
 	ctx := context.Background()
+	defaultEmitter := core.DefaultEmitter()
 
 	var store pref.PrefrenceDb
 	if (*prefs) == 1 {
@@ -61,26 +62,8 @@ func main() {
 			},
 		)
 	}
-	appPrefs := core.NewAppPrefs(pref.NewPrefs(store))
-	defaultEmitter := core.DefaultEmitter()
-	util.SetRootModDirFn(appPrefs.RootModDirPref.Get)
 
-	genshinApi := api.ApiList[types.Genshin]
-	starRailApi := api.ApiList[types.StarRail]
-	zenlessApi := api.ApiList[types.ZZZ]
-	wuwaApi := api.ApiList[types.WuWa]
-	preferenceDirs := map[types.Game]pref.Preference[string]{
-		types.Genshin:  appPrefs.GenshinDirPref.Preference,
-		types.ZZZ:      appPrefs.ZZZDirPref.Preference,
-		types.StarRail: appPrefs.HonkaiDirPref.Preference,
-		types.WuWa:     appPrefs.WuwaDirPref.Preference,
-	}
-
-	gbApi := &api.GbApi{}
-
-	app := NewApp(appPrefs, core.NewUpdator(gbApi, preferenceDirs))
-
-	dbfile := filepath.Join(util.GetCacheDir(), "hmm.db")
+	dbfile := util.GetDbFile()
 
 	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
 
@@ -98,6 +81,24 @@ func main() {
 
 	queries := db.New(dbSql)
 
+	appPrefs := core.NewAppPrefs(pref.NewPrefs(store))
+	util.SetRootModDirFn(appPrefs.RootModDirPref.Get)
+
+	genshinApi := api.ApiList[types.Genshin]
+	starRailApi := api.ApiList[types.StarRail]
+	zenlessApi := api.ApiList[types.ZZZ]
+	wuwaApi := api.ApiList[types.WuWa]
+	preferenceDirs := map[types.Game]pref.Preference[string]{
+		types.Genshin:  appPrefs.GenshinDirPref.Preference,
+		types.ZZZ:      appPrefs.ZZZDirPref.Preference,
+		types.StarRail: appPrefs.HonkaiDirPref.Preference,
+		types.WuWa:     appPrefs.WuwaDirPref.Preference,
+	}
+
+	gbApi := &api.GbApi{}
+
+	app := NewApp(appPrefs, core.NewUpdator(gbApi, preferenceDirs))
+
 	dbHelper := core.NewDbHelper(queries, dbSql)
 	downloader := core.NewDownloader(
 		dbHelper,
@@ -106,7 +107,7 @@ func main() {
 		defaultEmitter,
 	)
 	sync := core.NewSyncHelper(dbHelper)
-	go sync.RunStartup()
+	go sync.RunAll(core.StartupRequest)
 
 	keymapper := core.NewKeymapper(dbHelper)
 
