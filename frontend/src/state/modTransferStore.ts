@@ -125,18 +125,16 @@ export const useModTransferStore = create<ModTransferStore>((set, get) => ({
                     case "progress":
                         const prog = data.data as TransferProgress
                         set({
-                            state: "loading",
                             progress: prog
                         })
                         break
                     case "finished":
                         set({
-                            state: "success",
+                            error: undefined
                         })
                         break
                     case "error":
                         set({
-                            state: "error",
                             error: (data.data.toString()),
                         })
                         break

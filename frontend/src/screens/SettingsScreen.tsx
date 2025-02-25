@@ -22,7 +22,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { range } from "@/lib/tsutils";
+import { formatBytes, range } from "@/lib/tsutils";
 import { Slider } from "@/components/ui/slider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -58,6 +58,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { types } from "wailsjs/go/models";
 import { useUpdatesStore } from "@/state/updateStore";
 import { TransferState, useModTransferStore } from "@/state/modTransferStore";
+import { Progress } from "@/components/ui/progress";
 
 type SettingsDialog = "edit_port" | "edit_password" | "edit_username" | "check_updates" | "migrate_mods_dir";
 const AuthType: { [keyof: number]: string } = {
@@ -748,6 +749,9 @@ function MigrateModsContent({ state, stats }: { state: TransferState, stats: Cha
   const { prevDir, newDir } = useModTransferStore(
     useShallow((state) => ({ prevDir: state.prevDir, newDir: state.newDir }))
   )
+  const progress = useModTransferStore(
+    useShallow((state) => state.progress)
+  )
 
   if (state === "idle") {
     return (
@@ -781,7 +785,22 @@ function MigrateModsContent({ state, stats }: { state: TransferState, stats: Cha
     )
   } else if (state === "loading") {
     return (
-      <div>loading</div>
+      <div className="h-full w-full">
+        <div className="flex flex-row items-center justify-start space-x-2">
+          <Progress
+            value={
+              progress.total !== 0 ? (progress.progress / progress.total) * 100 : 0
+            }
+            className="w-[75%] h-6"
+          />
+          <div className="flex flex-col">
+            <div>{"Transfering mods"}</div>
+            <div className="text-sm">{`${formatBytes(
+              progress.progress
+            )} / ${formatBytes(progress.total)}`}</div>
+          </div>
+        </div>
+      </div>
     )
   } else if (state === "success") {
     return (
