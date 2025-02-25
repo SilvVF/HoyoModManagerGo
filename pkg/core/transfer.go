@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/util"
 	"io"
@@ -40,6 +41,7 @@ func backupDatabase() error {
 	dbFile := util.GetDbFile()
 	currentTime := time.Now()
 	backupFileName := strings.ReplaceAll(currentTime.Format("2006-01-02 15:04:05"), " ", "_")
+	backupFileName = strings.ReplaceAll(backupFileName, ":", "-")
 
 	db, err := os.Open(dbFile)
 	if err != nil {
@@ -47,7 +49,9 @@ func backupDatabase() error {
 	}
 	defer db.Close()
 
-	backup, err := os.Create(filepath.Join(util.GetCacheDir(), "backup", backupFileName, ".db"))
+	backupDir := filepath.Join(util.GetCacheDir(), "backup")
+	os.MkdirAll(backupDir, os.ModePerm)
+	backup, err := os.Create(filepath.Join(backupDir, backupFileName+".db"))
 	if err != nil {
 		return err
 	}
@@ -62,7 +66,10 @@ func (t *Transfer) ChangeRootModDir(dest string, copyOver bool) (err error) {
 	defer func() {
 		if err == nil {
 			t.canRemove[dest] = struct{}{}
-			backupDatabase()
+			err := backupDatabase()
+			if err != nil {
+				log.LogError(err.Error())
+			}
 			t.sync.RunAll(SyncRequestLocal)
 		}
 	}()

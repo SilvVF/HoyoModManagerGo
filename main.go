@@ -145,7 +145,7 @@ func main() {
 		},
 		Menu:     nil,
 		Logger:   app.CreateLogger(),
-		LogLevel: logger.DEBUG,
+		LogLevel: logger.ERROR,
 		OnStartup: func(ctx context.Context) {
 			log.InitLogging(ctx)
 			defaultEmitter.Bind(ctx)
