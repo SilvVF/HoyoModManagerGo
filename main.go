@@ -47,6 +47,7 @@ func main() {
 	ctx := context.Background()
 	defaultEmitter := core.DefaultEmitter()
 
+	// DISK
 	var store pref.PrefrenceDb
 	if (*prefs) == 1 {
 		store = pref.NewInMemoryStore(context.Background())
@@ -64,23 +65,19 @@ func main() {
 	}
 
 	dbfile := util.GetDbFile()
-
 	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
-
 	util.CreateFileIfNotExists(dbfile)
-
 	dbSql, err := sql.Open("sqlite3", dbfile)
 	if err != nil {
 		panic(err)
 	}
-
 	// create tables
 	if _, err := dbSql.ExecContext(ctx, ddl); err != nil {
 		panic(err)
 	}
-
 	queries := db.New(dbSql)
 
+	// CORE
 	appPrefs := core.NewAppPrefs(pref.NewPrefs(store))
 	util.SetRootModDirFn(appPrefs.RootModDirPref.Get)
 
@@ -96,8 +93,6 @@ func main() {
 	}
 
 	gbApi := &api.GbApi{}
-
-	app := NewApp(appPrefs, core.NewUpdator(gbApi, preferenceDirs))
 
 	dbHelper := core.NewDbHelper(queries, dbSql)
 	downloader := core.NewDownloader(
@@ -119,6 +114,9 @@ func main() {
 	)
 
 	serverManager := server.NewServerManager(appPrefs, dbHelper, generator)
+	transfer := core.NewTransfer(sync, defaultEmitter, appPrefs.RootModDirPref.Preference)
+
+	app := NewApp(appPrefs, core.NewUpdator(gbApi, preferenceDirs), transfer)
 
 	var bgColor *options.RGBA
 	theme := appPrefs.DarkTheme.Get()

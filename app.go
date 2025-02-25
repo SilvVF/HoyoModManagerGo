@@ -45,17 +45,19 @@ type App struct {
 	appPrefs      *core.AppPrefs
 	updator       *core.Updator
 	logType       int
+	transer       *core.Transfer
 	mutex         sync.Mutex
 }
 
 // NewApp creates a new App application struct
-func NewApp(appPrefs *core.AppPrefs, updator *core.Updator) *App {
+func NewApp(appPrefs *core.AppPrefs, updator *core.Updator, transfer *core.Transfer) *App {
 	return &App{
 		appPrefs:      appPrefs,
 		dev:           *dev,
 		logType:       *logType,
 		pluginExports: make(map[string]lua.LGFunction),
 		updator:       updator,
+		transer:       transfer,
 	}
 }
 
@@ -231,6 +233,14 @@ func (a *App) GetStats() (*types.DownloadStats, error) {
 	}
 
 	return res, nil
+}
+
+func (a *App) ChangeRootModDir(dir string, transfer bool) error {
+	return a.transer.ChangeRootModDir(dir, transfer)
+}
+
+func (a *App) RemoveOldModDir(path string) error {
+	return a.transer.RemoveAll(path)
 }
 
 func getDirInfo(root string) (int64, []types.FileInfo, error) {

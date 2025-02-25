@@ -3,7 +3,7 @@
 
 import { rootModDirPref } from "@/data/prefs";
 import { CancelFn } from "@/lib/tsutils";
-import { ChangeRootModDir, RemoveAll } from "wailsjs/go/main/App";
+import { ChangeRootModDir, RemoveOldModDir } from "wailsjs/go/main/App";
 import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";
 import { create } from "zustand";
 
@@ -53,7 +53,7 @@ export const useModTransferStore = create<ModTransferStore>((set, get) => ({
         set({
             deleting: true
         })
-        RemoveAll(pendingDelete).then(() => {
+        RemoveOldModDir(pendingDelete).then(() => {
             set({
                 state: "delete",
                 pendingDelete: undefined,
@@ -86,13 +86,18 @@ export const useModTransferStore = create<ModTransferStore>((set, get) => ({
                     state: (s.state === "error")
                         ? "error"
                         : "success",
-                    pendingDelete: prevDir
+                    pendingDelete: prevDir,
+                    newDir: undefined,
+                    prevDir: newDir
                 }))
             })
             .catch((e) => {
                 set({
                     state: "error",
-                    error: e.toString()
+                    error: e.toString(),
+                    pendingDelete: undefined,
+                    newDir: newDir,
+                    prevDir: prevDir
                 })
             })
     },
@@ -125,17 +130,14 @@ export const useModTransferStore = create<ModTransferStore>((set, get) => ({
                         })
                         break
                     case "finished":
-                        set((state) => ({
+                        set({
                             state: "success",
-                            prevDir: state.newDir,
-                            newDir: undefined
-                        }))
+                        })
                         break
                     case "error":
                         set({
                             state: "error",
                             error: (data.data.toString()),
-                            newDir: undefined
                         })
                         break
                 }

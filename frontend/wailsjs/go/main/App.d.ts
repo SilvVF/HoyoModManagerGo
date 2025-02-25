@@ -34,7 +34,7 @@ export function OpenMultipleFilesDialog(arg1:string,arg2:Array<string>):Promise<
 
 export function ReadImageFile(arg1:string):Promise<string>;
 
-export function RemoveAll(arg1:string):Promise<void>;
+export function RemoveOldModDir(arg1:string):Promise<void>;
 
 export function StartPlugins():Promise<void>;
 

@@ -95,7 +95,7 @@ export default function SettingsScreen() {
   const startTransfer = useModTransferStore((state) => state.start)
   const rootModDir = useModTransferStore(useShallow((state) => state.prevDir))
 
-  const stats = useStatsState(undefined);
+  const stats = useStatsState(undefined, [rootModDir]);
 
   const items = useMemo(
     () => [
