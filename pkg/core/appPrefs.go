@@ -4,6 +4,7 @@ import (
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
+	"path/filepath"
 )
 
 type AppPrefs struct {
@@ -108,7 +109,7 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 			Preference: store.GetStringSlice("enabled_plugins", []string{}),
 		},
 		&RootModDirPref{
-			Preference: store.GetString("root_mod_dir", util.GetRootModDir()),
+			Preference: store.GetString("root_mod_dir", filepath.Join(util.GetCacheDir(), "mods")),
 		},
 	}
 }
