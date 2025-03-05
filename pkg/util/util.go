@@ -49,6 +49,10 @@ func GetCacheDir() string {
 	return filepath.Join(appData, APP_NAME, "cache")
 }
 
+func GetKeyMapsDir(m types.Mod) string {
+	return filepath.Join(GetModDir(m), "keymaps")
+}
+
 func GetModDir(m types.Mod) string {
 	return filepath.Join(GetCharacterDir(m.Character, m.Game), m.Filename)
 }

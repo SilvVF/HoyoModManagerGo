@@ -348,16 +348,15 @@ func (a *App) StartPlugins() error {
 		return errors.New("plugins already running")
 	}
 
-	plugins := plugin.New(a.pluginExports, a.ctx, a.appPrefs.EnabledPluginsPref)
-	a.plugins = plugins
+	a.plugins = plugin.New(a.pluginExports, a.ctx, a.appPrefs.EnabledPluginsPref)
 
-	if err := plugins.LoadPlugins(); err != nil {
+	if err := a.plugins.LoadPlugins(); err != nil {
 		return err
 	}
 
 	a.emitPluginEvent(EVENT_PLUGINS_STARTED)
 
-	go plugins.Run(func(pe plugin.PluginEvent) {
+	go a.plugins.Run(func(pe plugin.PluginEvent) {
 		switch pe.Etype {
 		case plugin.EVENT_ERROR:
 			a.emitPluginEvent(EVENT_PLUGIN_ERROR, pe.Path, pe.Data)

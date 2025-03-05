@@ -22,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn, useStateProducer } from "@/lib/utils";
 import { useKeyMapperStore } from "@/state/keymapperStore";
 import { CheckIcon, EditIcon, TrashIcon, XIcon } from "lucide-react";
-import React, { useMemo, useRef } from "react";
+import React, { ReactElement, ReactNode, useLayoutEffect, useMemo, useRef } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -41,6 +41,7 @@ import * as Downloader from "wailsjs/go/core/Downloader"
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { OpenMultipleFilesDialog, ReadImageFile } from "wailsjs/go/main/App";
+
 
 type DialogType =
   | "rename_mod"
@@ -210,9 +211,16 @@ export function KeymappingScreen() {
               </text>
               <div className="flex flex-row items-center space-x-2">
                 <text className="text-3xl font-semibold me-4">{mod.filename}</text>
-                <SetGBId
-                  id={mod.gbId}
-                  changeId={updateModGbId}
+                <ConfirmInput
+                  Label={
+                    <text className="text-sm text-zinc-500">GB id</text>
+                  }
+                  className="w-32"
+                  value={Number(modId)}
+                  getValue={(value) => Number(value)}
+                  getInput={(value) => Math.max(0, Math.floor(Number(value)))}
+                  changeValue={updateModGbId}
+                  type="number"
                 />
                 <div className="w-2" />
                 <Switch
@@ -265,39 +273,44 @@ export function KeymappingScreen() {
   );
 }
 
-function SetGBId({ id, changeId }: {
-  id: number,
-  changeId: (id: number) => Promise<void>
+function ConfirmInput<T>({ className, value, Label, changeValue, getInput: getInput, getValue, type }: {
+  className?: string,
+  value: T,
+  getInput: (value: T) => string | number | undefined,
+  getValue: (value: string) => T;
+  changeValue: (value: T) => Promise<void>,
+  Label?: ReactElement;
+  type?: React.HTMLInputTypeAttribute | undefined
 }) {
 
-  const [gbIdInput, setGbIdInput] = useState(id);
-  const idChanged = useMemo(() => id != gbIdInput, [id, gbIdInput])
+  const [curr, setCurr] = useState(value);
+  const idChanged = useMemo(() => value != curr, [value, curr])
 
   const handleIdChange = (event: any) => {
     try {
-      setGbIdInput(Math.max(0, Math.floor(Number(event.target.value))))
+      setCurr(getValue(event.target.value))
     } catch { }
   }
-  const onChange = (changed: number, accepted: boolean) => {
+  const onChange = (changed: T, accepted: boolean) => {
     if (accepted) {
-      changeId(changed)
-        .then(() => setGbIdInput(changed))
-        .catch(() => setGbIdInput(id))
+      changeValue(changed)
+        .then(() => setCurr(changed))
+        .catch(() => setCurr(value))
     } else {
-      setGbIdInput(id)
+      setCurr(value)
     }
   }
 
   return (
     <div className="flex flex-row space-x-2 items-center">
-      <text className="text-sm text-zinc-500">GB Id</text>
-      <Input type="number" className="w-32" value={gbIdInput} onInput={handleIdChange} />
+      {Label}
+      <Input type={type} className={className} value={getInput(curr)} onInput={handleIdChange} />
       {idChanged ? (
-        <div className="space-x-2" onPointerDown={() => onChange(id, false)}>
+        <div className="space-x-2" onPointerDown={() => onChange(value, false)}>
           <Button size='icon'>
             <XIcon />
           </Button>
-          <Button size='icon' onPointerDown={() => onChange(gbIdInput, true)}>
+          <Button size='icon' onPointerDown={() => onChange(curr, true)}>
             <CheckIcon />
           </Button>
         </div>
@@ -311,6 +324,7 @@ function KeybindsUi(
     modId: string | undefined,
   }
 ) {
+  const [loading, setLoading] = useState(false)
 
   const load = useKeyMapperStore((state) => state.load);
   const loadPrevious = useKeyMapperStore((state) => state.loadPrevious);
@@ -320,24 +334,35 @@ function KeybindsUi(
   const write = useKeyMapperStore((state) => state.write);
 
   const saved = useKeyMapperStore(useShallow((state) => state.backups));
-
-  const keymap = useKeyMapperStore(useShallow((state) => state.keymappings));
-
+  const keymap = useKeyMapperStore(
+    useShallow((state) => {
+      return useMemo(() => state.keymappings.groupBy<string>((v) => v.name), [state.keymappings]);
+    })
+  );
   const [held, setHeld] = useState<string[]>([]);
-  const [retry, setRetry] = useState(0);
   const [err, setErr] = useState<any | undefined>(undefined);
 
-  useEffect(() => {
+  const loadKeymaps = () => {
+
+    setLoading(true);
+
     try {
       load(Number(modId))
         .then(() => setErr(undefined))
-        .catch((e) => setErr(e));
-    } catch { }
+        .catch((e) => setErr(e))
+        .finally(() => setLoading(false));
+    } catch (e) {
+      setErr(e)
+      setLoading(false);
+    }
+  }
 
-    return () => {
-      unload();
-    };
-  }, [modId, retry]);
+  useEffect(() => {
+
+    loadKeymaps();
+
+    return () => unload();
+  }, [modId]);
 
   const writeKeyMap = (section: string, sectionKey: string, keys: string[]) => {
     if (keys.isEmpty()) {
@@ -346,16 +371,37 @@ function KeybindsUi(
     write(section, sectionKey, keys).finally(() => setHeld([]));
   };
 
-  if (err != undefined) {
+  if (err !== undefined) {
     return (
       <div className="min-w-screen min-h-screen">
         <KeyMapLoadErrorPage
           err={err}
           id={modId}
-          retry={() => setRetry((r) => r + 1)}
+          retry={loadKeymaps}
         />
       </div>
     );
+  }
+
+  if (loading) {
+    return (
+      <div>
+        LOADING
+      </div>
+    )
+  }
+
+
+  if (keymap.isEmpty() && !loading) {
+    return (
+      <div className="min-w-screen min-h-screen">
+        <KeyMapLoadErrorPage
+          err={"no keybinds are editable for this mod"}
+          id={modId}
+          retry={loadKeymaps}
+        />
+      </div>
+    )
   }
 
   return (
@@ -381,34 +427,47 @@ function KeybindsUi(
         />
       </div>
       <div className="w-fit flex flex-col py-4 space-y-3">
-        {keymap.map((bind) => {
+        {keymap.map((entry) => {
+
+          const [group, arr] = entry
+
           return (
-            <div className="flex flex-col" key={bind.name + bind.sectionKey}>
-              <div className="flex flex-row items-center space-x-4 m-2">
-                <div className="flex-grow text-left text-xl me-12">
-                  {bind.name}
-                </div>
-                <div className="flex flex-row space-x-4 items-center">
-                  <div className="flex-grow text-lg text-muted-foreground">
-                    {bind.sectionKey}
-                  </div>
-                  <Input
-                    value={bind.key.replaceAll(" ", " + ")}
-                    className="w-96"
-                    tabIndex={-1}
-                    onKeyDown={(event) => {
-                      if (!held.includes(event.key)) {
-                        setHeld((p) => [...p, event.key]);
-                      }
-                    }}
-                    onKeyUp={() =>
-                      writeKeyMap(bind.name, bind.sectionKey, held)
-                    }
-                    readOnly
-                  />
-                </div>
+            <div className="flex flex-col">
+              <div className="flex-grow text-left text-xl me-12">
+                {group}
               </div>
-              <Separator />
+              {arr?.map((bind) => (
+                <div key={bind.name + bind.sectionKey}>
+                  <div className="flex flex-row space-x-4 items-center">
+                    <div className="flex-grow text-lg text-muted-foreground">
+                      {bind.sectionKey}
+                    </div>
+                    {bind.sectionKey === "key" ? (
+                      <Input
+                        value={bind.key.replaceAll(" ", " + ")}
+                        className="w-96"
+                        tabIndex={-1}
+                        onKeyDown={(event) => {
+                          if (!held.includes(event.key)) {
+                            setHeld((p) => [...p, event.key]);
+                          }
+                        }}
+                        onKeyUp={() =>
+                          writeKeyMap(bind.name, bind.sectionKey, held)
+                        }
+                        readOnly
+                      />
+                    ) : <ConfirmInput
+                      className="w-96"
+                      value={bind.key}
+                      getValue={(value) => value}
+                      getInput={(value) => value}
+                      changeValue={async () => { }}
+                    />}
+                  </div>
+                  <Separator />
+                </div>
+              ))}
             </div>
           );
         })}

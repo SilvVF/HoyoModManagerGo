@@ -1,3 +1,4 @@
+
 export type CancelFn = () => void;
 
 export type Pair<X, Y> = {
@@ -17,6 +18,9 @@ declare global {
     firstNotNullOfOrNull<R>(
       transfrom: (value: T, index: number, array: T[]) => R | undefined
     ): R | undefined;
+    groupBy<R>(
+      keySelector: (value: T) => R
+    ): [R, T[]][];
   }
   interface Set<T> {
     isEmpty(): boolean;
@@ -29,6 +33,7 @@ Set.prototype.isEmpty = isEmptySet;
 Array.prototype.isEmpty = isEmptyArray;
 Array.prototype.firstNotNullOf = firstNotNullOf;
 Array.prototype.firstNotNullOfOrNull = firstNotNullOfOrNull;
+Array.prototype.groupBy = groupBy;
 String.prototype.ifEmpty = ifEmpty;
 
 export function getEnumNames<T>(enumType: T): string[] {
@@ -91,6 +96,28 @@ function firstNotNullOf<T, R>(
     }
   }
   throw Error("No element of the array was transformed to a non-null value.");
+}
+
+function groupBy<T, R>(
+  this: Array<T>,
+  keySelector: (value: T) => R
+): [R, T[]][] {
+  const map = new Map<R, Array<T>>();
+
+  for (const [_, value] of this.entries()) {
+    const key = keySelector(value);
+    if (!key) {
+      continue
+    }
+
+    if (!map.has(key)) {
+      map.set(key, [value]);
+    } else {
+      map.get(key)?.push(value);
+    }
+  }
+
+  return Array.from(map)!
 }
 
 function firstNotNullOfOrNull<T, R>(

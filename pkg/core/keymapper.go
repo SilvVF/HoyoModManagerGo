@@ -137,10 +137,11 @@ func (k *KeyMapper) GetKeymaps() ([]string, error) {
 		return nil, ErrNotLoaded
 	}
 
-	files, err := os.ReadDir(filepath.Join(util.GetModDir(*k.mod), "keymaps"))
+	files, err := os.ReadDir(util.GetKeyMapsDir(*k.mod))
 	if err != nil {
 		return nil, err
 	}
+
 	paths := make([]string, 0, len(files))
 	for _, file := range files {
 		paths = append(paths, file.Name())
@@ -229,40 +230,50 @@ func (k *KeyMapper) Write(section string, sectionKey string, keys []string) erro
 }
 
 func (k *KeyMapper) Load(modId int) error {
-	os.RemoveAll(util.GetKeybindCache())
-	os.MkdirAll(util.GetKeybindCache(), os.ModePerm)
 
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
 	resetState(k)
 
+	os.RemoveAll(util.GetKeybindCache())
+
+	err := os.MkdirAll(util.GetKeybindCache(), os.ModePerm)
+	if err != nil {
+		return err
+	}
+
 	mod, err := k.db.SelectModById(modId)
 	if err != nil {
 		log.LogDebug("ERR finding mod" + fmt.Sprint(modId) + "in database")
 		return ErrModNotFound
 	}
-	modDir := util.GetModDir(mod)
 
-	WalkDirHandleZip(modDir, k)
+	modDir := util.GetModDir(mod)
+	keymapDir := util.GetKeyMapsDir(mod)
+
+	walkDirHandleZip(modDir, k)
 
 	if k.path == "" {
 		return ErrConfigNotFound
 	}
 
-	files, _ := os.ReadDir(filepath.Join(modDir, "keymaps"))
+	os.MkdirAll(keymapDir, os.ModePerm)
+	files, _ := os.ReadDir(keymapDir)
+
 	paths := make([]string, 0, len(files))
 	for _, file := range files {
 		paths = append(paths, file.Name())
 	}
 	slices.SortFunc(paths, util.DateSorter(false))
+
 	log.LogDebugf("paths %v", paths)
 
 	var cfg *ini.File
 	configPath := k.path
 
 	if len(paths) > 0 {
-		configPath = filepath.Join(modDir, "keymaps", paths[0])
+		configPath = filepath.Join(keymapDir, paths[0])
 	}
 
 	inputFile, err := os.Open(configPath)
@@ -279,11 +290,9 @@ func (k *KeyMapper) Load(modId int) error {
 		return err
 	}
 
-	keybinds := generateKeyBinds(cfg)
-
 	k.mod = &mod
 	k.cfg = cfg
-	k.keymap = keybinds
+	k.keymap = generateKeyBinds(cfg)
 
 	return nil
 }
@@ -329,7 +338,7 @@ func walkZip(path string) (string, error) {
 	return "", errors.New("file not found")
 }
 
-func WalkDirHandleZip(modDir string, k *KeyMapper) error {
+func walkDirHandleZip(modDir string, k *KeyMapper) error {
 	return filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
@@ -344,7 +353,7 @@ func WalkDirHandleZip(modDir string, k *KeyMapper) error {
 			return ErrFileFoundShortcircuit
 		}
 
-		if strings.HasSuffix(d.Name(), ".ini") && !strings.HasPrefix(d.Name(), "DISABLED") {
+		if filepath.Ext(d.Name()) == ".ini" && !strings.HasPrefix(d.Name(), "DISABLED") {
 			k.path = path
 			return ErrFileFoundShortcircuit
 		}
@@ -352,9 +361,10 @@ func WalkDirHandleZip(modDir string, k *KeyMapper) error {
 	})
 }
 
+var keySecRegex = regexp.MustCompile(`\[(Key\w*)\]`)
+
 func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
 
-	// Open the file
 	file, err := os.Open(mergedPath)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
@@ -362,131 +372,98 @@ func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
 	}
 	defer file.Close()
 
-	// Check the file size
-	fileInfo, err := file.Stat()
-	if err != nil {
-		fmt.Println("Error getting file size:", err)
-		return ""
-	}
-	fmt.Println("File size:", fileInfo.Size())
+	scanner := bufio.NewScanner(file)
 
-	// Check the starting position
-	position, err := file.Seek(0, 1) // Get the current file position
-	if err != nil {
-		fmt.Println("Error getting file position:", err)
-		return ""
-	}
-	fmt.Println("File starting position:", position)
-	reader := bufio.NewReader(file)
+	sb := strings.Builder{}
 
-	var iniString strings.Builder
-	inConstantsSection := false
-	inTargetSection := false
+	for scanner.Scan() {
+		line := scanner.Text()
 
-	regex := regexp.MustCompile(`\[(\w+)\]`)
+		if keySecRegex.MatchString(line) {
 
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err.Error() != "EOF" {
-				fmt.Println("Error reading file:", err)
+			sb.WriteString(line)
+			sb.WriteRune('\n')
+
+			matches := keySecRegex.FindStringSubmatch(line)
+			secName := matches[0]
+
+			sec, err := cfg.GetSection(secName)
+			if err != nil {
+				continue
 			}
-			iniString.WriteString(line)
-			break
-		}
 
-		if strings.Contains(line, "[Present]") || inTargetSection && strings.HasPrefix(line, ";") {
-			inConstantsSection = false
-			inTargetSection = false
-			cfg.WriteTo(&iniString)
-			iniString.WriteString("\n")
-		}
+			for scanner.Scan() {
+				subline := scanner.Text()
+				split := strings.Split(subline, "=")
 
-		if inConstantsSection {
-			if regex.Match([]byte(line)) {
-				inTargetSection = true
+				if len(split) <= 1 {
+					sb.WriteString(line)
+					sb.WriteRune('\n')
+					break
+				}
+
+				subName := strings.TrimSpace(split[0])
+
+				if key, err := sec.GetKey(subName); err != nil {
+					sb.WriteString(fmt.Sprintf("%s = %s\n", subName, key.String()))
+				} else {
+					sb.WriteString(line)
+					sb.WriteRune('\n')
+				}
 			}
-		}
-		if strings.Contains(line, "[Constants]") {
-			inConstantsSection = true
-		}
-
-		if !inTargetSection {
-			iniString.WriteString(line)
+		} else {
+			sb.WriteString(line)
+			sb.WriteRune('\n')
 		}
 	}
-	return iniString.String()
+
+	return sb.String()
 }
 
 func getKeybindSection(r io.Reader) string {
-	var targetSection strings.Builder
-	inConstantsSection := false
-	inTargetSection := false
 
-	// Iterate through the lines of the INI file
 	scanner := bufio.NewScanner(r)
+	sb := strings.Builder{}
 
 	for scanner.Scan() {
-		line := scanner.Bytes() // Read line as bytes
-		str := string(line)
+		line := scanner.Text()
 
-		if str == "[Constants]" {
-			inConstantsSection = true
-			continue
-		}
+		if keySecRegex.MatchString(line) {
 
-		if str == "[Present]" || inTargetSection && strings.HasPrefix(str, ";") {
-			break
-		}
+			sb.WriteString(line)
+			sb.WriteRune('\n')
 
-		// Concatenate the line to the section string if we're in the [Constants] section
-		if inConstantsSection && len(str) > 0 && str[0] == '[' {
-			inTargetSection = true
-		}
+			for scanner.Scan() {
+				subline := scanner.Text()
+				split := strings.Split(subline, "=")
 
-		if inTargetSection {
-			targetSection.WriteString(str + "\n")
+				sb.WriteString(subline)
+				sb.WriteRune('\n')
+
+				if len(split) <= 1 {
+					break
+				}
+			}
 		}
 	}
 
-	return targetSection.String()
+	return sb.String()
 }
 
 func generateKeyBinds(cfg *ini.File) []KeyBind {
 	keybinds := []KeyBind{}
 	for _, section := range cfg.Sections() {
-		// Check if the section name starts with "Key"
-		if strings.HasPrefix(section.Name(), "Key") {
-			// Check if the section contains a "key" entry
 
-			if key, err := section.GetKey("Back"); err == nil {
-				keybinds = append(keybinds, KeyBind{
-					Name:       section.Name(),
-					SectionKey: "Back",
-					Key:        key.Value(),
-				})
-			}
-			if key, err := section.GetKey("back"); err == nil {
-				keybinds = append(keybinds, KeyBind{
-					Name:       section.Name(),
-					SectionKey: "back",
-					Key:        key.Value(),
-				})
-			}
-			if key, err := section.GetKey("Key"); err == nil {
-				keybinds = append(keybinds, KeyBind{
-					Name:       section.Name(),
-					SectionKey: "Key",
-					Key:        key.Value(),
-				})
-			}
-			if key, err := section.GetKey("key"); err == nil {
-				keybinds = append(keybinds, KeyBind{
-					Name:       section.Name(),
-					SectionKey: "key",
-					Key:        key.Value(),
-				})
-			}
+		if !strings.HasPrefix(section.Name(), "Key") {
+			continue
+		}
+
+		for _, key := range section.Keys() {
+			keybinds = append(keybinds, KeyBind{
+				Name:       section.Name(),
+				SectionKey: key.Name(),
+				Key:        key.Value(),
+			})
 		}
 	}
 	return keybinds
