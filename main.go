@@ -78,6 +78,8 @@ func main() {
 	queries := db.New(dbSql)
 
 	// CORE
+	dbHelper := core.NewDbHelper(queries, dbSql)
+
 	appPrefs := core.NewAppPrefs(pref.NewPrefs(store))
 	util.SetRootModDirFn(appPrefs.RootModDirPref.Get)
 
@@ -94,7 +96,6 @@ func main() {
 
 	gbApi := &api.GbApi{}
 
-	dbHelper := core.NewDbHelper(queries, dbSql)
 	downloader := core.NewDownloader(
 		dbHelper,
 		appPrefs.MaxDownloadWorkersPref.Preference,

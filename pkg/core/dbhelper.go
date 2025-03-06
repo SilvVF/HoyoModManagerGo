@@ -19,19 +19,37 @@ import (
 )
 
 type DbHelper struct {
-	queries *db.Queries
-	ctx     context.Context
-	db      db.DBTX
+	queries         *db.Queries
+	ctx             context.Context
+	db              db.DBTX
+	withTransaction func(func(*db.Queries) error) error
 }
 
-func NewDbHelper(queries *db.Queries, db db.DBTX) *DbHelper {
+func NewDbHelper(queries *db.Queries, dbsql *sql.DB) *DbHelper {
 
 	ctx := context.Background()
 
+	withTransaction := func(transact func(qtx *db.Queries) error) error {
+		tx, err := dbsql.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+
+		qtx := queries.WithTx(tx)
+
+		if err := transact(qtx); err != nil {
+			return err
+		}
+
+		return tx.Commit()
+	}
+
 	return &DbHelper{
-		ctx:     ctx,
-		queries: queries,
-		db:      db,
+		ctx:             ctx,
+		queries:         queries,
+		db:              dbsql,
+		withTransaction: withTransaction,
 	}
 }
 
@@ -607,22 +625,31 @@ func (h *DbHelper) RenameMod(id int64, name string) error {
 	return err
 }
 
+func (h *DbHelper) UpdatePlaylistName(id int64, name string) error {
+	return h.queries.UpdatePlaylistName(h.ctx, db.UpdatePlaylistNameParams{
+		ID:   id,
+		Name: name,
+	})
+}
+
 func (h *DbHelper) CreatePlaylist(game types.Game, name string) error {
-	pid, err := h.queries.InsertPlaylist(h.ctx, db.InsertPlaylistParams{PlaylistName: name, Game: int64(game)})
-	if err != nil {
-		return err
-	}
-	enabled, err := h.SelectEnabledModsByGame(game)
-	if err != nil {
-		return err
-	}
+	return h.withTransaction(func(qtx *db.Queries) error {
+		pid, err := qtx.InsertPlaylist(h.ctx, db.InsertPlaylistParams{PlaylistName: name, Game: int64(game)})
+		if err != nil {
+			return err
+		}
+		enabled, err := qtx.SelectEnabledModsForGame(h.ctx, int64(game))
+		if err != nil {
+			return err
+		}
 
-	for _, mod := range enabled {
-		h.queries.InsertPlayListModCrossRef(h.ctx, db.InsertPlayListModCrossRefParams{
-			PlaylistId: pid,
-			ModId:      int64(mod.Id),
-		})
-	}
+		for _, mod := range enabled {
+			qtx.InsertPlayListModCrossRef(h.ctx, db.InsertPlayListModCrossRefParams{
+				PlaylistId: pid,
+				ModId:      mod.ID,
+			})
+		}
 
-	return nil
+		return nil
+	})
 }

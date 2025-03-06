@@ -926,19 +926,19 @@ func (q *Queries) UpdateModsEnabledFromSlice(ctx context.Context, arg UpdateMods
 	return err
 }
 
-const updatePlayist = `-- name: UpdatePlayist :exec
+const updatePlaylistName = `-- name: UpdatePlaylistName :exec
 UPDATE playlist SET
     playlist_name = ?1
-WHERE playlist.id = ?2
+WHERE id = ?2
 `
 
-type UpdatePlayistParams struct {
-	PlaylistName string
-	ID           int64
+type UpdatePlaylistNameParams struct {
+	Name string
+	ID   int64
 }
 
-func (q *Queries) UpdatePlayist(ctx context.Context, arg UpdatePlayistParams) error {
-	_, err := q.db.ExecContext(ctx, updatePlayist, arg.PlaylistName, arg.ID)
+func (q *Queries) UpdatePlaylistName(ctx context.Context, arg UpdatePlaylistNameParams) error {
+	_, err := q.db.ExecContext(ctx, updatePlaylistName, arg.Name, arg.ID)
 	return err
 }
 

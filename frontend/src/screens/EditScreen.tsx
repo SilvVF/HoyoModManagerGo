@@ -21,8 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn, useStateProducer } from "@/lib/utils";
 import { useKeyMapperStore } from "@/state/keymapperStore";
-import { CheckIcon, EditIcon, TrashIcon, XIcon } from "lucide-react";
-import React, { ReactElement, ReactNode, useLayoutEffect, useMemo, useRef } from "react";
+import { EditIcon, TrashIcon } from "lucide-react";
+import React, { useMemo, useRef } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -39,8 +39,9 @@ import { NameDialogContent } from "./GameScreen";
 import { ModActionsDropDown } from "@/components/CharacterInfoCard";
 import * as Downloader from "wailsjs/go/core/Downloader"
 import { Switch } from "@/components/ui/switch";
-import { Card } from "@/components/ui/card";
 import { OpenMultipleFilesDialog, ReadImageFile } from "wailsjs/go/main/App";
+import { ConfirmInput } from "@/components/ConfirmInput";
+import { SectionList } from "@/components/SectionList";
 
 
 type DialogType =
@@ -271,52 +272,6 @@ export function KeymappingScreen() {
       </Dialog>
     </div>
   );
-}
-
-function ConfirmInput<T>({ className, value, Label, changeValue, getInput: getInput, getValue, type }: {
-  className?: string,
-  value: T,
-  getInput: (value: T) => string | number | undefined,
-  getValue: (value: string) => T;
-  changeValue: (value: T) => Promise<void>,
-  Label?: ReactElement;
-  type?: React.HTMLInputTypeAttribute | undefined
-}) {
-
-  const [curr, setCurr] = useState(value);
-  const idChanged = useMemo(() => value != curr, [value, curr])
-
-  const handleIdChange = (event: any) => {
-    try {
-      setCurr(getValue(event.target.value))
-    } catch { }
-  }
-  const onChange = (changed: T, accepted: boolean) => {
-    if (accepted) {
-      changeValue(changed)
-        .then(() => setCurr(changed))
-        .catch(() => setCurr(value))
-    } else {
-      setCurr(value)
-    }
-  }
-
-  return (
-    <div className="flex flex-row space-x-2 items-center">
-      {Label}
-      <Input type={type} className={className} value={getInput(curr)} onInput={handleIdChange} />
-      {idChanged ? (
-        <div className="space-x-2" onPointerDown={() => onChange(value, false)}>
-          <Button size='icon'>
-            <XIcon />
-          </Button>
-          <Button size='icon' onPointerDown={() => onChange(curr, true)}>
-            <CheckIcon />
-          </Button>
-        </div>
-      ) : undefined}
-    </div>
-  )
 }
 
 function KeybindsUi(
@@ -738,81 +693,45 @@ function ImageSelect({
         expanded ? "opacity-100 visible" : "opacity-0 max-h-0 hidden",
         className
       )}>
-        <div className="flex flex-row">
-          <Button
-            className="w-full justify-start"
-            variant="ghost"
-            onClick={() => addImage()}
+        <SectionList
+          items={images}
+          createKey={(item) => item}
+          actions={[
+            { title: "Add Image Link", onClick: addImage },
+            { title: "Add Image file", onClick: addImageFile }
+          ]}
+          itemContent={(uri) =>
+          (<div
+            key={uri}
+            onMouseEnter={() => onHovered(uri)}
+            onMouseLeave={() => onHovered("")}
+            className={cn(
+              hovered === uri
+                ? "bg-primary-foreground"
+                : "",
+              "flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground w-full")}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="24px"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-2 h-4 w-4 fill-foreground"
-              viewBox="0 -960 960 960"
-              width="24px"
+            <div className="text-zinc-500  m-2">{uri}</div>
+            <Button
+              size="icon"
+              className="mx-2"
+              onPointerDown={() => removeImage(uri)}
             >
-              <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-            </svg>
-            Add Image Link
-          </Button>
-          <Button
-            className="w-full justify-start"
-            variant="ghost"
-            onPointerDown={addImageFile}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="24px"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-2 h-4 w-4 fill-foreground"
-              viewBox="0 -960 960 960"
-              width="24px"
-            >
-              <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-            </svg>
-            Add Image file
-          </Button>
-        </div>
-        <Card>
-          <div className="space-y-1 p-2 overflow-y-auto max-h-[300px]">
-            {images.map((uri) => {
-              return (
-                <div
-                  key={uri}
-                  onMouseEnter={() => onHovered(uri)}
-                  onMouseLeave={() => onHovered("")}
-                  className={cn(hovered === uri ? "bg-primary-foreground" : "", "flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground")}
-                >
-                  <div className="text-zinc-500  m-2">{uri}</div>
-                  <Button
-                    size="icon"
-                    className="mx-2"
-                    onPointerDown={() => removeImage(uri)}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      height="24px"
-                      viewBox="0 -960 960 960"
-                      width="24px"
-                    >
-                      <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z" />
-                    </svg>
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                height="24px"
+                viewBox="0 -960 960 960"
+                width="24px"
+              >
+                <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z" />
+              </svg>
+            </Button>
+          </div>)
+          }
+        />
       </div>
     </div>
-  );
+  )
 }
 
 function KeyMapLoadErrorPage(props: {

@@ -177,11 +177,6 @@ INSERT INTO playlist(
 )
 RETURNING id;
 
--- name: UpdatePlayist :exec
-UPDATE playlist SET
-    playlist_name = :playlistName
-WHERE playlist.id = :id;
-
 -- name: InsertPlayListModCrossRef :exec
 INSERT INTO playlist_mod_cross_ref (
     playlist_id,
@@ -203,3 +198,8 @@ UPDATE mod SET
         ELSE FALSE
     END
 WHERE mod.game = ?;
+
+-- name: UpdatePlaylistName :exec
+UPDATE playlist SET
+    playlist_name = :name
+WHERE id = :id;

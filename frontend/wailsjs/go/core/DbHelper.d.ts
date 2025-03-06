@@ -54,4 +54,6 @@ export function UpdateModImages(arg1:number,arg2:Array<string>):Promise<void>;
 
 export function UpdateModsEnabledFromSlice(arg1:Array<number>,arg2:types.Game):Promise<void>;
 
+export function UpdatePlaylistName(arg1:number,arg2:string):Promise<void>;
+
 export function UpsertCharacter(arg1:types.Character):Promise<void>;

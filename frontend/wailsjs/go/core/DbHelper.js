@@ -106,6 +106,10 @@ export function UpdateModsEnabledFromSlice(arg1, arg2) {
   return window['go']['core']['DbHelper']['UpdateModsEnabledFromSlice'](arg1, arg2);
 }
 
+export function UpdatePlaylistName(arg1, arg2) {
+  return window['go']['core']['DbHelper']['UpdatePlaylistName'](arg1, arg2);
+}
+
 export function UpsertCharacter(arg1) {
   return window['go']['core']['DbHelper']['UpsertCharacter'](arg1);
 }
