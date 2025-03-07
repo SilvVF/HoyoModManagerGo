@@ -2,6 +2,7 @@ import { ReactElement, useMemo, useState } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { CheckIcon, XIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function ConfirmInput<T>({ className, value, Label, changeValue, getInput: getInput, getValue, type }: {
     className?: string,
@@ -32,11 +33,11 @@ export function ConfirmInput<T>({ className, value, Label, changeValue, getInput
     }
 
     return (
-        <div className="flex flex-row space-x-2 items-center">
+        <div className={cn(className, "flex flex-row space-x-2 items-center")}>
             {Label}
-            <Input type={type} className={className} value={getInput(curr)} onInput={handleIdChange} />
+            <Input type={type} value={getInput(curr)} onInput={handleIdChange} />
             {idChanged ? (
-                <div className="space-x-2" onPointerDown={() => onChange(value, false)}>
+                <div className="space-x-2 flex flex-row" onPointerDown={() => onChange(value, false)}>
                     <Button size='icon'>
                         <XIcon />
                     </Button>

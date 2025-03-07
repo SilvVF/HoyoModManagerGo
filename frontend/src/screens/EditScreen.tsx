@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn, useStateProducer } from "@/lib/utils";
 import { useKeyMapperStore } from "@/state/keymapperStore";
-import { EditIcon, TrashIcon } from "lucide-react";
+import { EditIcon, SearchIcon, TrashIcon } from "lucide-react";
 import React, { useMemo, useRef } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -42,6 +42,7 @@ import { Switch } from "@/components/ui/switch";
 import { OpenMultipleFilesDialog, ReadImageFile } from "wailsjs/go/main/App";
 import { ConfirmInput } from "@/components/ConfirmInput";
 import { SectionList } from "@/components/SectionList";
+import { Card } from "@/components/ui/card";
 
 
 type DialogType =
@@ -288,14 +289,26 @@ function KeybindsUi(
   const deleteKeymap = useKeyMapperStore((state) => state.deleteKeymap);
   const write = useKeyMapperStore((state) => state.write);
 
-  const saved = useKeyMapperStore(useShallow((state) => state.backups));
-  const keymap = useKeyMapperStore(
-    useShallow((state) => {
-      return useMemo(() => state.keymappings.groupBy<string>((v) => v.name), [state.keymappings]);
-    })
-  );
+  const saved = useKeyMapperStore(useShallow((state) => state.backups ?? []));
+  const keymappings = useKeyMapperStore((state) => state.keymappings);
   const [held, setHeld] = useState<string[]>([]);
   const [err, setErr] = useState<any | undefined>(undefined);
+
+  const [search, setSearch] = useState("");
+
+  const keymap = useMemo(() => {
+    return keymappings
+      .groupBy<string>((v) => v.name)
+      .filter((entry) => {
+        const [name, binds] = entry
+
+        return search.isBlank() || name.includes(search) || binds.any((bind) => bind.key.includes(search))
+      })
+  }, [keymappings, search]);
+
+  const handleSearch = (event: any) => {
+    setSearch(event.target.value);
+  };
 
   const loadKeymaps = () => {
 
@@ -347,7 +360,7 @@ function KeybindsUi(
   }
 
 
-  if (keymap.isEmpty() && !loading) {
+  if (keymappings?.isEmpty() && !loading) {
     return (
       <div className="min-w-screen min-h-screen">
         <KeyMapLoadErrorPage
@@ -381,26 +394,43 @@ function KeybindsUi(
           onDelete={(file) => deleteKeymap(file)}
         />
       </div>
-      <div className="w-fit flex flex-col py-4 space-y-3">
+
+
+
+      <div className="flex w-3/4 items-center space-x-2">
+        <Input
+          value={search}
+          className="p-4 m-4"
+          placeholder="Search..."
+          onInput={handleSearch}
+          onSubmit={handleSearch}
+        />
+        <Button size="icon" onClick={() => { }}>
+          <SearchIcon />
+        </Button>
+      </div>
+
+
+      <div className="grid grid-cols-2 w-full items-center justify-center">
         {keymap.map((entry) => {
 
           const [group, arr] = entry
 
           return (
-            <div className="flex flex-col">
-              <div className="flex-grow text-left text-xl me-12">
+            <Card className="flex flex-col p-4 m-2 space-y-1  overflow-hidden">
+              <div className="text-left text-xl">
                 {group}
               </div>
               {arr?.map((bind) => (
                 <div key={bind.name + bind.sectionKey}>
-                  <div className="flex flex-row space-x-4 items-center">
-                    <div className="flex-grow text-lg text-muted-foreground">
+                  <div className="flex flex-row space-x-4 items-center p-2 justify-between">
+                    <div className="text-lg text-muted-foreground">
                       {bind.sectionKey}
                     </div>
                     {bind.sectionKey === "key" ? (
                       <Input
                         value={bind.key.replaceAll(" ", " + ")}
-                        className="w-96"
+                        className="w-9/12 max-w-96"
                         tabIndex={-1}
                         onKeyDown={(event) => {
                           if (!held.includes(event.key)) {
@@ -413,7 +443,7 @@ function KeybindsUi(
                         readOnly
                       />
                     ) : <ConfirmInput
-                      className="w-96"
+                      className="w-9/12 max-w-96"
                       value={bind.key}
                       getValue={(value) => value}
                       getInput={(value) => value}
@@ -423,7 +453,7 @@ function KeybindsUi(
                   <Separator />
                 </div>
               ))}
-            </div>
+            </Card>
           );
         })}
       </div>
@@ -434,7 +464,7 @@ function KeybindsUi(
 function SelectKeymapDialog(props: {
   onSelected: (file: string) => void;
   onDelete: (file: string) => void;
-  keymaps: string[];
+  keymaps: string[] | undefined;
 }) {
   return (
     <Dialog>
@@ -455,7 +485,7 @@ function SelectKeymapDialog(props: {
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center space-y-2">
-          {props.keymaps.map((keymap) => {
+          {props.keymaps?.map((keymap) => {
             const split = keymap.split("_");
             return (
               <div className="flex flex-row w-full justify-between">

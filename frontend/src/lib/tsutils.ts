@@ -9,6 +9,7 @@ export type Pair<X, Y> = {
 declare global {
   interface String {
     ifEmpty(block: () => string): string;
+    isBlank(): boolean;
   }
   interface Array<T> {
     isEmpty(): boolean;
@@ -21,6 +22,7 @@ declare global {
     groupBy<R>(
       keySelector: (value: T) => R
     ): [R, T[]][];
+    any(predicate: (value: T, index: number, array: T[]) => boolean): boolean;
   }
   interface Set<T> {
     isEmpty(): boolean;
@@ -34,7 +36,20 @@ Array.prototype.isEmpty = isEmptyArray;
 Array.prototype.firstNotNullOf = firstNotNullOf;
 Array.prototype.firstNotNullOfOrNull = firstNotNullOfOrNull;
 Array.prototype.groupBy = groupBy;
+Array.prototype.any = arrayAny;
 String.prototype.ifEmpty = ifEmpty;
+String.prototype.isBlank = isBlank;
+
+
+
+function arrayAny<T>(this: Array<T>, predicate: (value: T, index: number, array: T[]) => boolean): boolean {
+  for (const [i, item] of this.entries()) {
+    if (predicate(item, i, this)) {
+      return true
+    }
+  }
+  return false
+}
 
 export function getEnumNames<T>(enumType: T): string[] {
   // @ts-ignore
@@ -50,6 +65,10 @@ export function getEnumValues<T>(enumType: T): T[keyof T][] {
 
 export const objString = (obj: any) => JSON.stringify(obj, null, 2);
 
+function isBlank(this: string): boolean {
+  return this.trim().length === 0
+}
+
 function ifEmpty(this: string, block: () => string): string {
   if (this === "") {
     return block();
@@ -58,11 +77,11 @@ function ifEmpty(this: string, block: () => string): string {
 }
 
 function isEmptySet<T>(this: Set<T>): boolean {
-  return !(this.size > 0);
+  return !((this?.size ?? 0) > 0);
 }
 
 function isEmptyArray<T>(this: Array<T>): boolean {
-  return !(this.length > 0);
+  return !((this?.length ?? 0) > 0);
 }
 
 function iterableMap<T, R>(
@@ -102,6 +121,11 @@ function groupBy<T, R>(
   this: Array<T>,
   keySelector: (value: T) => R
 ): [R, T[]][] {
+
+  if (this.isEmpty()) {
+    return []
+  }
+
   const map = new Map<R, Array<T>>();
 
   for (const [_, value] of this.entries()) {
@@ -117,7 +141,7 @@ function groupBy<T, R>(
     }
   }
 
-  return Array.from(map)!
+  return Array.from(map)
 }
 
 function firstNotNullOfOrNull<T, R>(
