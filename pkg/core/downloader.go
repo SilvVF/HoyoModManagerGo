@@ -17,6 +17,8 @@ import (
 	"github.com/alitto/pond/v2"
 )
 
+// TODO: FIX Bug where generating will not start and will compelete at 0 bytes when an error probably occured
+
 const (
 	EVENT_DOWNLOAD = "download"
 	STATE_QUEUED   = "queued"
