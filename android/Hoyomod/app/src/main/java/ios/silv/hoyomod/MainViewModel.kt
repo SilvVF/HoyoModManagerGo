@@ -1,6 +1,8 @@
 package ios.silv.hoyomod
 
 import android.content.SharedPreferences
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -189,12 +191,20 @@ class MainViewModel(
         savedStateHandle[JOBS_KEY] = _jobs.value
     }
 
+    @Immutable
+    @Stable
     sealed class  GenJob(open val id: Int, open val game: Int) {
+
+        @Immutable
+        @Stable
         data class Complete(
             override val id: Int,
             override val game: Int,
             val error: String? = null,
         ): GenJob(id, game)
+
+        @Immutable
+        @Stable
         data class Loading(
             override val id: Int,
             override val game: Int,
@@ -202,16 +212,28 @@ class MainViewModel(
     }
 
 
+    @Immutable
+    @Stable
     sealed class ModsState(
         open val modsAvailable: Boolean = false,
     ) {
+        @Immutable
+        @Stable
         data object Loading: ModsState()
+
+        @Immutable
+        @Stable
         data class Failure(
             val msg: String?,
         ): ModsState(false)
+
+        @Immutable
+        @Stable
         data class Success(
             override val modsAvailable: Boolean,
             val data: Map<Int, List<ModsWithTagsAndTextures.Data>>,
         ): ModsState(modsAvailable)
     }
 }
+
+

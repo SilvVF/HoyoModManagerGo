@@ -48,6 +48,7 @@ android {
     packaging {
         resources {
             excludes += "META-INF/versions/9/previous-compilation-data.bin"
+            excludes += "META-INF/androidx.compose.*.versions"
         }
     }
 }
@@ -60,6 +61,8 @@ dependencies {
     implementation(libs.bundles.compose.ui)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material3.android)
+
+    debugImplementation(libs.androidx.ui.tooling)
 
     implementation(libs.haze)
     implementation(libs.haze.materials)

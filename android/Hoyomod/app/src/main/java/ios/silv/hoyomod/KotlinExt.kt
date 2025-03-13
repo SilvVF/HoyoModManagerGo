@@ -1,8 +1,11 @@
 package ios.silv.hoyomod
 
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
+import androidx.lifecycle.AbstractSavedStateViewModelFactory
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,18 +22,24 @@ fun <T> List<T>.filterIf(condition: Boolean, block: (T) -> Boolean): List<T> {
     }
 }
 
-inline fun <reified T : ViewModel> savedStateViewModelFactory(
-    crossinline create: (SavedStateHandle) -> T
-) = object : ViewModelProvider.Factory {
-    override fun <VM : ViewModel> create(modelClass: Class<VM>): VM {
-        if (modelClass.isAssignableFrom(T::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return create(SavedStateHandle()) as VM
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}
 
+@Suppress("UNCHECKED_CAST")
+public inline fun <reified T : ViewModel> ComponentActivity.activityViewModel(
+    defaultArgs: Bundle? = null,
+    crossinline provider: (handle: SavedStateHandle) -> T,
+): Lazy<T> {
+    return viewModels<T>(
+        factoryProducer = {
+            object : AbstractSavedStateViewModelFactory(this, defaultArgs) {
+                override fun <T : ViewModel> create(
+                    key: String,
+                    modelClass: Class<T>,
+                    handle: SavedStateHandle,
+                ): T = provider(handle) as T
+            }
+        }
+    )
+}
 
 fun <T> Flow<T>.stateInUi(scope: CoroutineScope, initialValue: T) = stateIn(
     scope,

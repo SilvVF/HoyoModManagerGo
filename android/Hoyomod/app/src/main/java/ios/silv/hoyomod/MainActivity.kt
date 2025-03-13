@@ -6,7 +6,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,14 +45,19 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabIndicatorScope
+import androidx.compose.material3.TabPosition
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -65,21 +73,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
+import androidx.compose.ui.util.fastForEachIndexed
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -94,23 +104,21 @@ import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 import ios.silv.hoyomod.MainViewModel.GenJob
 import ios.silv.hoyomod.MainViewModel.ModsState
-import ios.silv.hoyomod.lib.TextPagerIndicator
-import ios.silv.hoyomod.lib.toStableFlow
 import ios.silv.hoyomod.net.HmmApi
 import ios.silv.hoyomod.net.ModsWithTagsAndTextures
 import ios.silv.hoyomod.theme.MyApplicationTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
-    private val viewmodel by viewModels<MainViewModel> {
-        savedStateViewModelFactory<MainViewModel> { savedStateHandle ->
-            MainViewModel(
-                HmmApi(App.client, App.sharedPreferences),
-                App.sharedPreferences,
-                savedStateHandle,
-            )
-        }
+    private val viewmodel by activityViewModel<MainViewModel>() { savedStateHandle ->
+        MainViewModel(
+            HmmApi(App.client, App.sharedPreferences),
+            App.sharedPreferences,
+            savedStateHandle,
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -121,11 +129,13 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                for (event in viewmodel.events) {
-                    snackbarHostState.showSnackbar(
-                        getString(R.string.error_occurred, event),
-                        withDismissAction = true
-                    )
+                withContext(Dispatchers.Main.immediate) {
+                    for (event in viewmodel.events) {
+                        snackbarHostState.showSnackbar(
+                            getString(R.string.error_occurred, event),
+                            withDismissAction = true
+                        )
+                    }
                 }
             }
         }
@@ -155,39 +165,39 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    val startGenerateStable = remember {
+                        { job: GenJob ->
+                            viewmodel.confirmJob(job.id)
+                            viewmodel.startGenerateJob(job.game)
+                        }
+                    }
+
+                    val confirmJobStable = remember {
+                        { job: GenJob ->
+                            viewmodel.confirmJob(job.id)
+                        }
+                    }
+
                     MainScreenContent(
                         modsState = modsState,
                         search = { search },
                         jobs = jobs,
                         snackbarHostState = snackbarHostState,
                         hazeState = hazeState,
-                        actions = Actions(
-                            startGenerateJob = { game ->
-                                viewmodel.startGenerateJob(game)
-                            },
-                            restartJob = { job ->
-                                viewmodel.confirmJob(job.id)
-                                viewmodel.startGenerateJob(job.game)
-                            },
-                            confirmJob = { job ->
-                                viewmodel.confirmJob(job.id)
-                            },
-                            refresh = {
-                                viewmodel.refresh()
-                            },
-                            onSearchChange = { textFieldValue ->
-                                viewmodel.search(textFieldValue)
-                            },
-                            onSettingsVisibilityChanged = { visible ->
-                                settingsVisible = visible
-                            },
-                            toggleHasModsFilter = {
-                                viewmodel.toggleHasModsFilter()
-                            },
-                            toggleMod = { game, id, enabled ->
-                                viewmodel.toggleMod(game, id, enabled)
-                            }
-                        )
+                        actions = remember {
+                            Actions(
+                                startGenerateJob = viewmodel::startGenerateJob,
+                                restartJob = startGenerateStable,
+                                confirmJob = confirmJobStable,
+                                refresh = viewmodel::refresh,
+                                onSearchChange = viewmodel::search,
+                                onSettingsVisibilityChanged = { visible ->
+                                    settingsVisible = visible
+                                },
+                                toggleHasModsFilter = viewmodel::toggleHasModsFilter,
+                                toggleMod = viewmodel::toggleMod
+                            )
+                        }
                     )
                 }
             }
@@ -268,11 +278,11 @@ fun MainScreenContent(
         },
         topBar = {
             TopAppBarPagerIndicator(
-                pagerState,
-                tabs,
-                search,
-                actions,
-                Modifier
+                pagerState = pagerState,
+                tabs = tabs,
+                search = search,
+                actions = actions,
+                modifier = Modifier
                     .hazeSource(hazeState, 1f)
                     .hazeEffect(
                         state = hazeState,
@@ -331,6 +341,29 @@ fun MainScreenContent(
     }
 }
 
+@PreviewLightDark
+@Composable
+fun PreviewEmptySuccessPage() {
+    val context = LocalContext.current
+    Surface {
+        EmptySuccessPage(
+            ModsState.Success(true, emptyMap()),
+            { TextFieldValue() },
+            with(context) {
+                listOf(
+                    getString(R.string.genshin),
+                    getString(R.string.star_rail),
+                    getString(R.string.zenless),
+                    getString(R.string.wuthering_waves)
+                )
+            },
+            0,
+            actions = Actions(),
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
 @Composable
 fun EmptySuccessPage(
     modsState: ModsState.Success,
@@ -368,16 +401,13 @@ fun EmptySuccessPage(
 @Composable
 fun TopAppBarPagerIndicator(
     pagerState: PagerState,
-    tabs: SnapshotStateList<String>,
+    tabs: List<String>,
     search: () -> TextFieldValue,
     actions: Actions,
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
-    val modsAvailable by LocalSharedPreferences.collectPreferenceAsState(
-        PrefKeys.MODS_AVAILABLE,
-        false
-    )
+
     Column(
         modifier
     ) {
@@ -387,6 +417,11 @@ fun TopAppBarPagerIndicator(
                 containerColor = Color.Transparent
             ),
             actions = {
+                val modsAvailable by LocalSharedPreferences.collectPreferenceAsState(
+                    PrefKeys.MODS_AVAILABLE,
+                    false
+                )
+
                 Checkbox(
                     modsAvailable,
                     onCheckedChange = {
@@ -409,7 +444,9 @@ fun TopAppBarPagerIndicator(
             Column {
                 OutlinedTextField(
                     value = search(),
-                    onValueChange = { actions.onSearchChange(it) },
+                    onValueChange = {
+                        actions.onSearchChange(it)
+                    },
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.search_placeholder)) },
                     trailingIcon = {
@@ -423,32 +460,105 @@ fun TopAppBarPagerIndicator(
                         .padding(12.dp)
                         .fillMaxWidth()
                 )
-                TextPagerIndicator(
-                    texts = tabs,
-                    offsetPercentWithSelectFlow = remember {
-                        snapshotFlow {
-                            pagerState.currentPageOffsetFraction
-                        }.toStableFlow()
-                    },
-                    selectIndexFlow = remember { snapshotFlow { pagerState.currentPage }.toStableFlow() },
-                    fontSize = 14.sp,
-                    selectFontSize = 16.sp,
-                    textColor = LocalContentColor.current,
-                    selectTextColor = MaterialTheme.colorScheme.primary,
-                    selectIndicatorColor = MaterialTheme.colorScheme.primary,
-                    onIndicatorClick = {
-                        scope.launch {
-                            pagerState.animateScrollToPage(it)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    margin = 18.dp,
-                )
+                PrimaryTabRow(
+                    selectedTabIndex = pagerState.currentPage,
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = Color.Transparent,
+                    indicator = {
+                        FancyAnimatedIndicatorWithModifier(pagerState)
+                    }
+                ) {
+                    tabs.fastForEachIndexed { i, game ->
+                        Tab(
+                            selected = pagerState.currentPage == i,
+                            onClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(i)
+                                }
+                            },
+                            modifier = Modifier.clip(MaterialTheme.shapes.medium),
+                            text = { Text(game) }
+                        )
+                    }
+                }
             }
         }
     }
+}
+
+
+// https://android.googlesource.com/platform/frameworks/support/+/refs/heads/androidx-main/compose/material3/material3/samples/src/main/java/androidx/compose/material3/samples/TabSamples.kt
+// edited from tab sample to offset with pager state
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TabIndicatorScope.FancyAnimatedIndicatorWithModifier(
+    pagerState: PagerState,
+) {
+    var startAnimatable by remember { mutableStateOf<Animatable<Dp, AnimationVector1D>?>(null) }
+    var endAnimatable by remember { mutableStateOf<Animatable<Dp, AnimationVector1D>?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
+    TabRowDefaults.PrimaryIndicator(
+        Modifier.tabIndicatorLayout { measurable: Measurable,
+                                      constraints: Constraints,
+                                      tabPositions: List<TabPosition> ->
+
+            val target = tabPositions[pagerState.currentPage]
+
+            val newStart = target.left + (target.width * pagerState.currentPageOffsetFraction)
+            val newEnd = target.right + (target.width * pagerState.currentPageOffsetFraction)
+
+            val startAnim =
+                startAnimatable ?: Animatable(newStart, Dp.VectorConverter)
+                    .also { startAnimatable = it }
+            val endAnim =
+                endAnimatable ?: Animatable(newEnd, Dp.VectorConverter)
+                    .also { endAnimatable = it }
+
+            if (endAnim.targetValue != newEnd) {
+                coroutineScope.launch {
+                    endAnim.animateTo(
+                        newEnd,
+                        animationSpec =
+                            if (endAnim.targetValue < newEnd) {
+                                spring(dampingRatio = 1f, stiffness = 1000f)
+                            } else {
+                                spring(dampingRatio = 1f, stiffness = 50f)
+                            }
+                    )
+                }
+            }
+            if (startAnim.targetValue != newStart) {
+                coroutineScope.launch {
+                    startAnim.animateTo(
+                        newStart,
+                        animationSpec =
+                            // Handle directionality here, if we are moving to the right, we
+                            // want the right side of the indicator to move faster, if we are
+                            // moving to the left, we want the left side to move faster.
+                            if (startAnim.targetValue < newStart) {
+                                spring(dampingRatio = 1f, stiffness = 50f)
+                            } else {
+                                spring(dampingRatio = 1f, stiffness = 1000f)
+                            }
+                    )
+                }
+            }
+            val indicatorEnd = endAnim.value.roundToPx()
+            val indicatorStart = startAnim.value.roundToPx()
+            // Apply an offset from the start to correctly position the indicator around the tab
+            val placeable =
+                measurable.measure(
+                    constraints.copy(
+                        maxWidth = indicatorEnd - indicatorStart,
+                        minWidth = indicatorEnd - indicatorStart,
+                    )
+                )
+            layout(constraints.maxWidth, constraints.maxHeight) {
+                placeable.place(indicatorStart, constraints.maxHeight - placeable.height)
+            }
+        }
+    )
 }
 
 @Composable
