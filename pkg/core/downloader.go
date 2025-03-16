@@ -51,7 +51,8 @@ type Downloader struct {
 	db         *DbHelper
 	emitter    EventEmmiter
 	pool       pond.Pool
-	Queue      sync.Map
+	Queue      map[string]*DLItem
+	mutex      sync.RWMutex
 	spaceSaver pref.Preference[bool]
 }
 
@@ -65,7 +66,8 @@ func NewDownloader(
 	d := &Downloader{
 		db:         db,
 		pool:       pond.NewPool(count.Get()),
-		Queue:      sync.Map{},
+		Queue:      map[string]*DLItem{},
+		mutex:      sync.RWMutex{},
 		spaceSaver: spaceSaver,
 		emitter:    emmiter,
 	}
@@ -82,13 +84,15 @@ func NewDownloader(
 			d.pool.StopAndWait()
 			d.pool = pond.NewPool(v)
 
-			d.Queue.Range(func(_ any, value any) bool {
-				item := value.(*DLItem)
+			d.mutex.RLock()
+
+			for _, item := range d.Queue {
 				if item.State != STATE_FINSIHED {
 					d.submitItem(item.Link, item.Filename, item.meta)
 				}
-				return true
-			})
+			}
+
+			d.mutex.RUnlock()
 		}
 	}()
 
@@ -96,16 +100,24 @@ func NewDownloader(
 }
 
 func (d *Downloader) GetQueue() map[string]*DLItem {
-	cpy := make(map[string]*DLItem)
-	d.Queue.Range(func(key any, value any) bool {
-		cpy[key.(string)] = value.(*DLItem)
-		return true
-	})
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
+	cpy := make(map[string]*DLItem, len(d.Queue))
+
+	for k, v := range d.Queue {
+		cpy[k] = v
+	}
+
 	return cpy
 }
 
 func (d *Downloader) RemoveFromQueue(key string) {
-	d.Queue.Delete(key)
+
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	delete(d.Queue, key)
 }
 
 func (d *Downloader) DeleteTexture(textureId int) error {
@@ -163,13 +175,17 @@ func (d *Downloader) Stop() {
 }
 
 func (d *Downloader) Retry(link string) error {
-	v, ok := d.Queue.Load(link)
+
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	item, ok := d.Queue[link]
 	if !ok {
 		return errors.New("item not found")
 	}
-	item := v.(*DLItem)
 
-	d.Queue.Delete(item.Link)
+	delete(d.Queue, item.Link)
+
 	return d.Download(
 		item.Link,
 		item.Filename,
@@ -182,14 +198,19 @@ func (d *Downloader) Retry(link string) error {
 }
 
 func (d *Downloader) submitItem(link, filename string, meta DLMeta) {
-	d.Queue.Store(link, &DLItem{
+
+	d.mutex.Lock()
+
+	d.Queue[link] = &DLItem{
 		Filename: filename,
 		Link:     link,
 		State:    STATE_QUEUED,
 		Fetch:    DataProgress{},
 		Unzip:    DataProgress{},
 		meta:     meta,
-	})
+	}
+
+	d.mutex.Unlock()
 
 	d.emitter.Emit(
 		"download",
@@ -223,7 +244,11 @@ func (d *Downloader) DownloadTexture(
 	gbId int,
 	previewImages []string,
 ) error {
-	if _, ok := d.Queue.Load(link); ok {
+	d.mutex.RLock()
+	_, ok := d.Queue[link]
+	d.mutex.RUnlock()
+
+	if ok {
 		return errors.New("already downloading")
 	}
 
@@ -255,9 +280,15 @@ func (d *Downloader) Download(
 	gbId int,
 	previewImages []string,
 ) error {
-	if _, ok := d.Queue.Load(link); ok {
+
+	d.mutex.RLock()
+	_, ok := d.Queue[link]
+	d.mutex.RUnlock()
+
+	if ok {
 		return errors.New("already downloading")
 	}
+
 	meta := DLMeta{
 		character:     character,
 		characterId:   characterId,
@@ -272,12 +303,16 @@ func (d *Downloader) Download(
 }
 
 func cleanup(d *Downloader, link string, err error) {
-	v, ok := d.Queue.Load(link)
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	item, ok := d.Queue[link]
+
 	if !ok {
 		log.LogDebugf("couldnt find item %s %e", link, err)
 		return
 	}
-	item := v.(*DLItem)
+
 	if err != nil {
 		log.LogError(err.Error())
 		item.State = STATE_ERROR
@@ -292,12 +327,16 @@ func cleanup(d *Downloader, link string, err error) {
 func (d *Downloader) localDownload(link, filename string, meta DLMeta) (err error) {
 	log.LogPrint(fmt.Sprintf("Downloading from local source %s %d", meta.character, meta.gbId))
 	updateProgress := func(state string, dp DataProgress) {
-		v, ok := d.Queue.Load(link)
+		d.mutex.Lock()
+		defer d.mutex.Unlock()
+
+		item, ok := d.Queue[link]
+
 		if !ok {
 			log.LogDebugf("item not in queue %s", link)
 			return
 		}
-		item := v.(*DLItem)
+
 		item.State = state
 		switch state {
 		case EVENT_DOWNLOAD:
@@ -344,11 +383,13 @@ func (d *Downloader) httpDownload(link, filename string, meta DLMeta) (err error
 	log.LogPrint(fmt.Sprintf("Downloading from http source %s %d", meta.character, meta.gbId))
 
 	updateProgress := func(state string, dp DataProgress) {
-		v, ok := d.Queue.Load(link)
+		d.mutex.Lock()
+		defer d.mutex.Unlock()
+
+		item, ok := d.Queue[link]
 		if !ok {
 			return
 		}
-		item := v.(*DLItem)
 		item.State = state
 		switch state {
 		case EVENT_DOWNLOAD:
