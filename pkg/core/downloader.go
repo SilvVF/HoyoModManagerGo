@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/alitto/pond/v2"
 )
@@ -50,7 +51,7 @@ type Downloader struct {
 	db         *DbHelper
 	emitter    EventEmmiter
 	pool       pond.Pool
-	Queue      ConcurrentMap[string, *DLItem]
+	Queue      sync.Map
 	spaceSaver pref.Preference[bool]
 }
 
@@ -64,7 +65,7 @@ func NewDownloader(
 	d := &Downloader{
 		db:         db,
 		pool:       pond.NewPool(count.Get()),
-		Queue:      NewCMap[*DLItem](),
+		Queue:      sync.Map{},
 		spaceSaver: spaceSaver,
 		emitter:    emmiter,
 	}
@@ -81,11 +82,13 @@ func NewDownloader(
 			d.pool.StopAndWait()
 			d.pool = pond.NewPool(v)
 
-			for _, item := range d.Queue.Items() {
+			d.Queue.Range(func(_ any, value any) bool {
+				item := value.(*DLItem)
 				if item.State != STATE_FINSIHED {
 					d.submitItem(item.Link, item.Filename, item.meta)
 				}
-			}
+				return true
+			})
 		}
 	}()
 
@@ -93,11 +96,16 @@ func NewDownloader(
 }
 
 func (d *Downloader) GetQueue() map[string]*DLItem {
-	return d.Queue.Items()
+	cpy := make(map[string]*DLItem)
+	d.Queue.Range(func(key any, value any) bool {
+		cpy[key.(string)] = value.(*DLItem)
+		return true
+	})
+	return cpy
 }
 
 func (d *Downloader) RemoveFromQueue(key string) {
-	d.Queue.Remove(key)
+	d.Queue.Delete(key)
 }
 
 func (d *Downloader) DeleteTexture(textureId int) error {
@@ -155,11 +163,13 @@ func (d *Downloader) Stop() {
 }
 
 func (d *Downloader) Retry(link string) error {
-	item, ok := d.Queue.Get(link)
+	v, ok := d.Queue.Load(link)
 	if !ok {
 		return errors.New("item not found")
 	}
-	d.Queue.Remove(item.Link)
+	item := v.(*DLItem)
+
+	d.Queue.Delete(item.Link)
 	return d.Download(
 		item.Link,
 		item.Filename,
@@ -172,7 +182,7 @@ func (d *Downloader) Retry(link string) error {
 }
 
 func (d *Downloader) submitItem(link, filename string, meta DLMeta) {
-	d.Queue.Set(link, &DLItem{
+	d.Queue.Store(link, &DLItem{
 		Filename: filename,
 		Link:     link,
 		State:    STATE_QUEUED,
@@ -213,7 +223,7 @@ func (d *Downloader) DownloadTexture(
 	gbId int,
 	previewImages []string,
 ) error {
-	if _, ok := d.Queue.Get(link); ok {
+	if _, ok := d.Queue.Load(link); ok {
 		return errors.New("already downloading")
 	}
 
@@ -245,7 +255,7 @@ func (d *Downloader) Download(
 	gbId int,
 	previewImages []string,
 ) error {
-	if _, ok := d.Queue.Get(link); ok {
+	if _, ok := d.Queue.Load(link); ok {
 		return errors.New("already downloading")
 	}
 	meta := DLMeta{
@@ -262,11 +272,12 @@ func (d *Downloader) Download(
 }
 
 func cleanup(d *Downloader, link string, err error) {
-	item, ok := d.Queue.Get(link)
+	v, ok := d.Queue.Load(link)
 	if !ok {
 		log.LogDebugf("couldnt find item %s %e", link, err)
 		return
 	}
+	item := v.(*DLItem)
 	if err != nil {
 		log.LogError(err.Error())
 		item.State = STATE_ERROR
@@ -281,11 +292,12 @@ func cleanup(d *Downloader, link string, err error) {
 func (d *Downloader) localDownload(link, filename string, meta DLMeta) (err error) {
 	log.LogPrint(fmt.Sprintf("Downloading from local source %s %d", meta.character, meta.gbId))
 	updateProgress := func(state string, dp DataProgress) {
-		item, ok := d.Queue.Get(link)
+		v, ok := d.Queue.Load(link)
 		if !ok {
 			log.LogDebugf("item not in queue %s", link)
 			return
 		}
+		item := v.(*DLItem)
 		item.State = state
 		switch state {
 		case EVENT_DOWNLOAD:
@@ -328,14 +340,15 @@ func (d *Downloader) localDownload(link, filename string, meta DLMeta) (err erro
 	return err
 }
 
-func (d *Downloader) httpDownload(link, filename string, meta DLMeta) error {
+func (d *Downloader) httpDownload(link, filename string, meta DLMeta) (err error) {
 	log.LogPrint(fmt.Sprintf("Downloading from http source %s %d", meta.character, meta.gbId))
 
 	updateProgress := func(state string, dp DataProgress) {
-		item, ok := d.Queue.Get(link)
+		v, ok := d.Queue.Load(link)
 		if !ok {
 			return
 		}
+		item := v.(*DLItem)
 		item.State = state
 		switch state {
 		case EVENT_DOWNLOAD:
