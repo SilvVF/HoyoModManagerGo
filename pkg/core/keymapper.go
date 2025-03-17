@@ -252,7 +252,7 @@ func (k *KeyMapper) Load(modId int) error {
 	modDir := util.GetModDir(mod)
 	keymapDir := util.GetKeyMapsDir(mod)
 
-	walkDirHandleZip(modDir, k)
+	k.walkDirHandleZip(modDir)
 
 	if k.path == "" {
 		return ErrConfigNotFound
@@ -297,7 +297,7 @@ func (k *KeyMapper) Load(modId int) error {
 	return nil
 }
 
-func walkZip(path string) (string, error) {
+func (k *KeyMapper) walkZip(path string) (string, error) {
 	if filepath.Ext(path) != ".zip" {
 		return "", errors.New("file is not a .zip")
 	}
@@ -338,13 +338,13 @@ func walkZip(path string) (string, error) {
 	return "", errors.New("file not found")
 }
 
-func walkDirHandleZip(modDir string, k *KeyMapper) error {
+func (k *KeyMapper) walkDirHandleZip(modDir string) error {
 	return filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
 		}
 		if filepath.Ext(path) == ".zip" {
-			tmp, err := walkZip(path)
+			tmp, err := k.walkZip(path)
 			if err != nil {
 				log.LogError(err.Error())
 				return err

@@ -1,8 +1,10 @@
 package core
 
 import (
+	"archive/zip"
 	"bufio"
 	"errors"
+	"fmt"
 	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
@@ -13,6 +15,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"gopkg.in/ini.v1"
 )
 
 const d3dxUserFile = "d3dx_user.ini"
@@ -27,22 +31,143 @@ type ConfVar struct {
 	value string
 }
 
-func NewConfigSaver(exportDirs map[types.Game]pref.Preference[string]) *ConfigSaver {
+func NewConfigSaver(
+	exportDirs map[types.Game]pref.Preference[string],
+	dbHelper *DbHelper,
+) *ConfigSaver {
 	return &ConfigSaver{
 		exportDirs: exportDirs,
+		db:         dbHelper,
 	}
 }
 
-func (cs *ConfigSaver) saveConfig(g types.Game) (map[string][]ConfVar, error) {
+func (cs *ConfigSaver) saveConfig(g types.Game) error {
 
 	saved, err := cs.readConfig(g)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
+	paths := getPathsFromUserConfig(saved)
+	errs := []error{}
+
+	for path, vars := range paths {
+		ifp, ok := getIniFilePath(path, cs.db)
+		if !ok {
+			continue
+		}
+
+		rc, err := ifp.open()
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		defer rc.Close()
+
+		configSection := getConfigSection(rc)
+
+		log.LogDebug(configSection)
+		iniFile, err := ini.Load([]byte(configSection))
+
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		section, err := iniFile.GetSection("Constants")
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		hasChanges := false
+		for _, v := range vars {
+			entry := section.Key(v.name)
+
+			if entry.Value() == v.value {
+				continue
+			} else {
+				entry.SetValue(v.value)
+				hasChanges = true
+			}
+		}
+
+		if hasChanges {
+			configCache := util.GetModConfigCache(ifp.mod)
+			conf := filepath.Join(configCache, "saved_conf.ini")
+			f, err := os.Create(conf)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			defer f.Close()
+
+			_, err = iniFile.WriteTo(f)
+			if err != nil {
+				log.LogError(err.Error())
+			}
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+type IniFilePath struct {
+	isZip   bool
+	mod     types.Mod
+	path    string
+	zipPath string
+}
+
+type iniFilePathReadCloser struct {
+	rc   *zip.ReadCloser
+	file io.ReadCloser
+}
+
+func (c *iniFilePathReadCloser) Read(p []byte) (n int, err error) {
+	return c.file.Read(p)
+}
+
+func (c *iniFilePathReadCloser) Close() error {
+	errs := make([]error, 0, 2)
+	if c.rc != nil {
+		errs = append(errs, c.rc.Close())
+	}
+	errs = append(errs, c.file.Close())
+
+	return errors.Join(errs...)
+}
+
+func (ifp IniFilePath) open() (io.ReadCloser, error) {
+	if !ifp.isZip {
+		return os.Open(ifp.path)
+	} else {
+		r, err := zip.OpenReader(ifp.path)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, f := range r.File {
+			if strings.ToLower(f.Name) == strings.ToLower(ifp.zipPath) {
+				frc, err := f.Open()
+				if err != nil {
+					return nil, err
+				}
+
+				return &iniFilePathReadCloser{
+					file: frc,
+					rc:   r,
+				}, nil
+			}
+		}
+		return nil, fmt.Errorf("file %s not found in zip", ifp.zipPath)
+	}
+}
+
+func getPathsFromUserConfig(config string) map[string][]ConfVar {
 	paths := map[string][]ConfVar{}
 
-	for _, line := range strings.Split(saved, "\n") {
+	for _, line := range strings.Split(config, "\n") {
 		path := strings.TrimLeft(line, "$")
 		eqIndex := strings.LastIndex(path, "=")
 
@@ -68,58 +193,54 @@ func (cs *ConfigSaver) saveConfig(g types.Game) (map[string][]ConfVar, error) {
 			paths[path] = append(arr, confVar)
 		}
 	}
-	for path, _ := range paths {
-		fp, ok := getIniFilePath(path, cs.db)
-		if !ok {
-			continue
-		}
-
-		log.LogDebug(fp)
-	}
-
-	return paths, nil
+	return paths
 }
 
-func getIniFilePath(path string, exportDir string, db *DbHelper) (string, bool) {
+func getIniFilePath(path string, db *DbHelper) (IniFilePath, bool) {
 	//mods\25524_bearcharlotte\bearcharlotte\bearcharlotte\merged.ini
 
 	// TODO: split at export dir path incase export is mods/name/...
-	parts := filepath.SplitList(path)
+	parts := strings.Split(filepath.Clean(path), string(filepath.Separator))
 
-	if len(parts) < 4 {
-		return "", false
+	if len(parts) < 3 {
+		return IniFilePath{}, false
 	}
-	split := strings.SplitN(parts[1], "_", 1)
+	split := strings.SplitN(parts[1], "_", 2)
 	if len(split) == 0 {
-		return "", false
+		return IniFilePath{}, false
 	}
 
 	modId, err := strconv.Atoi(split[0])
 	if err != nil {
-		return "", false
+		return IniFilePath{}, false
 	}
 
 	mod, err := db.SelectModById(modId)
 	if err != nil {
-		return "", false
+		return IniFilePath{}, false
 	}
 
 	modDir := util.GetModDir(mod)
 
-	var relativeIniPath string
-	subpath := filepath.Join(parts[4:]...)
-
-	withZip := filepath.Join(parts[3]+".zip", subpath)
-	withoutZip := filepath.Join(parts[3], subpath)
-
-	if ok, err := util.FileExists(relativeIniPath); err != nil || !ok {
-		relativeIniPath = withZip
-	} else {
-		relativeIniPath = withoutZip
+	ifp := IniFilePath{
+		mod: mod,
 	}
 
-	fullPath := filepath.Join(modDir, relativeIniPath)
-	return fullPath, true
+	subpath := filepath.Join(parts[3:]...)
+
+	withZip := filepath.Join(modDir, parts[2]+".zip")
+	withoutZip := filepath.Join(modDir, parts[2])
+
+	if exists, _ := util.FileExists(withZip); !exists {
+		ifp.isZip = false
+		ifp.path = filepath.Join(withoutZip, subpath)
+	} else {
+		ifp.isZip = true
+		ifp.path = withZip
+		ifp.zipPath = subpath
+	}
+
+	return ifp, true
 }
 
 func getConfigSection(r io.Reader) string {
@@ -129,20 +250,23 @@ func getConfigSection(r io.Reader) string {
 	s := bufio.NewScanner(r)
 	sb := strings.Builder{}
 
-outer:
 	for s.Scan() {
 
 		line := s.Text()
 
 		if strings.TrimSpace(line) == "[Constants]" {
 
+			sb.WriteString(line)
+			sb.WriteRune('\n')
+
 			for s.Scan() {
 				line = s.Text()
 
 				if sectionRegex.MatchString(line) {
-					break outer
+					return sb.String()
 				} else {
 					sb.WriteString(line)
+					sb.WriteRune('\n')
 				}
 			}
 		}

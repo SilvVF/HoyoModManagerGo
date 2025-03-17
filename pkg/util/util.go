@@ -84,6 +84,10 @@ func GetDbFile() string {
 	return filepath.Join(GetCacheDir(), "hmm.db")
 }
 
+func GetModConfigCache(m types.Mod) string {
+	return filepath.Join(GetModDir(m), "config")
+}
+
 func FileExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
