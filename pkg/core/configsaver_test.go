@@ -38,7 +38,7 @@ func TestReadConfig(t *testing.T) {
 
 		dirPrefs[game].Set(dirs[game])
 
-		conf, err := configSaver.saveConfig(game, "")
+		conf, err := configSaver.saveConfig(game)
 		if err != nil {
 			t.Error(err)
 		}

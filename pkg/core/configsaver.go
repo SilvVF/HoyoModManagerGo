@@ -3,12 +3,15 @@ package core
 import (
 	"bufio"
 	"errors"
+	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
+	"hmm/pkg/util"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -16,6 +19,7 @@ const d3dxUserFile = "d3dx_user.ini"
 
 type ConfigSaver struct {
 	exportDirs map[types.Game]pref.Preference[string]
+	db         *DbHelper
 }
 
 type ConfVar struct {
@@ -29,14 +33,7 @@ func NewConfigSaver(exportDirs map[types.Game]pref.Preference[string]) *ConfigSa
 	}
 }
 
-func filepathDropN(s string, n int) string {
-	cleaned := filepath.Clean(s)
-	parts := filepath.SplitList(cleaned)
-
-	return filepath.Join(parts[n:]...)
-}
-
-func (cs *ConfigSaver) saveConfig(g types.Game, exportDir string) (map[string][]ConfVar, error) {
+func (cs *ConfigSaver) saveConfig(g types.Game) (map[string][]ConfVar, error) {
 
 	saved, err := cs.readConfig(g)
 	if err != nil {
@@ -71,18 +68,58 @@ func (cs *ConfigSaver) saveConfig(g types.Game, exportDir string) (map[string][]
 			paths[path] = append(arr, confVar)
 		}
 	}
+	for path, _ := range paths {
+		fp, ok := getIniFilePath(path, cs.db)
+		if !ok {
+			continue
+		}
 
-	// for path, vars := range paths {
-	// 	fp := filepath.Join(exportDir, filepathDropN(path, 1))
-	// 	f, err := os.Open(fp)
-	// 	if err != nil {
-	// 		continue
-	// 	}
-	// 	defer f.Close()
-
-	// }
+		log.LogDebug(fp)
+	}
 
 	return paths, nil
+}
+
+func getIniFilePath(path string, exportDir string, db *DbHelper) (string, bool) {
+	//mods\25524_bearcharlotte\bearcharlotte\bearcharlotte\merged.ini
+
+	// TODO: split at export dir path incase export is mods/name/...
+	parts := filepath.SplitList(path)
+
+	if len(parts) < 4 {
+		return "", false
+	}
+	split := strings.SplitN(parts[1], "_", 1)
+	if len(split) == 0 {
+		return "", false
+	}
+
+	modId, err := strconv.Atoi(split[0])
+	if err != nil {
+		return "", false
+	}
+
+	mod, err := db.SelectModById(modId)
+	if err != nil {
+		return "", false
+	}
+
+	modDir := util.GetModDir(mod)
+
+	var relativeIniPath string
+	subpath := filepath.Join(parts[4:]...)
+
+	withZip := filepath.Join(parts[3]+".zip", subpath)
+	withoutZip := filepath.Join(parts[3], subpath)
+
+	if ok, err := util.FileExists(relativeIniPath); err != nil || !ok {
+		relativeIniPath = withZip
+	} else {
+		relativeIniPath = withoutZip
+	}
+
+	fullPath := filepath.Join(modDir, relativeIniPath)
+	return fullPath, true
 }
 
 func getConfigSection(r io.Reader) string {
