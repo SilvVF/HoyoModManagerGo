@@ -41,11 +41,13 @@ func NewConfigSaver(
 	}
 }
 
-func (cs *ConfigSaver) saveConfig(g types.Game) error {
+func (cs *ConfigSaver) saveConfig(g types.Game) ([]string, error) {
+
+	created := []string{}
 
 	saved, err := cs.readConfig(g)
 	if err != nil {
-		return err
+		return created, err
 	}
 
 	paths := getPathsFromUserConfig(saved)
@@ -65,8 +67,6 @@ func (cs *ConfigSaver) saveConfig(g types.Game) error {
 		defer rc.Close()
 
 		configSection := getConfigSection(rc)
-
-		log.LogDebug(configSection)
 		iniFile, err := ini.Load([]byte(configSection))
 
 		if err != nil {
@@ -74,42 +74,59 @@ func (cs *ConfigSaver) saveConfig(g types.Game) error {
 			continue
 		}
 
+		log.LogDebug("config for " + g.Name() + "\n" + configSection)
 		section, err := iniFile.GetSection("Constants")
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
 
-		hasChanges := false
-		for _, v := range vars {
-			entry := section.Key(v.name)
+		keys := section.Keys()
+		keyMap := make(map[string]*ini.Key, len(keys))
+		for _, v := range keys {
+			keyMap[strings.ToLower(v.Name())] = v
+		}
 
-			if entry.Value() == v.value {
+		for _, v := range vars {
+
+			if key, ok := keyMap[strings.ToLower("global persist $"+v.name)]; !ok || key == nil {
+				log.LogDebug("Key not found " + v.name)
 				continue
 			} else {
-				entry.SetValue(v.value)
-				hasChanges = true
+				log.LogDebugf("confvar = %v entry = %s : %s", v, key.Name(), key.Value())
+				if key.Value() == v.value {
+					continue
+				} else {
+					key.SetValue(v.value)
+				}
 			}
 		}
 
-		if hasChanges {
-			configCache := util.GetModConfigCache(ifp.mod)
-			conf := filepath.Join(configCache, "saved_conf.ini")
-			f, err := os.Create(conf)
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			defer f.Close()
+		configCache := util.GetModConfigCache(ifp.mod)
+		conf := filepath.Join(configCache, "saved_conf.ini")
 
-			_, err = iniFile.WriteTo(f)
-			if err != nil {
-				log.LogError(err.Error())
-			}
+		err = os.MkdirAll(filepath.Dir(conf), os.ModePerm)
+		if err != nil {
+			errs = append(errs, err)
+			continue
 		}
+
+		f, err := os.Create(conf)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		defer f.Close()
+
+		_, err = iniFile.WriteTo(f)
+		if err != nil {
+			log.LogError(err.Error())
+		}
+
+		created = append(created, conf)
 	}
 
-	return errors.Join(errs...)
+	return created, errors.Join(errs...)
 }
 
 type IniFilePath struct {
@@ -250,20 +267,21 @@ func getConfigSection(r io.Reader) string {
 	s := bufio.NewScanner(r)
 	sb := strings.Builder{}
 
+	sb.WriteString("[Constants]")
+	sb.WriteRune('\n')
+
 	for s.Scan() {
 
 		line := s.Text()
 
 		if strings.TrimSpace(line) == "[Constants]" {
 
-			sb.WriteString(line)
-			sb.WriteRune('\n')
-
 			for s.Scan() {
 				line = s.Text()
 
-				if sectionRegex.MatchString(line) {
-					return sb.String()
+				if sectionRegex.MatchString(line) &&
+					strings.TrimSpace(line) != "[Constants]" {
+					break
 				} else {
 					sb.WriteString(line)
 					sb.WriteRune('\n')

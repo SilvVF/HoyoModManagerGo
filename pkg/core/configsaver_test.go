@@ -62,12 +62,13 @@ func TestReadConfig(t *testing.T) {
 
 		dirPrefs[game].Set(dirs[game])
 
-		err := configSaver.saveConfig(game)
+		files, err := configSaver.saveConfig(game)
 		if err != nil {
 			t.Error(err)
 		}
 
-		t.Log("\n\n\n========================================")
+		t.Log(files)
+		t.Log("\n========================================")
 	}
 	t.Fail()
 }
