@@ -186,7 +186,39 @@ func (k *KeyMapper) SaveConfig(name string) error {
 	iniString := appendKeybindsToOriginal(k.path, k.cfg)
 
 	_, err = output.WriteString(iniString)
-	return err
+
+	if err != nil {
+		os.Remove(keymapFile)
+		return err
+	}
+
+	return k.DisableAllExcept(output.Name())
+}
+
+func (k *KeyMapper) DisableAllExcept(exceptions ...string) error {
+	if k.mod == nil {
+		return ErrModNotFound
+	}
+
+	keymaps := util.GetKeyMapsDir(*k.mod)
+	fe, err := os.ReadDir(keymaps)
+	if err != nil {
+		return err
+	}
+
+	errs := []error{}
+
+	for _, e := range fe {
+		if e.IsDir() && !slices.Contains(exceptions, e.Name()) && !strings.HasPrefix(e.Name(), "DISABLED") {
+			absPath := filepath.Join(keymaps, e.Name())
+			err := os.Rename(absPath, filepath.Join(keymaps, "DISABLED"+e.Name()))
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 func (k *KeyMapper) Write(section string, sectionKey string, keys []string) error {

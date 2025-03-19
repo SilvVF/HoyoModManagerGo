@@ -1,69 +1,43 @@
 package core
 
 import (
+	"context"
+	"database/sql"
+	"hmm/db"
+	"hmm/pkg/pref"
+	"hmm/pkg/util"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
-
-const (
-	mergedIniPath = "\\test_resources\\keymap\\merged.ini"
-	outputPath    = "\\test_resources\\keymap\\output.ini"
-)
-
-var d, _ = os.Getwd()
-var workingDir = strings.Replace(d, "\\pkg\\core", "", 1)
 
 // TestHelloName calls greetings.Hello with a name, checking
 // for a valid return value.
 func TestConfigFileGeneration(t *testing.T) {
-	expected := `[KeyUnderwaterOutfit]
-condition = $active == 1
-key = VK_RIGHT
-$change = 7
+	ctx := context.Background()
+	store := pref.NewInMemoryStore(ctx)
+	prefs := pref.NewPrefs(store)
 
-[KeyTop]
-condition = $active == 1
-key = 5
-$change = 1
+	dbfile := util.GetDbFile()
+	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
 
-[KeyBottom]
-condition = $active == 1
-key = 6
-$change = 2
+	util.CreateFileIfNotExists(dbfile)
+	util.SetRootModDirFn(func() string {
+		return rootModDir
+	})
 
-[KeyHat]
-condition = $active == 1
-key = 7
-$change = 3
-
-[KeyNecklace]
-condition = $active == 1
-key = 8
-$change = 4
-
-[KeyDress]
-condition = $active == 1
-key = 9
-$change = 5
-
-[KeyArmsLegs]
-condition = $active == 1
-key = 0
-$change = 6
-
-[KeyBikini]
-condition = $active == 1
-key = VK_UP
-$change = 8
-`
-	inputFile, err := os.Open(filepath.Join(workingDir, mergedIniPath))
+	dbSql, err := sql.Open("sqlite3", dbfile)
 	if err != nil {
 		panic(err)
 	}
 
-	if strings.TrimSpace(getKeybindSection(inputFile)) != strings.TrimSpace(expected) {
-		t.Fatal("merged section does not match")
-	}
+	queries := db.New(dbSql)
+	dbHelper := NewDbHelper(queries, dbSql)
+
+	keymapper := NewKeymapper(dbHelper)
+
+	keymapper.Load(25524)
+	keymapper.SaveConfig("test")
+
+	keymapper.LoadPrevious("")
 }

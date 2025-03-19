@@ -133,16 +133,13 @@ func DateSorter(ascending bool) func(a, b string) int {
 }
 
 func ExtractDateFromFilename(filename string) (time.Time, error) {
-	// Split the filename by the underscore
 	parts := strings.Split(filename, "_")
 	if len(parts) < 3 {
 		return time.Time{}, fmt.Errorf("invalid filename format: %s", filename)
 	}
-
-	// Extract the date and time part
-	dateStr := parts[len(parts)-2] + "_" + parts[len(parts)-1] // e.g., "2024-10-17_01-43-33"
+	// "2024-10-17_01-43-33" -> date(len - 2): 2024-10-17   time(len - 1): 01-43-33
+	dateStr := parts[len(parts)-2] + "_" + parts[len(parts)-1]
 	dateStr = strings.TrimSuffix(dateStr, ".ini")
-	// Parse the date in the expected format
 	parsedTime, err := time.Parse("2006-01-02_15-04-05", dateStr)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to parse date from filename: %w", err)

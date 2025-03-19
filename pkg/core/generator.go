@@ -22,9 +22,9 @@ import (
 
 type Generator struct {
 	db         *DbHelper
-	cancel     map[types.Game]context.CancelFunc
-	wg         map[types.Game]*sync.WaitGroup
-	mutex      map[types.Game]*sync.Mutex
+	cancelFns  map[types.Game]context.CancelFunc
+	wgMap      map[types.Game]*sync.WaitGroup
+	mutexMap   map[types.Game]*sync.Mutex
 	outputDirs map[types.Game]pref.Preference[string]
 	ignored    pref.Preference[[]string]
 	cleanDir   pref.Preference[bool]
@@ -38,19 +38,19 @@ func NewGenerator(
 ) *Generator {
 	return &Generator{
 		db: db,
-		cancel: map[types.Game]context.CancelFunc{
+		cancelFns: map[types.Game]context.CancelFunc{
 			types.Genshin:  func() {},
 			types.StarRail: func() {},
 			types.ZZZ:      func() {},
 			types.WuWa:     func() {},
 		},
-		wg: map[types.Game]*sync.WaitGroup{
+		wgMap: map[types.Game]*sync.WaitGroup{
 			types.Genshin:  {},
 			types.StarRail: {},
 			types.ZZZ:      {},
 			types.WuWa:     {},
 		},
-		mutex: map[types.Game]*sync.Mutex{
+		mutexMap: map[types.Game]*sync.Mutex{
 			types.Genshin:  {},
 			types.StarRail: {},
 			types.ZZZ:      {},
@@ -77,27 +77,30 @@ func (g *Generator) Reload(game types.Game) error {
 		return errors.New("output dir not set")
 	}
 
-	g.mutex[game].Lock()
+	createGenContext := func() (chan error, context.Context, context.CancelFunc) {
+		g.mutexMap[game].Lock()
+		defer g.mutexMap[game].Unlock()
 
-	// Cancel any ongoing task
-	if g.cancel[game] != nil {
-		fmt.Println("Cancelling previous task and waiting for it to finish current step")
-		g.cancel[game]()  // Signal cancellation
-		g.wg[game].Wait() // Wait for the task to finish its current step
-		fmt.Println("Previous task finished its current step")
+		if g.cancelFns[game] != nil {
+			g.cancelFns[game]()
+			g.wgMap[game].Wait()
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		g.cancelFns[game] = cancel
+		errCh := make(chan error, 1)
+
+		g.wgMap[game].Add(1)
+
+		return errCh, ctx, cancel
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	errCh, ctx, cancel := createGenContext()
 	defer cancel()
 
-	g.cancel[game] = cancel
-	errCh := make(chan error, 1)
-	g.wg[game].Add(1)
-
-	g.mutex[game].Unlock()
-
 	go func() {
-		defer g.wg[game].Done()
+		defer g.wgMap[game].Done()
 		errCh <- moveModsToOutputDir(g, game, ctx)
 		close(errCh)
 	}()
@@ -231,7 +234,7 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 				log.LogError(err.Error())
 			}
 
-			err = copyKeyMapToMergedIni(modDir, outputDir)
+			err = copyKeyMapToMergedIni(mod, outputDir)
 			if err != nil {
 				log.LogError(err.Error())
 			}
@@ -270,46 +273,59 @@ func moveModsToOutputDir(g *Generator, game types.Game, ctx context.Context) err
 	return nil
 }
 
-func copyKeyMapToMergedIni(modDir, outputDir string) error {
-	files, err := os.ReadDir(filepath.Join(modDir, "keymaps"))
+func copyKeyMapToMergedIni(m types.Mod, outputDir string) error {
+
+	getMostRecentEnabledKeymap := func() ([]byte, error) {
+		keymapDir := util.GetKeyMapsDir(m)
+		files, err := os.ReadDir(keymapDir)
+		if err != nil {
+			return []byte{}, err
+		}
+
+		paths := make([]string, 0, len(files))
+		for _, file := range files {
+			if !strings.HasPrefix(file.Name(), "DISABLED") {
+				paths = append(paths, file.Name())
+			}
+		}
+		if len(paths) == 0 {
+			return []byte{}, errors.New("no keymaps enabled")
+		}
+
+		slices.SortFunc(paths, util.DateSorter(false))
+
+		return os.ReadFile(filepath.Join(keymapDir, paths[0]))
+	}
+
+	iniBytes, err := getMostRecentEnabledKeymap()
 	if err != nil {
 		return err
 	}
-	paths := make([]string, 0, len(files))
-	for _, file := range files {
-		paths = append(paths, file.Name())
-	}
 
-	slices.SortFunc(paths, util.DateSorter(false))
-	if len(paths) > 0 {
-		ini, err := os.ReadFile(filepath.Join(modDir, "keymaps", paths[0]))
+	err = filepath.WalkDir(outputDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			log.LogDebug(err.Error())
 			return err
 		}
-		err = filepath.WalkDir(outputDir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
 
-			if d.IsDir() {
-				return nil
-			}
-
-			if strings.HasSuffix(d.Name(), ".ini") && !strings.HasPrefix(d.Name(), "DISABLED") {
-				// Overwrite the file with new content
-				log.LogDebug("Found and overwriting:" + path)
-				os.WriteFile(path, ini, os.ModePerm)
-				return ErrStopWalkingDirError
-			}
-			return nil
-		})
-		if err == ErrStopWalkingDirError {
+		if d.IsDir() {
 			return nil
 		}
-		return err
+
+		if filepath.Ext(d.Name()) == ".ini" && !strings.HasPrefix(d.Name(), "DISABLED") {
+			// Overwrite the file with new content
+			log.LogDebug("Found and overwriting:" + path)
+			os.WriteFile(path, iniBytes, os.ModePerm)
+
+			return ErrStopWalkingDirError
+		}
+		return nil
+	})
+
+	if err == ErrStopWalkingDirError {
+		return nil
 	}
-	return nil
+
+	return err
 }
 
 func getModFixExe(exported []string) string {
