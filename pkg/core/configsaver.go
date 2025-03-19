@@ -54,7 +54,7 @@ func (cs *ConfigSaver) saveConfig(g types.Game) ([]string, error) {
 	errs := []error{}
 
 	for path, vars := range paths {
-		ifp, ok := getIniFilePath(path, cs.db)
+		ifp, ok := cs.getIniFilePath(path, g)
 		if !ok {
 			continue
 		}
@@ -213,16 +213,36 @@ func getPathsFromUserConfig(config string) map[string][]ConfVar {
 	return paths
 }
 
-func getIniFilePath(path string, db *DbHelper) (IniFilePath, bool) {
-	//mods\25524_bearcharlotte\bearcharlotte\bearcharlotte\merged.ini
-
-	// TODO: split at export dir path incase export is mods/name/...
-	parts := strings.Split(filepath.Clean(path), string(filepath.Separator))
-
-	if len(parts) < 3 {
+func (cs *ConfigSaver) getIniFilePath(path string, game types.Game) (IniFilePath, bool) {
+	//mods\x\...\25524_bearcharlotte\bearcharlotte\bearcharlotte\merged.ini -> 25524_bearcharlotte\bearcharlotte\bearcharlotte\merged.ini
+	// assumes that files are in a dir "Mods"
+	exportDir := strings.ToLower(cs.exportDirs[game].Get())
+	modsPart := strings.LastIndex(exportDir, "mods")
+	if modsPart == -1 {
 		return IniFilePath{}, false
 	}
-	split := strings.SplitN(parts[1], "_", 2)
+	exportDir = exportDir[modsPart:]
+	rel, err := filepath.Rel(exportDir, strings.ToLower(filepath.Clean(path)))
+
+	if err != nil {
+		log.LogError(err.Error())
+		return IniFilePath{}, false
+	}
+	// 25524_bearcharlotte\(this is within the zip or dir)bearcharlotte\bearcharlotte\merged.ini
+	// mIdP = modId _ mod file name
+	// mFileP = content within mod folder either zip or dir
+	// subP = path within the dir or zip to merged.ini
+	const (
+		mIdP   = 0
+		mFileP = 1
+		subP   = mFileP + 1
+	)
+	parts := strings.Split(rel, string(filepath.Separator))
+	if len(parts) < subP {
+		return IniFilePath{}, false
+	}
+	// id: 25524 fname: bearcharlotte
+	split := strings.SplitN(parts[mIdP], "_", 2)
 	if len(split) == 0 {
 		return IniFilePath{}, false
 	}
@@ -231,22 +251,21 @@ func getIniFilePath(path string, db *DbHelper) (IniFilePath, bool) {
 	if err != nil {
 		return IniFilePath{}, false
 	}
-
-	mod, err := db.SelectModById(modId)
+	mod, err := cs.db.SelectModById(modId)
 	if err != nil {
 		return IniFilePath{}, false
 	}
-
 	modDir := util.GetModDir(mod)
 
-	ifp := IniFilePath{
-		mod: mod,
-	}
+	ifp := IniFilePath{mod: mod}
 
-	subpath := filepath.Join(parts[3:]...)
+	subpath := filepath.Join(parts[subP:]...)
 
-	withZip := filepath.Join(modDir, parts[2]+".zip")
-	withoutZip := filepath.Join(modDir, parts[2])
+	// 25524_bearcharlotte\bearcharlotte\bearcharlotte\merged.ini
+	// 1st bearcharlotte can be either a zip or a dir
+	// need to check bc it is unzipped and config file doesnt have this info
+	withZip := filepath.Join(modDir, parts[mFileP]+".zip")
+	withoutZip := filepath.Join(modDir, parts[mFileP])
 
 	if exists, _ := util.FileExists(withZip); !exists {
 		ifp.isZip = false
