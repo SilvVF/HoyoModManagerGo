@@ -6,6 +6,10 @@ export function DeleteKeymap(arg1) {
   return window['go']['core']['KeyMapper']['DeleteKeymap'](arg1);
 }
 
+export function DisableAllExcept(arg1) {
+  return window['go']['core']['KeyMapper']['DisableAllExcept'](arg1);
+}
+
 export function GetKeyMap() {
   return window['go']['core']['KeyMapper']['GetKeyMap']();
 }

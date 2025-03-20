@@ -4,6 +4,8 @@ import {core} from '../models';
 
 export function DeleteKeymap(arg1:string):Promise<void>;
 
+export function DisableAllExcept(arg1:Array<string>):Promise<void>;
+
 export function GetKeyMap():Promise<Array<core.KeyBind>>;
 
 export function GetKeymaps():Promise<Array<string>>;
