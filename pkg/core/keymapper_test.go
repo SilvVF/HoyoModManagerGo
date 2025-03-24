@@ -1,10 +1,8 @@
 package core
 
 import (
-	"context"
 	"database/sql"
 	"hmm/db"
-	"hmm/pkg/pref"
 	"hmm/pkg/util"
 	"os"
 	"path/filepath"
@@ -14,9 +12,6 @@ import (
 // TestHelloName calls greetings.Hello with a name, checking
 // for a valid return value.
 func TestConfigFileGeneration(t *testing.T) {
-	ctx := context.Background()
-	store := pref.NewInMemoryStore(ctx)
-	prefs := pref.NewPrefs(store)
 
 	dbfile := util.GetDbFile()
 	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)

@@ -24,6 +24,8 @@ const (
 	brokenZip = "\\test_resources\\lingsha_nude_halfnude_incomletever_v101.zip"
 )
 
+var workingDir, _ = os.Getwd()
+
 func _getDb() *DbHelper {
 	dbfile := filepath.Join(util.GetCacheDir(), "hmm.db")
 
