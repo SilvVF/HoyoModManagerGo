@@ -12,6 +12,8 @@ export function GetKeymaps():Promise<Array<string>>;
 
 export function Load(arg1:number):Promise<void>;
 
+export function LoadDefault():Promise<void>;
+
 export function LoadPrevious(arg1:string):Promise<void>;
 
 export function SaveConfig(arg1:string):Promise<void>;

@@ -200,11 +200,11 @@ func deleteUnusedModsQuery(fnames []string, game types.Game) string {
 	)
 }
 
-func (h *DbHelper) deleteUnusedTextures(textures []Pair[int, string]) error {
+func (h *DbHelper) deleteUnusedTextures(textures []types.Pair[int, string]) error {
 	modIds := []int64{}
 
 	for _, v := range textures {
-		modIds = append(modIds, int64(v.x))
+		modIds = append(modIds, int64(v.X))
 	}
 
 	arr, err := h.queries.SelectAllTexturesByModIds(h.ctx, modIds)
@@ -213,8 +213,8 @@ func (h *DbHelper) deleteUnusedTextures(textures []Pair[int, string]) error {
 	}
 
 	for _, t := range arr {
-		keep := slices.ContainsFunc(textures, func(e Pair[int, string]) bool {
-			return e.x == int(t.ModID) && e.y == t.Fname
+		keep := slices.ContainsFunc(textures, func(e types.Pair[int, string]) bool {
+			return e.X == int(t.ModID) && e.Y == t.Fname
 		})
 		if !keep {
 			h.queries.DeleteTextureById(h.ctx, t.ID)

@@ -22,6 +22,10 @@ export function Load(arg1) {
   return window['go']['core']['KeyMapper']['Load'](arg1);
 }
 
+export function LoadDefault() {
+  return window['go']['core']['KeyMapper']['LoadDefault']();
+}
+
 export function LoadPrevious(arg1) {
   return window['go']['core']['KeyMapper']['LoadPrevious'](arg1);
 }

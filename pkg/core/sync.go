@@ -84,7 +84,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 	task := pool.SubmitErr(func() error {
 
 		seenMods := []string{}
-		seenTextures := []Pair[int, string]{}
+		seenTextures := []types.Pair[int, string]{}
 		characters := s.db.SelectCharactersByGame(game)
 		log.LogPrint(fmt.Sprintf("characters size: %d synctype: %d game: %d", len(characters), request, game))
 
@@ -177,7 +177,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 						continue
 					}
 					for _, textureFilename := range tDirs {
-						seenTextures = append(seenTextures, Pair[int, string]{mod.Id, textureFilename})
+						seenTextures = append(seenTextures, types.Pair[int, string]{X: mod.Id, Y: textureFilename})
 						texture := types.Texture{
 							Filename: textureFilename,
 							ModId:    mod.Id,

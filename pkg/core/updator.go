@@ -125,8 +125,8 @@ func (u *Updator) checkFixesForUpdateCancellable(ctx context.Context) []types.Up
 	for i, game := range types.Games {
 		ret[i] = types.Update{Game: game, Found: false}
 		go func() {
-			res := make(chan Pair[int, any], 2)
-			got := make([]Pair[int, any], 0, 2)
+			res := make(chan types.Pair[int, any], 2)
+			got := make([]types.Pair[int, any], 0, 2)
 
 			go u.checkLocalForCurrent(game, res)
 			go u.checkNetworkForUpdate(game, res)
@@ -156,21 +156,21 @@ func (u *Updator) checkFixesForUpdateCancellable(ctx context.Context) []types.Up
 	return ret
 }
 
-func NewUpdate(pair []Pair[int, any], game types.Game) types.Update {
+func NewUpdate(pair []types.Pair[int, any], game types.Game) types.Update {
 	var l string
 	var n types.Tool
-	if pair[0].x == local {
-		l = pair[0].y.(string)
-		n = pair[1].y.(types.Tool)
+	if pair[0].X == local {
+		l = pair[0].Y.(string)
+		n = pair[1].Y.(types.Tool)
 	} else {
-		l = pair[1].y.(string)
-		n = pair[0].y.(types.Tool)
+		l = pair[1].Y.(string)
+		n = pair[0].Y.(types.Tool)
 	}
 	return types.Update{Found: n.Dl != "", Game: game, Current: l, Newest: n}
 }
 
-func (u *Updator) checkLocalForCurrent(game types.Game, res chan<- Pair[int, any]) {
-	notfound := Pair[int, any]{local, ""}
+func (u *Updator) checkLocalForCurrent(game types.Game, res chan<- types.Pair[int, any]) {
+	notfound := types.Pair[int, any]{X: local, Y: ""}
 	dir, ok := u.exportDirs[types.Game(game)]
 	if !ok || !dir.IsSet() {
 		res <- notfound
@@ -189,7 +189,10 @@ func (u *Updator) checkLocalForCurrent(game types.Game, res chan<- Pair[int, any
 		res <- notfound
 		return
 	}
-	res <- Pair[int, any]{local, getModFixExe(subdirs)}
+	res <- types.Pair[int, any]{
+		X: local,
+		Y: getModFixExe(subdirs),
+	}
 }
 
 func (u *Updator) gameToToolId(game types.Game) int {
@@ -242,8 +245,8 @@ func filterDigits(s string) (float64, error) {
 	return num, nil
 }
 
-func (u *Updator) checkNetworkForUpdate(game types.Game, res chan<- Pair[int, any]) {
-	notfound := Pair[int, any]{net, nil}
+func (u *Updator) checkNetworkForUpdate(game types.Game, res chan<- types.Pair[int, any]) {
+	notfound := types.Pair[int, any]{X: net, Y: nil}
 
 	id := u.gameToToolId(game)
 	if id == -1 {
@@ -258,9 +261,9 @@ func (u *Updator) checkNetworkForUpdate(game types.Game, res chan<- Pair[int, an
 	}
 	for _, file := range page.AFiles {
 		if file.BContainsExe == true {
-			res <- Pair[int, any]{
-				net,
-				types.Tool{
+			res <- types.Pair[int, any]{
+				X: net,
+				Y: types.Tool{
 					Dl:          file.SDownloadURL,
 					Name:        page.SName,
 					Description: file.SDescription,

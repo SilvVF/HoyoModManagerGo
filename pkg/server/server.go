@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hmm/pkg/core"
+	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
 	"io"
@@ -46,11 +47,9 @@ type Server struct {
 	authType  pref.Preference[int]
 	username  pref.Preference[string]
 	password  pref.Preference[string]
-	ctx       context.Context
 }
 
 func newServer(
-	ctx context.Context,
 	port int,
 	db *core.DbHelper,
 	generator *core.Generator,
@@ -59,7 +58,6 @@ func newServer(
 	return &Server{
 		port:      port,
 		db:        db,
-		ctx:       ctx,
 		generator: generator,
 		authType:  prefs.ServerAuthTypePref,
 		username:  prefs.ServerUsernamePref,
@@ -77,7 +75,7 @@ func joinIntSlice(intSlice []int, sep string) string {
 	return strings.Join(strSlice, sep)
 }
 
-func (s *Server) run() error {
+func (s *Server) Run(ctx context.Context) error {
 
 	mux := http.NewServeMux()
 	s.registerHandlers(mux)
@@ -98,19 +96,14 @@ func (s *Server) run() error {
 	}()
 
 	select {
-	case <-s.ctx.Done():
+	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		fmt.Println("Shutting down the server...")
-		err := server.Shutdown(shutdownCtx)
-		if err != nil {
-			return err
-		}
+		log.LogDebug("Shutting down the server...")
+		return server.Shutdown(shutdownCtx)
 	case err := <-stopChan:
 		return err
 	}
-
-	return nil
 }
 
 type DataResponse struct {

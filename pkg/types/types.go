@@ -15,6 +15,11 @@ type AuthType int
 
 var Games = []Game{Genshin, StarRail, WuWa, ZZZ}
 
+type Pair[X any, Y any] struct {
+	X X
+	Y Y
+}
+
 func (g Game) Int64() int64 {
 	switch g {
 	case Genshin:

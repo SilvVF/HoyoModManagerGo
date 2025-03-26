@@ -43,9 +43,11 @@ type KeyMapper struct {
 	db    *DbHelper
 	mutex *sync.Mutex
 
+	loaded bool
+
 	cfg    *ini.File
 	path   string
-	mod    *types.Mod
+	mod    types.Mod
 	keymap []KeyBind
 }
 
@@ -55,89 +57,105 @@ func NewKeymapper(db *DbHelper) *KeyMapper {
 		mutex:  &sync.Mutex{},
 		cfg:    nil,
 		path:   "",
-		mod:    nil,
-		keymap: nil,
+		keymap: []KeyBind{},
 	}
 }
 
 func resetState(k *KeyMapper) {
+	k.loaded = false
 	k.cfg = nil
-	k.mod = nil
+	k.mod = types.Mod{}
 	k.keymap = []KeyBind{}
 	k.path = ""
 }
 
+// clears the keybind cache and resets state
 func (k *KeyMapper) Unload() {
 
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
+
+	if !k.loaded {
+		return
+	}
 
 	os.RemoveAll(util.GetKeybindCache())
 
 	resetState(k)
 }
 
-func (k *KeyMapper) DeleteKeymap(file string) error {
-
+// Disables all keymaps and sets cfg and keybinds to merged.ini from mod
+func (k *KeyMapper) LoadDefault() error {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
-	if k.mod == nil {
+	if !k.loaded {
 		return ErrNotLoaded
 	}
 
-	return os.Remove(filepath.Join(util.GetModDir(*k.mod), "keymaps", file))
+	k.DisableAllExcept()
+	return k.loadIni(k.path)
 }
 
-func (k *KeyMapper) GetKeyMap() ([]KeyBind, error) {
-
+func (k *KeyMapper) DeleteKeymap(file string) error {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
-	if k.mod == nil || k.cfg == nil {
+	if !k.loaded {
+		return ErrNotLoaded
+	}
+
+	return os.Remove(filepath.Join(util.GetKeyMapsDir(k.mod), file))
+}
+
+// returns the current keymap slice for the cfg in memory
+func (k *KeyMapper) GetKeyMap() ([]KeyBind, error) {
+	k.mutex.Lock()
+	defer k.mutex.Unlock()
+
+	if !k.loaded {
 		return k.keymap, ErrNotLoaded
 	}
 
-	return generateKeyBinds(k.cfg), nil
+	return k.keymap, nil
 }
 
+// load a keymap by filename from mods keymap dir
+// marks others as disabled
 func (k *KeyMapper) LoadPrevious(file string) error {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
-	if k.mod == nil || k.cfg == nil {
+	if !k.loaded {
 		return ErrNotLoaded
 	}
 
-	modDir := util.GetModDir(*k.mod)
-	path := filepath.Join(modDir, "keymaps", file)
-	time := time.Now().Format(dateFormat)
+	keymaps := util.GetKeyMapsDir(k.mod)
+	old := filepath.Join(keymaps, file)
+	newFile := strings.TrimPrefix(file, "DISABLED")
+	new := filepath.Join(keymaps, newFile)
 
-	segs := strings.Split(file, "_")
-
-	if len(segs) == 0 {
-		return ErrInvalidConfigName
+	if err := os.Rename(old, new); err != nil {
+		return err
 	}
 
-	name := strings.Join(segs[0:len(segs)-2], "")
+	if err := k.DisableAllExcept(newFile); err != nil {
+		return err
+	}
 
-	keymapFile := filepath.Join(
-		filepath.Dir(path),
-		fmt.Sprintf("%s_%s.ini", name, time),
-	)
-
-	return os.Rename(path, keymapFile)
+	return k.loadIni(new)
 }
 
+// returns all keymap file paths from mods keymap dir
 func (k *KeyMapper) GetKeymaps() ([]string, error) {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
-	if k.mod == nil || k.cfg == nil {
+	if !k.loaded {
 		return nil, ErrNotLoaded
 	}
 
-	files, err := os.ReadDir(util.GetKeyMapsDir(*k.mod))
+	files, err := os.ReadDir(util.GetKeyMapsDir(k.mod))
 	if err != nil {
 		return nil, err
 	}
@@ -146,16 +164,28 @@ func (k *KeyMapper) GetKeymaps() ([]string, error) {
 	for _, file := range files {
 		paths = append(paths, file.Name())
 	}
-	slices.SortFunc(paths, util.DateSorter(false))
+	slices.SortFunc(paths, func(a string, b string) int {
+		aDisabled := strings.HasPrefix(a, "DISABLED")
+		bDisabled := strings.HasPrefix(b, "DISABLED")
+		if aDisabled && !bDisabled {
+			return 1
+		} else if bDisabled && !aDisabled {
+			return -1
+		}
+
+		return util.DateSorter(false)(a, b)
+	})
 
 	return paths, nil
 }
 
+// write current cfg and copies sections into original ini of mod
+// saves output to mod keymap dir
 func (k *KeyMapper) SaveConfig(name string) error {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
-	if k.mod == nil || k.cfg == nil || k.path == "" {
+	if !k.loaded {
 		return ErrNotLoaded
 	}
 
@@ -163,17 +193,18 @@ func (k *KeyMapper) SaveConfig(name string) error {
 		return ErrInvalidConfigName
 	}
 
+	k.DisableAllExcept()
+
 	time := time.Now().Format(dateFormat)
 	keymapFile := filepath.Join(
-		util.GetModDir(*k.mod),
-		"keymaps",
+		util.GetKeyMapsDir(k.mod),
 		fmt.Sprintf("%s_%s.ini", name, time),
 	)
 	log.LogDebug(keymapFile)
 
 	err := os.MkdirAll(filepath.Dir(keymapFile), os.ModePerm)
 	if err != nil {
-		log.LogError("Error creating directories:" + err.Error())
+		log.LogErrorf("Error creating directories: %e", err)
 		return err
 	}
 
@@ -192,15 +223,17 @@ func (k *KeyMapper) SaveConfig(name string) error {
 		return err
 	}
 
-	return k.DisableAllExcept(output.Name())
+	return nil
 }
 
+// appends DISABLED to all files in current mods keymap dir
+// exceptions specified using filename only
 func (k *KeyMapper) DisableAllExcept(exceptions ...string) error {
-	if k.mod == nil {
+	if !k.loaded {
 		return ErrModNotFound
 	}
 
-	keymaps := util.GetKeyMapsDir(*k.mod)
+	keymaps := util.GetKeyMapsDir(k.mod)
 	fe, err := os.ReadDir(keymaps)
 	if err != nil {
 		return err
@@ -209,8 +242,10 @@ func (k *KeyMapper) DisableAllExcept(exceptions ...string) error {
 	errs := []error{}
 
 	for _, e := range fe {
-		if e.IsDir() && !slices.Contains(exceptions, e.Name()) && !strings.HasPrefix(e.Name(), "DISABLED") {
+		if !slices.Contains(exceptions, e.Name()) && !strings.HasPrefix(e.Name(), "DISABLED") {
+
 			absPath := filepath.Join(keymaps, e.Name())
+
 			err := os.Rename(absPath, filepath.Join(keymaps, "DISABLED"+e.Name()))
 			if err != nil {
 				errs = append(errs, err)
@@ -221,9 +256,15 @@ func (k *KeyMapper) DisableAllExcept(exceptions ...string) error {
 	return errors.Join(errs...)
 }
 
+// Writes config and updates k.keybinds with new key
+// mutex locked on enter unlock on exit
 func (k *KeyMapper) Write(section string, sectionKey string, keys []string) error {
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
+
+	if !k.loaded {
+		return ErrModNotFound
+	}
 
 	sec, err := k.cfg.GetSection(section)
 
@@ -257,18 +298,23 @@ func (k *KeyMapper) Write(section string, sectionKey string, keys []string) erro
 	}
 
 	key.SetValue(strings.Join(binds, " "))
+	k.keymap = generateKeyBinds(k.cfg)
 
 	return nil
 }
 
+// sets initial values for keybinds and finds
+// original ini file in the mod
 func (k *KeyMapper) Load(modId int) error {
 
 	k.mutex.Lock()
 	defer k.mutex.Unlock()
 
-	resetState(k)
+	if k.mod.Id == modId {
+		return nil
+	}
 
-	os.RemoveAll(util.GetKeybindCache())
+	resetState(k)
 
 	err := os.MkdirAll(util.GetKeybindCache(), os.ModePerm)
 	if err != nil {
@@ -282,51 +328,68 @@ func (k *KeyMapper) Load(modId int) error {
 	}
 
 	modDir := util.GetModDir(mod)
-	keymapDir := util.GetKeyMapsDir(mod)
-
 	k.walkDirHandleZip(modDir)
 
 	if k.path == "" {
 		return ErrConfigNotFound
 	}
 
+	configPath := k.path
+	if enabled, ok := getEnabledKeymapPath(mod); ok {
+		configPath = enabled
+	}
+
+	k.mod = mod
+	k.loadIni(configPath)
+	k.loaded = true
+
+	return nil
+}
+
+func (k *KeyMapper) loadIni(path string) error {
+	inputFile, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	targetSection := getKeybindSection(inputFile)
+	inputFile.Close()
+
+	log.LogDebug(targetSection)
+	cfg, err := ini.Load([]byte(targetSection))
+	if err != nil || cfg == nil {
+		return err
+	}
+
+	k.cfg = cfg
+	k.keymap = generateKeyBinds(cfg)
+
+	return nil
+}
+
+// abs path to the keymap enabled for mod
+// if no ini enabled path = "" and flag is false
+func getEnabledKeymapPath(mod types.Mod) (string, bool) {
+
+	keymapDir := util.GetKeyMapsDir(mod)
+
 	os.MkdirAll(keymapDir, os.ModePerm)
 	files, _ := os.ReadDir(keymapDir)
 
 	paths := make([]string, 0, len(files))
 	for _, file := range files {
+		if strings.HasPrefix("DISABLED", file.Name()) {
+			continue
+		}
 		paths = append(paths, file.Name())
 	}
+
+	if len(paths) == 0 {
+		return "", false
+	}
+
 	slices.SortFunc(paths, util.DateSorter(false))
 
-	log.LogDebugf("paths %v", paths)
-
-	var cfg *ini.File
-	configPath := k.path
-
-	if len(paths) > 0 {
-		configPath = filepath.Join(keymapDir, paths[0])
-	}
-
-	inputFile, err := os.Open(configPath)
-	if err != nil {
-		return err
-	}
-	defer inputFile.Close()
-
-	targetSection := getKeybindSection(inputFile)
-
-	log.LogDebug(targetSection)
-	cfg, err = ini.Load([]byte(targetSection))
-	if err != nil || cfg == nil {
-		return err
-	}
-
-	k.mod = &mod
-	k.cfg = cfg
-	k.keymap = generateKeyBinds(cfg)
-
-	return nil
+	return filepath.Join(keymapDir, paths[0]), true
 }
 
 func (k *KeyMapper) walkZip(path string) (string, error) {
@@ -399,7 +462,7 @@ func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
 
 	file, err := os.Open(mergedPath)
 	if err != nil {
-		fmt.Println("Error opening file:", err)
+		log.LogDebugf("Error opening file: %e", err)
 		return ""
 	}
 	defer file.Close()
@@ -407,7 +470,6 @@ func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
 	scanner := bufio.NewScanner(file)
 
 	sb := strings.Builder{}
-
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -417,16 +479,20 @@ func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
 			sb.WriteRune('\n')
 
 			matches := keySecRegex.FindStringSubmatch(line)
-			secName := matches[0]
+			secName := strings.TrimRight(strings.TrimLeft(matches[0], "["), "]")
 
 			sec, err := cfg.GetSection(secName)
 			if err != nil {
+				log.LogDebugf("error getting section %e", err)
 				continue
 			}
+			log.LogDebugf("SEARCHING FOR %v", sec.KeyStrings())
 
 			for scanner.Scan() {
-				subline := scanner.Text()
-				split := strings.Split(subline, "=")
+				line = scanner.Text()
+				split := strings.SplitN(line, "=", 2)
+
+				log.LogDebugf("split %v", split)
 
 				if len(split) <= 1 {
 					sb.WriteString(line)
@@ -436,9 +502,11 @@ func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
 
 				subName := strings.TrimSpace(split[0])
 
-				if key, err := sec.GetKey(subName); err != nil {
+				if key, _ := sec.GetKey(subName); key != nil {
+					log.LogDebugf("Writing KEY=%s VALUE=%s", subName, key.String())
 					sb.WriteString(fmt.Sprintf("%s = %s\n", subName, key.String()))
 				} else {
+					log.LogDebugf("Skipping KEY=%s", subName)
 					sb.WriteString(line)
 					sb.WriteRune('\n')
 				}

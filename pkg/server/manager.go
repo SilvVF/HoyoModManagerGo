@@ -32,6 +32,7 @@ type ServerManager struct {
 	prefs     *core.AppPrefs
 	generator *core.Generator
 	db        *core.DbHelper
+	err       chan error
 	events    chan ServCmd
 }
 
@@ -79,6 +80,7 @@ func NewServerManager(prefs *core.AppPrefs, db *core.DbHelper, g *core.Generator
 		db:        db,
 		generator: g,
 		events:    make(chan ServCmd),
+		err:       make(chan error),
 	}
 }
 
@@ -169,10 +171,10 @@ func (sm *ServerManager) startCancellableServer(port int) {
 
 	sm.server = &CancelableServer{
 		cancel,
-		newServer(ctx, port, sm.db, sm.generator, sm.prefs),
+		newServer(port, sm.db, sm.generator, sm.prefs),
 	}
 
 	go func() {
-		sm.server.server.run()
+		sm.err <- sm.server.server.Run(ctx)
 	}()
 }
