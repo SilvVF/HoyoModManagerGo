@@ -239,7 +239,7 @@ export default function SettingsScreen() {
         onOpenChange={(open) => open ? setDialog("migrate_mods_dir") : setDialog(undefined)}
       />
       <h1 className="text-2xl font-bold my-4 ">Settings</h1>
-      <ScrollArea className="max-w-[600]">
+      <ScrollArea className="max-w-600">
         <div className="flex flex-row overflow-x-scroll space-x-2">
           {stats?.map((data) => {
             return <SizeChart item={data} />;

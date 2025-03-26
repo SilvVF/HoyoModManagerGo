@@ -123,7 +123,7 @@ function PlaylistScreenContent({ game, setGame }: {
         </div>
         <div className="flex flex-row pe-2">
           <Button
-            className="m-2 backdrop-blur-sm text-sm p-2"
+            className="m-2 backdrop-blur-xs text-sm p-2"
             onClick={unselectAllMods}
           >
             Unselect All
@@ -144,7 +144,7 @@ function PlaylistScreenContent({ game, setGame }: {
                       className="object-contain aspect-square rounded-full max-h-16 bg-secondary"
                       src={cwmt.characters.avatarUrl}
                     />
-                    <div className="text-lg m-2 overflow-ellipsis">
+                    <div className="text-lg m-2 text-ellipsis">
                       {mod.filename}
                     </div>
                   </div>

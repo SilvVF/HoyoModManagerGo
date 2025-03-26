@@ -497,7 +497,7 @@ function SelectKeymapDialog(props: {
                   >
                     <div className="flex flex-row min-w-full justify-between items-center">
                       <text className="text-lg">{split[0]}</text>
-                      <text className="text-muted-foreground overflow-ellipsis">
+                      <text className="text-muted-foreground text-ellipsis">
                         {formatDate(
                           split[split.length - 2] +
                           "_" +

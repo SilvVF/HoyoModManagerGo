@@ -270,7 +270,7 @@ function SearchBar() {
     >
       <Input
         value={text}
-        className="font-semibold text-foreground bg-transparent border-none outline-none focus:outline-none rounded-full"
+        className="font-semibold text-foreground bg-transparent border-none outline-hidden focus:outline-hidden rounded-full"
         placeholder="Search..."
         onInput={(e: any) => setText(e.target.value)}
       />
@@ -279,7 +279,7 @@ function SearchBar() {
         className="h-6 bg-foreground"
       ></Separator>
       <Button
-        className="bg-transparent hover:bg-transparent hover:outline-none pe-4"
+        className="bg-transparent hover:bg-transparent hover:outline-hidden pe-4"
         size="icon"
         type="submit" // Set type to "submit" to trigger form submission
         variant="link"

@@ -66,7 +66,7 @@ function SidebarItem(props: {
           className={cn(
             open ? "opacity-100" : "opacity-0",
             "fade-in fade-out transition-all duration-350 ease-in-out",
-            "text-md line-clamp-1 overflow-ellipsis"
+            "text-md line-clamp-1 text-ellipsis"
           )}
         >
           {props.name}
@@ -204,7 +204,7 @@ export function AppSidebar({
         className={cn(
           open ? "opacity-100" : "opacity-0",
           "fade-in fade-out transition-all duration-350 ease-in-out",
-          "text-md line-clamp-1 overflow-ellipsis"
+          "text-md line-clamp-1 text-ellipsis"
         )}
       >
         <div className="flex flex-row justify-between items-baseline w-full">
@@ -224,7 +224,7 @@ export function AppSidebar({
                 <Button
                   key={`${playlist}-${i}`}
                   variant="ghost"
-                  className="w-full justify-start font-normal overflow-clip max-w-[3/4]"
+                  className="w-full justify-start font-normal overflow-clip max-w-3/4"
                   onClick={() =>
                     enablePlaylist(playlist.playlist.game, playlist.playlist.id)
                   }

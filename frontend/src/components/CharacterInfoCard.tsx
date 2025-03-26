@@ -49,7 +49,7 @@ export function CharacterInfoCard({
           {cmt.modWithTags.map((mwt) => (
             <div key={mwt.mod.id} className="flex flex-col">
               <div className="grid grid-cols-5 overflow-hidden items-center">
-                <b className="col-span-3 w-full text-sm my-1 overflow-ellipsis overflow-x-hidden pe-1">
+                <b className="col-span-3 w-full text-sm my-1 text-ellipsis overflow-x-hidden pe-1">
                   {mwt.mod.filename}
                 </b>
                 <Switch
@@ -79,7 +79,7 @@ export function CharacterInfoCard({
                   {mwt.textures.map((t) => {
                     return (
                       <div className="grid grid-cols-5 overflow-hidden items-center">
-                        <b className="text-sm col-span-3 w-full my-1 overflow-ellipsis overflow-x-hidden pe-1">
+                        <b className="text-sm col-span-3 w-full my-1 text-ellipsis overflow-x-hidden pe-1">
                           {t.filename}
                         </b>
                         <Switch
