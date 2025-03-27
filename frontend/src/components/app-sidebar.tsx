@@ -65,8 +65,9 @@ function SidebarItem(props: {
         <text
           className={cn(
             open ? "opacity-100" : "opacity-0",
-            "fade-in fade-out transition-all duration-350 ease-in-out",
-            "text-md line-clamp-1 text-ellipsis"
+            "transition-all duration-300 ease-in-out",
+            "animate-fade-in animate-fade-out",
+            "text-md line-clamp-1"
           )}
         >
           {props.name}
@@ -126,7 +127,7 @@ export function AppSidebar({
       } else {
         navigate(`/mods/cats/${defaultPath}`);
       }
-    } catch {}
+    } catch { }
   };
 
   return (
@@ -203,7 +204,8 @@ export function AppSidebar({
       <SidebarFooter
         className={cn(
           open ? "opacity-100" : "opacity-0",
-          "fade-in fade-out transition-all duration-350 ease-in-out",
+          "transition-all duration-300 ease-in-out",
+          "animate-fade-in animate-fade-out",
           "text-md line-clamp-1 text-ellipsis"
         )}
       >

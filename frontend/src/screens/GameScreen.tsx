@@ -218,11 +218,10 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
         setDialog={setDialog}
         refreshCharacters={refreshCharacters}
       />
-      <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 mb-16">
+      <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4 mb-16 mx-2">
         {filteredCharacters.map((c) => (
-          <div className="col-span-1 m-2 overflow-hidden">
+          <div key={c.characters.id} className="break-inside-avoid mb-4">
             <CharacterInfoCard
-              key={c.characters.id}
               enableMod={enableMod}
               cmt={c}
               modDropdownMenu={(mwt) => (
@@ -230,9 +229,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
                   <ModActionsDropDown
                     onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
                     onDelete={() => deleteMod(mwt.mod.id)}
-                    onRename={() =>
-                      setDialog({ x: "rename_mod", y: mwt.mod.id })
-                    }
+                    onRename={() => setDialog({ x: "rename_mod", y: mwt.mod.id })}
                     onView={() => {
                       if (mwt.mod.gbId !== 0) {
                         navigate(`/mods/${mwt.mod.gbId}`);
