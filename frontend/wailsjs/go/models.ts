@@ -375,7 +375,7 @@ export namespace api {
 	    _bCreatedBySubmitter?: boolean;
 	    _bIsPorted?: boolean;
 	    _nThanksCount?: number;
-	    _aContentRatings?: {[key: string]: string};
+	    _aContentRatings?: Record<string, string>;
 	    _sInitialVisibility?: string;
 	    _sDownloadUrl?: string;
 	    _nDownloadCount?: number;
@@ -791,6 +791,7 @@ export namespace types {
 		    return a;
 		}
 	}
+	
 	
 	
 	export class Playlist {

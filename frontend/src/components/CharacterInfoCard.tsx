@@ -28,6 +28,108 @@ export interface CharacterInfoCardProps {
   textureDropdownMenu: (texture: types.Texture) => ReactElement | undefined;
 }
 
+const TextDisplay = ({ text, availableSpace }: { text: string, availableSpace: number }) => {
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const textRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (textRef.current) {
+      setIsOverflowing(textRef.current.scrollWidth > availableSpace);
+    }
+  }, [text, availableSpace]);
+
+  return (
+    <div className="overflow-hidden" style={{ maxWidth: availableSpace }}>
+      <span
+        ref={textRef}
+        className={`inline-block text-sm ${isOverflowing ? 'animate-marquee' : 'truncate'}`}
+      >
+        {text}
+      </span>
+    </div>
+  );
+};
+
+
+const ModRow = ({
+  id,
+  filename,
+  showT,
+  setShowT,
+  enableFn,
+  enabled,
+  dropdownMenu,
+  hasTextures = false,
+  isTexture = false
+}: {
+  id: number,
+  filename: string,
+  showT: boolean,
+  setShowT: React.Dispatch<React.SetStateAction<boolean>>
+  enableFn: (id: number, enabled: boolean) => void,
+  enabled: boolean,
+  dropdownMenu: React.ReactNode,
+  hasTextures?: boolean,
+  isTexture?: boolean
+}) => {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const controlRef = useRef<HTMLDivElement>(null);
+  const [availableWidth, setAvailableWidth] = useState(200);
+
+  useEffect(() => {
+    let frameId: number;
+
+    const listener = () => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(() => {
+        if (rowRef.current) {
+          const rowWidth = rowRef.current.clientWidth;
+          const controlsWidth = controlRef.current?.clientWidth ?? 100;
+          setAvailableWidth(rowWidth - controlsWidth);
+        }
+      });
+    };
+
+    window.addEventListener("resize", listener);
+    listener();
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", listener);
+    };
+  }, []);
+
+  return (
+    <div ref={rowRef} className="flex flex-row items-center w-full">
+      <div className="flex-grow overflow-hidden mr-2">
+        <TextDisplay
+          text={filename}
+          availableSpace={availableWidth}
+        />
+      </div>
+
+      <div ref={controlRef} className="flex flex-row items-center space-x-1 flex-shrink-0">
+        <Switch
+          className="my-1"
+          checked={enabled}
+          onCheckedChange={() => enableFn(id, !enabled)}
+        />
+        {dropdownMenu}
+        {!isTexture && hasTextures && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowT(prev => !prev)}
+            className={`transition-transform ${showT ? "rotate-180" : "rotate-0"}`}
+          >
+            <ChevronDown />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export function CharacterInfoCard({
   cmt,
   modDropdownMenu,
@@ -37,103 +139,6 @@ export function CharacterInfoCard({
 }: CharacterInfoCardProps) {
   const character: types.Character = cmt.characters;
   const [showT, setShowT] = useState(true);
-
-  const TextDisplay = ({ text, availableSpace }: { text: string, availableSpace: number }) => {
-    const [isOverflowing, setIsOverflowing] = useState(false);
-    const textRef = useRef<HTMLSpanElement>(null);
-
-    useEffect(() => {
-      if (textRef.current) {
-        setIsOverflowing(textRef.current.scrollWidth > availableSpace);
-      }
-    }, [text, availableSpace]);
-
-    return (
-      <div className="overflow-hidden" style={{ maxWidth: availableSpace }}>
-        <span
-          ref={textRef}
-          className={`inline-block text-sm ${isOverflowing ? 'animate-marquee' : 'truncate'}`}
-        >
-          {text}
-        </span>
-      </div>
-    );
-  };
-
-  const ModRow = ({
-    id,
-    filename,
-    enableFn,
-    enabled,
-    dropdownMenu,
-    hasTextures = false,
-    isTexture = false
-  }: {
-    id: number,
-    filename: string,
-    enableFn: (id: number, enabled: boolean) => void,
-    enabled: boolean,
-    dropdownMenu: (item: any) => React.ReactNode,
-    hasTextures?: boolean,
-    isTexture?: boolean
-  }) => {
-    const rowRef = useRef<HTMLDivElement>(null);
-    const controlRef = useRef<HTMLDivElement>(null);
-    const [availableWidth, setAvailableWidth] = useState(200);
-
-    useEffect(() => {
-      let frameId: number;
-
-      const listener = () => {
-        cancelAnimationFrame(frameId);
-        frameId = requestAnimationFrame(() => {
-          if (rowRef.current) {
-            const rowWidth = rowRef.current.clientWidth;
-            const controlsWidth = controlRef.current?.clientWidth ?? 100;
-            setAvailableWidth(rowWidth - controlsWidth);
-          }
-        });
-      };
-
-      window.addEventListener("resize", listener);
-      listener();
-
-      return () => {
-        cancelAnimationFrame(frameId);
-        window.removeEventListener("resize", listener);
-      };
-    }, []);
-
-    return (
-      <div ref={rowRef} className="flex flex-row items-center w-full">
-        <div className="flex-grow overflow-hidden mr-2">
-          <TextDisplay
-            text={filename}
-            availableSpace={availableWidth}
-          />
-        </div>
-
-        <div ref={controlRef} className="flex flex-row items-center space-x-1 flex-shrink-0">
-          <Switch
-            className="my-1"
-            checked={enabled}
-            onCheckedChange={() => enableFn(id, !enabled)}
-          />
-          {dropdownMenu({ mod: { filename } })}
-          {!isTexture && hasTextures && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowT(prev => !prev)}
-              className={`transition-transform ${showT ? "rotate-180" : "rotate-0"}`}
-            >
-              <ChevronDown />
-            </Button>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <Card className="w-full">
@@ -152,10 +157,12 @@ export function CharacterInfoCard({
               <div key={mwt.mod.id} className="flex flex-col mb-2">
                 <ModRow
                   id={mwt.mod.id}
+                  showT={showT}
+                  setShowT={setShowT}
                   filename={mwt.mod.filename}
                   enableFn={enableMod}
                   enabled={mwt.mod.enabled}
-                  dropdownMenu={modDropdownMenu}
+                  dropdownMenu={modDropdownMenu(mwt)}
                   hasTextures={mwt.textures.length > 0}
                 />
                 {showT && mwt.textures.length > 0 && (
@@ -165,10 +172,12 @@ export function CharacterInfoCard({
                       <ModRow
                         key={t.id}
                         id={t.id}
+                        showT={showT}
+                        setShowT={setShowT}
                         filename={t.filename}
                         enableFn={enableTexture}
                         enabled={t.enabled}
-                        dropdownMenu={textureDropdownMenu}
+                        dropdownMenu={textureDropdownMenu(t)}
                         isTexture={true}
                       />
                     ))}

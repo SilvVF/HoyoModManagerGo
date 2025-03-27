@@ -11,7 +11,7 @@ export function Download(arg1:string,arg2:string,arg3:string,arg4:number,arg5:ty
 
 export function DownloadTexture(arg1:string,arg2:string,arg3:number,arg4:number,arg5:Array<string>):Promise<void>;
 
-export function GetQueue():Promise<{[key: string]: core.DLItem}>;
+export function GetQueue():Promise<Record<string, core.DLItem>>;
 
 export function RemoveFromQueue(arg1:string):Promise<void>;
 
