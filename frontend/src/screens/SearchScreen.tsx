@@ -279,42 +279,44 @@ export function SearchScreen() {
         {results.urlResults.map((res) => (
           <Button onClick={() => navigate(res.path)}>{res.text}</Button>
         ))}
-        <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 w-full">
+        <div className="w-full columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4 mx-2 pb-4">
           {results.dataResults.map((res) => {
             return (
-              <CharacterInfoCard
-                key={res.characters.id}
-                enableMod={enableMod}
-                cmt={res}
-                modDropdownMenu={(mwt) => (
-                  <ModActionsDropDown
-                    onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
-                    onDelete={() => deleteMod(mwt.mod.id)}
-                    onRename={() =>
-                      setDialog({ x: "rename_mod", y: mwt.mod.id })
-                    }
-                    onView={() => {
-                      if (mwt.mod.gbId !== 0) {
-                        navigate(`/mods/${mwt.mod.gbId}`);
+              <div key={res.characters.id} className="break-inside-avoid mb-4">
+                <CharacterInfoCard
+                  key={res.characters.id}
+                  enableMod={enableMod}
+                  cmt={res}
+                  modDropdownMenu={(mwt) => (
+                    <ModActionsDropDown
+                      onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
+                      onDelete={() => deleteMod(mwt.mod.id)}
+                      onRename={() =>
+                        setDialog({ x: "rename_mod", y: mwt.mod.id })
                       }
-                    }}
-                    onKeymapEdit={() => navigate(`/keymap/${mwt.mod.id}`)}
-                  />
-                )}
-                textureDropdownMenu={(t) => (
-                  <TextureActionDropDown
-                    onEnable={() => enableTexture(t.id, !t.enabled)}
-                    onDelete={() => deleteTexture(t.id)}
-                    onRename={() => setDialog({ x: "rename_texture", y: t.id })}
-                    onView={() => {
-                      if (t.gbId !== 0) {
-                        navigate(`/mods/${t.gbId}`);
-                      }
-                    }}
-                  />
-                )}
-                enableTexture={enableTexture}
-              />
+                      onView={() => {
+                        if (mwt.mod.gbId !== 0) {
+                          navigate(`/mods/${mwt.mod.gbId}`);
+                        }
+                      }}
+                      onKeymapEdit={() => navigate(`/keymap/${mwt.mod.id}`)}
+                    />
+                  )}
+                  textureDropdownMenu={(t) => (
+                    <TextureActionDropDown
+                      onEnable={() => enableTexture(t.id, !t.enabled)}
+                      onDelete={() => deleteTexture(t.id)}
+                      onRename={() => setDialog({ x: "rename_texture", y: t.id })}
+                      onView={() => {
+                        if (t.gbId !== 0) {
+                          navigate(`/mods/${t.gbId}`);
+                        }
+                      }}
+                    />
+                  )}
+                  enableTexture={enableTexture}
+                />
+              </div>
             );
           })}
         </div>
