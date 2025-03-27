@@ -52,27 +52,47 @@
     from {
       height: 0;
     }
+
     to {
       height: var(--radix-accordion-content-height);
     }
   }
+
   @keyframes accordion-up {
     from {
       height: var(--radix-accordion-content-height);
     }
+
     to {
       height: 0;
     }
   }
+
+  @keyframes marquee {
+    0% {
+      transform: translateX(100%);
+    }
+
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+
+  .animate-marquee {
+    animation: marquee 10s linear infinite;
+  }
+
 }
 
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;
-  @media (width >= --theme(--breakpoint-sm)) {
+
+  @media (width >=--theme(--breakpoint-sm)) {
     max-width: none;
   }
-  @media (width >= 1400px) {
+
+  @media (width >=1400px) {
     max-width: 1400px;
   }
 }
@@ -86,6 +106,7 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
+
   *,
   ::after,
   ::before,
@@ -126,6 +147,7 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .light {
     --background: 220 23% 95%;
     --foreground: 234 16% 35%;
@@ -147,6 +169,7 @@
     --destructive-foreground: 3 87% 97%;
     --ring: 266 85% 58%;
   }
+
   .dark {
     --background: 240 21% 15%;
     --foreground: 226 64% 88%;
@@ -178,11 +201,12 @@
   }
 }
 
- 
+
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -202,6 +226,7 @@
   ::-webkit-scrollbar-thumb {
     @apply rounded-full bg-muted-foreground;
   }
+
   input:-webkit-autofill,
   textarea:-webkit-autofill,
   select:-webkit-autofill {

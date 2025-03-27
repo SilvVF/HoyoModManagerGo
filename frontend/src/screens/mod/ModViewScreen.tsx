@@ -151,7 +151,7 @@ export function ModViewScreen() {
   }, [content, dataApi]);
 
   return (
-    <div className="flex flex-col min-w-screen h-full items-center">
+    <div className="flex flex-col min-w-full h-full items-center">
       <CharacterSelectDropdown onSelected={setCharacter} selected={character} />
       <Carousel className="w-11/12" setApi={setApi}>
         <CarouselContent>
@@ -159,10 +159,10 @@ export function ModViewScreen() {
             <CarouselItem key={index} className="basis-1/3">
               <Dialog>
                 <DialogTrigger asChild>
-                <img className="object-cover aspect-square" src={url} />
+                  <img className="object-cover aspect-square" src={url} />
                 </DialogTrigger>
                 <DialogContent className="min-w-[80%] justify-center">
-                   <img className="max-h-[calc(80vh)] object-contain overflow-clip" src={url} />
+                  <img className="max-h-[calc(80vh)] object-contain overflow-clip" src={url} />
                 </DialogContent>
               </Dialog>
             </CarouselItem>

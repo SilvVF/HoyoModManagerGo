@@ -48,7 +48,7 @@ export type DialogType =
   | "create_tag"
   | "rename_tag"
   | "rename_texture";
-  
+
 export type GameDialog = Pair<DialogType, number>;
 
 const getElementPref = (game: number): GoPref<string[]> => {
@@ -164,12 +164,12 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
       create_tag: {
         title: "Create tag",
         description: "create a tag for the mod",
-        onSuccess: () => {},
+        onSuccess: () => { },
       },
       rename_tag: {
         title: "Rename tag",
         description: "Rename the current tag",
-        onSuccess: () => {},
+        onSuccess: () => { },
       },
       rename_texture: {
         title: "Rename Texture",
@@ -220,7 +220,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
       />
       <div className="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 mb-16">
         {filteredCharacters.map((c) => (
-          <div className="col-span-1">
+          <div className="col-span-1 m-2 overflow-hidden">
             <CharacterInfoCard
               key={c.characters.id}
               enableMod={enableMod}
@@ -485,7 +485,7 @@ function CharacterFilters({
         })}
       </div>
       <div className="flex flex-row pe-2">
-      <Button
+        <Button
           className="mx-2 backdrop-blur-md border-0"
           onPointerDown={importMod}
         >

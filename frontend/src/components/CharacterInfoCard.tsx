@@ -14,12 +14,12 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Separator } from "./ui/separator";
-import { ScrollArea } from "./ui/scroll-area";
 import { Card } from "./ui/card";
 import { Switch } from "./ui/switch";
 import { types } from "wailsjs/go/models";
-import { ReactElement, useState } from "react";
+import { ReactElement, useEffect, useRef, useState } from "react";
 import { DialogTrigger } from "@radix-ui/react-dialog";
+import React from "react";
 export interface CharacterInfoCardProps {
   cmt: types.CharacterWithModsAndTags;
   enableMod: (id: number, enabled: boolean) => void;
@@ -38,68 +38,160 @@ export function CharacterInfoCard({
   const character: types.Character = cmt.characters;
   const [showT, setShowT] = useState(true);
 
-  return (
-    <Card className="m-2">
-      <div className="flex flex-row m-2">
-        <div className="flex flex-col items-start">
-          <img src={character.avatarUrl} alt={`${character.name} Avatar`} />
-          <b className="text-lg p-2">{character.name}</b>
-        </div>
-        <ScrollArea className="max-h-[300px] w-full">
-          {cmt.modWithTags.map((mwt) => (
-            <div key={mwt.mod.id} className="flex flex-col">
-              <div className="grid grid-cols-5 overflow-hidden items-center">
-                <b className="col-span-3 w-full text-sm my-1 text-ellipsis overflow-x-hidden pe-1">
-                  {mwt.mod.filename}
-                </b>
-                <Switch
-                  className="col-span-1 my-1"
-                  checked={mwt.mod.enabled}
-                  onCheckedChange={() =>
-                    enableMod(mwt.mod.id, !mwt.mod.enabled)
-                  }
-                />
-                <div className="flex flex-row">
-                  {modDropdownMenu(mwt)}
-                  {mwt.textures.length > 0 ? (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setShowT((p) => !p)}
-                      className={showT ? "rotate-180" : "rotate-0"}
-                    >
-                      <ChevronDown />
-                    </Button>
-                  ) : undefined}
-                </div>
-              </div>
-              {showT && mwt.textures.length > 0 ? (
-                <div className="slide-in fade-out flex flex-col">
-                  <div className="text-sm">{`Textures for ${mwt.mod.filename}`}</div>
-                  {mwt.textures.map((t) => {
-                    return (
-                      <div className="grid grid-cols-5 overflow-hidden items-center">
-                        <b className="text-sm col-span-3 w-full my-1 text-ellipsis overflow-x-hidden pe-1">
-                          {t.filename}
-                        </b>
-                        <Switch
-                          className="col-span-1 my-1"
-                          checked={t.enabled}
-                          onCheckedChange={() =>
-                            enableTexture(t.id, !t.enabled)
-                          }
-                        />
-                        {textureDropdownMenu(t)}
-                      </div>
-                    );
-                  })}
-                  <Separator className="my-1" />
-                </div>
-              ) : undefined}
-            </div>
-          ))}
-        </ScrollArea>
+  const TextDisplay = ({ text, availableSpace }: { text: string, availableSpace: number }) => {
+    const [isOverflowing, setIsOverflowing] = useState(false);
+    const textRef = useRef<HTMLSpanElement>(null);
+
+    useEffect(() => {
+      if (textRef.current) {
+        setIsOverflowing(textRef.current.scrollWidth > availableSpace);
+      }
+    }, [text, availableSpace]);
+
+    return (
+      <div className="overflow-hidden" style={{ maxWidth: availableSpace }}>
+        <span
+          ref={textRef}
+          className={`inline-block text-sm ${isOverflowing ? 'animate-marquee' : 'truncate'}`}
+        >
+          {text}
+        </span>
       </div>
+    );
+  };
+
+  const ModRow = ({
+    id,
+    filename,
+    enableFn,
+    enabled,
+    dropdownMenu,
+    hasTextures = false,
+    isTexture = false
+  }: {
+    id: number,
+    filename: string,
+    enableFn: (id: number, enabled: boolean) => void,
+    enabled: boolean,
+    dropdownMenu: (item: any) => React.ReactNode,
+    hasTextures?: boolean,
+    isTexture?: boolean
+  }) => {
+    const rowRef = useRef<HTMLDivElement>(null);
+    const controlRef = useRef<HTMLDivElement>(null);
+    const [availableWidth, setAvailableWidth] = useState(200);
+
+    useEffect(() => {
+      let frameId: number;
+
+      const listener = () => {
+        cancelAnimationFrame(frameId);
+        frameId = requestAnimationFrame(() => {
+          if (rowRef.current) {
+            const rowWidth = rowRef.current.clientWidth;
+            const controlsWidth = controlRef.current?.clientWidth ?? 100;
+            setAvailableWidth(rowWidth - controlsWidth);
+          }
+        });
+      };
+
+      window.addEventListener("resize", listener);
+      listener();
+
+      return () => {
+        cancelAnimationFrame(frameId);
+        window.removeEventListener("resize", listener);
+      };
+    }, []);
+
+    return (
+      <div ref={rowRef} className="flex flex-row items-center w-full">
+        <div className="flex-grow overflow-hidden mr-2">
+          <TextDisplay
+            text={filename}
+            availableSpace={availableWidth}
+          />
+        </div>
+
+        <div ref={controlRef} className="flex flex-row items-center space-x-1 flex-shrink-0">
+          <Switch
+            className="my-1"
+            checked={enabled}
+            onCheckedChange={() => enableFn(id, !enabled)}
+          />
+          {dropdownMenu({ mod: { filename } })}
+          {!isTexture && hasTextures && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowT(prev => !prev)}
+              className={`transition-transform ${showT ? "rotate-180" : "rotate-0"}`}
+            >
+              <ChevronDown />
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Card className="w-full">
+      <div className="flex flex-row m-2 w-full">
+        <div className="w-1/3 pr-2 flex flex-col items-center">
+          <img
+            src={character.avatarUrl}
+            alt={`${character.name} Avatar`}
+            className="w-full aspect-square object-cover rounded-md"
+          />
+          <b className="text-lg p-2 text-center truncate w-full">{character.name}</b>
+        </div>
+        <div className="w-2/3 overflow-hidden  overflow-y-auto me-2">
+          <div className="max-h-[300px] w-full">
+            {cmt.modWithTags.map((mwt) => (
+              <div key={mwt.mod.id} className="flex flex-col mb-2">
+                <ModRow
+                  id={mwt.mod.id}
+                  filename={mwt.mod.filename}
+                  enableFn={enableMod}
+                  enabled={mwt.mod.enabled}
+                  dropdownMenu={modDropdownMenu}
+                  hasTextures={mwt.textures.length > 0}
+                />
+                {showT && mwt.textures.length > 0 && (
+                  <div className="slide-in fade-out flex flex-col">
+                    <div className="text-sm font-semibold my-1">{`Textures for ${mwt.mod.filename}`}</div>
+                    {mwt.textures.map((t) => (
+                      <ModRow
+                        key={t.id}
+                        id={t.id}
+                        filename={t.filename}
+                        enableFn={enableTexture}
+                        enabled={t.enabled}
+                        dropdownMenu={textureDropdownMenu}
+                        isTexture={true}
+                      />
+                    ))}
+                    <Separator className="my-1" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Marquee Animation */}
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          white-space: nowrap;
+          animation: marquee 5s linear infinite;
+        }
+      `}</style>
     </Card>
   );
 }
