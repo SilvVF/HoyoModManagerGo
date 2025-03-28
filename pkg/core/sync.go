@@ -68,12 +68,12 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 
 	dataApi, ok := api.ApiList[game]
 	if !ok {
-		return errors.New(fmt.Sprintf("invalid data api %v", game))
+		return fmt.Errorf("invalid data api %v", game)
 	}
 
 	completed := request == StartupRequest && s.initialComplete[game]
 	if completed {
-		return errors.New(fmt.Sprintf("completed Startup Sync for game id %s", dataApi.GetGame().Name()))
+		return fmt.Errorf("completed Startup Sync for game id %s", dataApi.GetGame().Name())
 	}
 
 	pool := s.running[game]

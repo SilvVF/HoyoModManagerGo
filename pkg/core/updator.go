@@ -260,7 +260,7 @@ func (u *Updator) checkNetworkForUpdate(game types.Game, res chan<- types.Pair[i
 		return
 	}
 	for _, file := range page.AFiles {
-		if file.BContainsExe == true {
+		if file.BContainsExe {
 			res <- types.Pair[int, any]{
 				X: net,
 				Y: types.Tool{
