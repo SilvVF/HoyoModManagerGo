@@ -17,7 +17,7 @@ const (
 	starRailDir = "C:\\Users\\david\\SkinMods\\SRMI\\Mods"
 	zzzDir      = "C:\\Users\\david\\SkinMods\\ZZMI\\Mods"
 	wuwaDir     = "C:\\Users\\david\\SkinMods\\WWMI\\Mods"
-	rootModDir  = "C:\\Users\\david\\SkinMods\\ModManager"
+	rootModDir  = "E:\\modmanager"
 )
 
 func TestReadConfig(t *testing.T) {
@@ -69,6 +69,7 @@ func TestReadConfig(t *testing.T) {
 
 		t.Log(files)
 		t.Log("\n========================================")
+		break
 	}
 	t.Fail()
 }

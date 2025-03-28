@@ -214,7 +214,10 @@ func (k *KeyMapper) SaveConfig(name string) error {
 	}
 	defer output.Close()
 
-	iniString := appendKeybindsToOriginal(k.path, k.cfg)
+	iniString, err := OverwriteIniFiles(k.path, k.cfg)
+	if err != nil {
+		return err
+	}
 
 	_, err = output.WriteString(iniString)
 
@@ -335,7 +338,7 @@ func (k *KeyMapper) Load(modId int) error {
 	}
 
 	configPath := k.path
-	if enabled, ok := getEnabledKeymapPath(mod); ok {
+	if enabled, ok := GetEnabledKeymapPath(mod); ok {
 		configPath = enabled
 	}
 
@@ -368,7 +371,7 @@ func (k *KeyMapper) loadIni(path string) error {
 
 // abs path to the keymap enabled for mod
 // if no ini enabled path = "" and flag is false
-func getEnabledKeymapPath(mod types.Mod) (string, bool) {
+func GetEnabledKeymapPath(mod types.Mod) (string, bool) {
 
 	keymapDir := util.GetKeyMapsDir(mod)
 
@@ -457,68 +460,6 @@ func (k *KeyMapper) walkDirHandleZip(modDir string) error {
 }
 
 var keySecRegex = regexp.MustCompile(`\[(Key\w*)\]`)
-
-func appendKeybindsToOriginal(mergedPath string, cfg *ini.File) string {
-
-	file, err := os.Open(mergedPath)
-	if err != nil {
-		log.LogDebugf("Error opening file: %e", err)
-		return ""
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	sb := strings.Builder{}
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if keySecRegex.MatchString(line) {
-
-			sb.WriteString(line)
-			sb.WriteRune('\n')
-
-			matches := keySecRegex.FindStringSubmatch(line)
-			secName := strings.TrimRight(strings.TrimLeft(matches[0], "["), "]")
-
-			sec, err := cfg.GetSection(secName)
-			if err != nil {
-				log.LogDebugf("error getting section %e", err)
-				continue
-			}
-			log.LogDebugf("SEARCHING FOR %v", sec.KeyStrings())
-
-			for scanner.Scan() {
-				line = scanner.Text()
-				split := strings.SplitN(line, "=", 2)
-
-				log.LogDebugf("split %v", split)
-
-				if len(split) <= 1 {
-					sb.WriteString(line)
-					sb.WriteRune('\n')
-					break
-				}
-
-				subName := strings.TrimSpace(split[0])
-
-				if key, _ := sec.GetKey(subName); key != nil {
-					log.LogDebugf("Writing KEY=%s VALUE=%s", subName, key.String())
-					sb.WriteString(fmt.Sprintf("%s = %s\n", subName, key.String()))
-				} else {
-					log.LogDebugf("Skipping KEY=%s", subName)
-					sb.WriteString(line)
-					sb.WriteRune('\n')
-				}
-			}
-		} else {
-			sb.WriteString(line)
-			sb.WriteRune('\n')
-		}
-	}
-
-	return sb.String()
-}
 
 func getKeybindSection(r io.Reader) string {
 

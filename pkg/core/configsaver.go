@@ -165,7 +165,7 @@ func (ifp IniFilePath) open() (io.ReadCloser, error) {
 		}
 
 		for _, f := range r.File {
-			if strings.ToLower(f.Name) == strings.ToLower(ifp.zipPath) {
+			if strings.EqualFold(f.Name, ifp.zipPath) {
 				frc, err := f.Open()
 				if err != nil {
 					return nil, err
@@ -281,7 +281,7 @@ func (cs *ConfigSaver) getIniFilePath(path string, game types.Game) (IniFilePath
 
 func getConfigSection(r io.Reader) string {
 
-	sectionRegex := regexp.MustCompile("\\[(.*?)\\]")
+	sectionRegex := regexp.MustCompile(`\[(.*?)\]`)
 
 	s := bufio.NewScanner(r)
 	sb := strings.Builder{}
@@ -310,6 +310,24 @@ func getConfigSection(r io.Reader) string {
 	}
 
 	return sb.String()
+}
+
+func GetEnabledConfig(m types.Mod) (*ini.File, error) {
+	confCache := util.GetModConfigCache(m)
+	e, err := os.ReadDir(confCache)
+	if err != nil {
+		return nil, err
+	}
+
+	var config *ini.File
+	if len(e) > 0 {
+		if b, err := os.ReadFile(filepath.Join(confCache, e[0].Name())); err == nil {
+			if i, err := ini.Load(b); err == nil {
+				config = i
+			}
+		}
+	}
+	return config, nil
 }
 
 func (cs *ConfigSaver) readConfig(g types.Game) (string, error) {

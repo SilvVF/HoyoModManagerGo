@@ -15,6 +15,8 @@ const (
 	APP_NAME = "HoyoModManagerGo"
 )
 
+var MetaDataDirs = []string{"keymaps", "textures", "config"}
+
 func GetGeneratorCache() string {
 
 	appData, err := os.UserCacheDir()

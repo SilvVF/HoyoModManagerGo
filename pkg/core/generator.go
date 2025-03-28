@@ -245,7 +245,7 @@ func (g *Generator) copyToOutputDir(
 				log.LogError(err.Error())
 			}
 
-			err = overwriteKeymapsIfNeeded(mod, outputDir)
+			err = overwriteMergedIniIfneeded(mod, outputDir)
 			if err != nil {
 				log.LogError(err.Error())
 			}
@@ -330,7 +330,7 @@ func copyModWithTextures(
 		return fmt.Errorf("cannot create destination dir: %w", err)
 	}
 
-	err = copyAndUnzipSelectedMods(
+	err = copyAndUnzip(
 		src,
 		dst,
 		len(textures) > 0, // TODO check when textures where enabled
@@ -343,82 +343,80 @@ func copyModWithTextures(
 	return overwriteTextures(src, dst, textures)
 }
 
-func copyAndUnzipSelectedMods(src, dst string, overwrite bool) error {
+func copyAndUnzip(src, dst string, overwrite bool) error {
 	return filepath.WalkDir(src, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		relPath, err := filepath.Rel(src, path)
-		log.LogDebug(relPath)
 		if err != nil {
 			return err
 		}
 		dstPath := filepath.Join(dst, relPath)
 
 		if info.IsDir() {
-			if info.Name() == "keymaps" || info.Name() == "textures" {
-				log.LogDebug("skipped " + relPath)
-				return nil
-			}
-			if strings.HasPrefix(relPath, "textures\\") || strings.HasPrefix(relPath, "keymaps") {
-				log.LogDebug("skipped " + relPath)
-				return nil
+			if slices.Contains(util.MetaDataDirs, info.Name()) {
+				return fs.SkipDir
 			}
 
 			return os.MkdirAll(dstPath, info.Type().Perm())
+		} else {
+			if filepath.Ext(path) == ".zip" {
+				_, err := extract(path, strings.TrimSuffix(dstPath, ".zip"), false, nil)
+				return err
+			}
+			return util.CopyFile(path, dstPath, overwrite)
 		}
-
-		if filepath.Dir(path) == filepath.Join(src, "keymaps") || strings.HasPrefix(relPath, "textures\\") {
-			log.LogDebug("skipped " + relPath)
-			return nil
-		}
-
-		if filepath.Ext(path) == ".zip" {
-			_, err := extract(path, strings.TrimSuffix(dstPath, ".zip"), false, nil)
-			return err
-		}
-
-		return util.CopyFile(path, dstPath, overwrite)
 	})
 }
 
-func overwriteKeymapsIfNeeded(m types.Mod, outputDir string) error {
+func overwriteMergedIniIfneeded(m types.Mod, outputDir string) error {
+	var iniPath string
 
-	enabled, ok := getEnabledKeymapPath(m)
-	if !ok {
-		return nil
-	}
-
-	b, err := os.ReadFile(enabled)
-	if err != nil {
-		return err
-	}
-
-	// walk the unzipped output and search for ini file that is enabled overwrite it with
-	// user specified config which contains a copy of the file with changes.
-	// no merge needed
-	err = filepath.WalkDir(outputDir, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(outputDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() {
 			return nil
 		}
-
 		if filepath.Ext(d.Name()) == ".ini" && !strings.HasPrefix(d.Name(), "DISABLED") {
 			log.LogDebug("Found and overwriting:" + path)
-			os.WriteFile(path, b, os.ModePerm)
-
-			return ErrStopWalkingDirError
+			iniPath = path
+			return fs.SkipAll
 		}
 		return nil
 	})
 
-	if err == ErrStopWalkingDirError {
+	if err != nil || iniPath == "" {
+		return err
+	}
+	// get the copy from keymaps if it doesnt exist use the original
+	enabled, ok := GetEnabledKeymapPath(m)
+	if !ok {
+		enabled = iniPath
+	}
+	config, err := GetEnabledConfig(m)
+
+	// no keymaps or config dont need to overwrite anything
+	if err != nil && iniPath == enabled {
 		return nil
 	}
 
-	return err
+	var b []byte
+	if config != nil {
+		var s string
+		s, err = OverwriteIniFiles(enabled, config)
+		b = []byte(s)
+	} else {
+		b, err = os.ReadFile(enabled)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(iniPath, b, os.ModePerm)
 }
 
 func getModFixExe(exported []string) string {

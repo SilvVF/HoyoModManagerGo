@@ -2,6 +2,7 @@ package core
 
 import (
 	"archive/zip"
+	"bufio"
 	"errors"
 	"fmt"
 	"hmm/pkg/log"
@@ -12,6 +13,7 @@ import (
 
 	unarr "github.com/gen2brain/go-unarr"
 	"github.com/nwaples/rardecode"
+	"gopkg.in/ini.v1"
 )
 
 var (
@@ -357,4 +359,67 @@ func writeFile(fpath string, fdata io.Reader, fMode, dMode os.FileMode) (int64, 
 	}
 
 	return s, nil
+}
+
+// overwrites config to the file appendTo and returns the new content as a string
+func OverwriteIniFiles(appendTo string, cfg *ini.File) (string, error) {
+
+	file, err := os.Open(appendTo)
+	if err != nil {
+		log.LogDebugf("Error opening file: %e", err)
+		return "", err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+
+	sb := strings.Builder{}
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if keySecRegex.MatchString(line) {
+
+			sb.WriteString(line)
+			sb.WriteRune('\n')
+
+			matches := keySecRegex.FindStringSubmatch(line)
+			secName := strings.TrimRight(strings.TrimLeft(matches[0], "["), "]")
+
+			sec, err := cfg.GetSection(secName)
+			if err != nil {
+				log.LogDebugf("error getting section %e", err)
+				continue
+			}
+			log.LogDebugf("SEARCHING FOR %v", sec.KeyStrings())
+
+			for scanner.Scan() {
+				line = scanner.Text()
+				split := strings.SplitN(line, "=", 2)
+
+				log.LogDebugf("split %v", split)
+
+				if len(split) <= 1 {
+					sb.WriteString(line)
+					sb.WriteRune('\n')
+					break
+				}
+
+				subName := strings.TrimSpace(split[0])
+
+				if key, _ := sec.GetKey(subName); key != nil {
+					log.LogDebugf("Writing KEY=%s VALUE=%s", subName, key.String())
+					sb.WriteString(fmt.Sprintf("%s = %s\n", subName, key.String()))
+				} else {
+					log.LogDebugf("Skipping KEY=%s", subName)
+					sb.WriteString(line)
+					sb.WriteRune('\n')
+				}
+			}
+		} else {
+			sb.WriteString(line)
+			sb.WriteRune('\n')
+		}
+	}
+
+	return sb.String(), nil
 }
