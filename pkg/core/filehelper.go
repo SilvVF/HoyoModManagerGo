@@ -1,7 +1,6 @@
 package core
 
 import (
-	"archive/zip"
 	"bufio"
 	"errors"
 	"fmt"
@@ -10,6 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/klauspost/compress/flate"
+	"github.com/klauspost/compress/zip"
 
 	unarr "github.com/gen2brain/go-unarr"
 	"github.com/nwaples/rardecode"
@@ -24,15 +26,68 @@ var (
 	ErrStopWalkingDirError = errors.New("stop walking normally")
 )
 
-func ZipFolder(srcDir string) error {
-	zipFile, err := os.Create(filepath.Join(filepath.Dir(srcDir), filepath.Base(srcDir)+".zip"))
+// WalkAndRezip walks through the directory, finds ZIP files, extracts and recompresses them
+func WalkAndRezip(root string) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Process only ZIP files
+		if filepath.Ext(path) == ".zip" {
+			fmt.Println("Processing:", path)
+
+			t, _ := os.MkdirTemp(os.TempDir(), "")
+			_, err := extract(path, t, false, func(progress int64, total int64) {})
+			if err != nil {
+				return err
+			}
+
+			// Recompress with better compression
+			newZip := strings.TrimSuffix(path, ".zip") + "_new.zip"
+			fmt.Println("extraxting to " + newZip + "from " + path)
+			err = ZipFolder(t, newZip)
+			if err != nil {
+				return err
+			}
+
+			// Replace original ZIP with optimized version
+			err = os.Rename(newZip, path)
+			if err != nil {
+				return err
+			}
+
+			// Cleanup extracted folder
+			err = os.RemoveAll(t)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println("Recompressed and cleaned:", path)
+		}
+		return nil
+	})
+}
+func ZipFolder(srcDir, destZip string) error {
+
+	err := os.MkdirAll(filepath.Dir(destZip), os.ModePerm)
 	if err != nil {
-		log.LogError(err.Error())
+		return err
+	}
+
+	zipFile, err := os.Create(destZip)
+	if err != nil {
 		return err
 	}
 	defer zipFile.Close()
+
 	zipWriter := zip.NewWriter(zipFile)
 	defer zipWriter.Close()
+
+	zipWriter.RegisterCompressor(zip.Deflate, func(w io.Writer) (io.WriteCloser, error) {
+		return flate.NewWriter(w, flate.BestCompression)
+	})
+
 	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -40,24 +95,30 @@ func ZipFolder(srcDir string) error {
 		if info.IsDir() {
 			return nil
 		}
+
 		relPath, err := filepath.Rel(srcDir, path)
 		if err != nil {
 			return err
 		}
+
 		header, err := zip.FileInfoHeader(info)
 		if err != nil {
 			return err
 		}
 		header.Name = relPath
+		header.Method = zip.Deflate
+
 		writer, err := zipWriter.CreateHeader(header)
 		if err != nil {
 			return err
 		}
+
 		file, err := os.Open(path)
 		if err != nil {
 			return err
 		}
 		defer file.Close()
+
 		_, err = io.Copy(writer, file)
 		return err
 	})

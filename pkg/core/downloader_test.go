@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	rarFile = "\\test_resources\\navia.rar"
-	zipFile = "\\test_resources\\clorinde.zip"
+	rarFile          = "\\test_resources\\navia.rar"
+	zipFile          = "\\test_resources\\clorinde.zip"
+	uncompressedFile = "\\test_resources\\clorinde"
 
 	brokenZip = "\\test_resources\\lingsha_nude_halfnude_incomletever_v101.zip"
 )
@@ -39,6 +40,14 @@ func _getDb() *DbHelper {
 	}
 
 	return NewDbHelper(db.New(dbSql), dbSql)
+}
+
+func TestZip(t *testing.T) {
+
+	path := "C:\\Users\\david\\dev\\go\\skin-mod-manager\\test_resources\\clorinde"
+	out := "C:\\Users\\david\\dev\\go\\skin-mod-manager\\test_resources\\clorinde_new1.zip"
+	err := ZipFolder(path, out)
+	t.Error(err.Error())
 }
 
 func TestLocalSource(t *testing.T) {

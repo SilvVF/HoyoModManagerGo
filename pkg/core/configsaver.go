@@ -1,7 +1,6 @@
 package core
 
 import (
-	"archive/zip"
 	"bufio"
 	"errors"
 	"fmt"
@@ -15,6 +14,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/klauspost/compress/zip"
 
 	"gopkg.in/ini.v1"
 )

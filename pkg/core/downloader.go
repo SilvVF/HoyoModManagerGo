@@ -527,7 +527,9 @@ func (d *Downloader) unzipAndInsertToDb(
 			return err
 		}
 		path := filepath.Join(outputDir, dirs[0].Name())
-		err = ZipFolder(path)
+
+		dest := filepath.Join(filepath.Dir(path), filepath.Base(path)+".zip")
+		err = ZipFolder(path, dest)
 		if err != nil {
 			return err
 		}

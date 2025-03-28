@@ -22,6 +22,10 @@ export function DownloadModFix(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['DownloadModFix'](arg1, arg2, arg3, arg4);
 }
 
+export function FixZipCompression() {
+  return window['go']['main']['App']['FixZipCompression']();
+}
+
 export function ForcePanic() {
   return window['go']['main']['App']['ForcePanic']();
 }

@@ -19,6 +19,7 @@ import {
   GetExportDirectory,
   GetExclusionPaths,
   OpenDirectoryDialog,
+  FixZipCompression,
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
 import { range } from "@/lib/tsutils";
@@ -28,6 +29,7 @@ import {
   DownloadIcon,
   Edit,
   GlobeIcon,
+  HammerIcon,
   LucideIcon,
   PlayIcon,
   RefreshCwIcon,
@@ -373,6 +375,15 @@ export default function SettingsScreen() {
         content={
           <Button size={"icon"} onPointerDown={() => setDiscover(undefined)}>
             <UndoIcon />
+          </Button>
+        }
+      />
+      <SettingsEditItem
+        title="Fix zip compression"
+        description={`compresses zips further using better compression method`}
+        content={
+          <Button size={"icon"} onPointerDown={() => FixZipCompression()}>
+            <HammerIcon />
           </Button>
         }
       />

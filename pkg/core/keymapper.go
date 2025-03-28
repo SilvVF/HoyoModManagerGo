@@ -1,7 +1,6 @@
 package core
 
 import (
-	"archive/zip"
 	"bufio"
 	"errors"
 	"fmt"
@@ -17,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/klauspost/compress/zip"
 
 	"gopkg.in/ini.v1"
 )

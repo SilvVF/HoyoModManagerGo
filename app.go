@@ -197,6 +197,10 @@ func (a *App) DownloadModFix(game types.Game, old, name, link string) error {
 	return a.updator.DownloadModFix(game, old, name, link)
 }
 
+func (a *App) FixZipCompression() error {
+	return core.WalkAndRezip(util.GetRootModDir())
+}
+
 func (a *App) GetStats() (*types.DownloadStats, error) {
 	log.LogDebug("Getting stats")
 	bytes, rootInfo, err := getDirInfo(util.GetRootModDir())

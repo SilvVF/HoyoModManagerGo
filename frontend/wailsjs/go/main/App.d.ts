@@ -14,6 +14,8 @@ export function DevModeEnabled():Promise<boolean>;
 
 export function DownloadModFix(arg1:types.Game,arg2:string,arg3:string,arg4:string):Promise<void>;
 
+export function FixZipCompression():Promise<void>;
+
 export function ForcePanic():Promise<void>;
 
 export function GetExclusionPaths():Promise<Array<string>>;
