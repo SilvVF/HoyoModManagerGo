@@ -104,13 +104,13 @@ func (u *Updator) DownloadModFix(game types.Game, old, fname, link string) error
 			FileMode:  os.ModePerm,
 			DirMode:   os.ModePerm,
 		}, false, func(progress, total int64) {})
-		if files != nil && len(files) > 0 {
+		if len(files) > 0 {
 			removeIfNotOverwritten(filepath.Base(files[0]))
 		}
 		return err
 	default:
 		files, err := extract(path, filepath.Dir(path), false, func(progress, total int64) {})
-		if files != nil && len(files) > 0 {
+		if len(files) > 0 {
 			removeIfNotOverwritten(filepath.Base(files[0]))
 		}
 		return err
