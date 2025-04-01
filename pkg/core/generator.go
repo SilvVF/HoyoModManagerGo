@@ -29,6 +29,7 @@ type Generator struct {
 	outputDirs map[types.Game]pref.Preference[string]
 	ignored    pref.Preference[[]string]
 	cleanDir   pref.Preference[bool]
+	cs         *ConfigSaver
 }
 
 func NewGenerator(
@@ -58,6 +59,7 @@ func NewGenerator(
 			types.ZZZ:      {},
 			types.WuWa:     {},
 		},
+		cs:         NewConfigSaver(outputDirs, db),
 		outputDirs: outputDirs,
 		ignored:    ignoredDirPref,
 		cleanDir:   cleanExportDir,
@@ -160,7 +162,12 @@ func (g *Generator) generateWithContext(
 
 	log.LogDebug(strings.Join(exported, "\n - "))
 
-	exportTask := g.cleanOutputDir(
+	// try to save config of current mods before the dir is cleaned
+	if _, err := g.cs.saveConfig(game); err != nil {
+		log.LogError(err.Error())
+	}
+
+	cleanTask := g.cleanOutputDir(
 		exported,
 		outputDir,
 		ignored,
@@ -169,6 +176,14 @@ func (g *Generator) generateWithContext(
 		isActive,
 	)
 
+	cleanTask.Wait()
+
+	if err := isActive(); err != nil {
+		genPond.StopAndWait()
+		return err
+	}
+
+	exportTask := g.copyToOutputDir(selected, outputDir, genPond, isActive)
 	exportTask.Wait()
 
 	if err := isActive(); err != nil {
@@ -176,15 +191,9 @@ func (g *Generator) generateWithContext(
 		return err
 	}
 
-	modPool := g.copyToOutputDir(selected, outputDir, genPond, isActive)
-	modPool.Wait()
+	err = runModFixExe(ctx, exported, outputDir, isActive)
 
-	if err := isActive(); err != nil {
-		genPond.StopAndWait()
-		return err
-	}
-
-	return runModFixExe(ctx, exported, outputDir, isActive)
+	return err
 }
 
 func runModFixExe(ctx context.Context, exported []string, outputDir string, isActive func() error) error {
@@ -403,11 +412,23 @@ func overwriteMergedIniIfneeded(m types.Mod, outputDir string) error {
 		return nil
 	}
 
+	writeConfigToIni := func() ([]byte, error) {
+		f, err := os.Open(enabled)
+		if err != nil {
+			return make([]byte, 0), err
+		}
+		defer f.Close()
+
+		s, err := OverwriteIniFiles(f, config)
+		if err != nil {
+			return make([]byte, 0), err
+		}
+		return []byte(s), nil
+	}
+
 	var b []byte
 	if config != nil {
-		var s string
-		s, err = OverwriteIniFiles(enabled, config)
-		b = []byte(s)
+		b, err = writeConfigToIni()
 	} else {
 		b, err = os.ReadFile(enabled)
 	}

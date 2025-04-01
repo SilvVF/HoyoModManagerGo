@@ -215,7 +215,13 @@ func (k *KeyMapper) SaveConfig(name string) error {
 	}
 	defer output.Close()
 
-	iniString, err := OverwriteIniFiles(k.path, k.cfg)
+	f, err := os.Open(k.path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	iniString, err := OverwriteIniFiles(f, k.cfg)
 	if err != nil {
 		return err
 	}
@@ -461,6 +467,7 @@ func (k *KeyMapper) walkDirHandleZip(modDir string) error {
 }
 
 var keySecRegex = regexp.MustCompile(`\[(Key\w*)\]`)
+var secRegex = regexp.MustCompile(`\[(.*?)\]`)
 
 func getKeybindSection(r io.Reader) string {
 

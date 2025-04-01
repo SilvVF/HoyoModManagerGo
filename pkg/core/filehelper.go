@@ -40,7 +40,7 @@ func WalkAndRezip(root string) error {
 			t, _ := os.MkdirTemp(os.TempDir(), "")
 			_, err := extract(path, t, false, func(progress int64, total int64) {})
 			if err != nil {
-				return err
+				return nil
 			}
 
 			// Recompress with better compression
@@ -48,19 +48,19 @@ func WalkAndRezip(root string) error {
 			fmt.Println("extraxting to " + newZip + "from " + path)
 			err = ZipFolder(t, newZip)
 			if err != nil {
-				return err
+				return nil
 			}
 
 			// Replace original ZIP with optimized version
 			err = os.Rename(newZip, path)
 			if err != nil {
-				return err
+				return nil
 			}
 
 			// Cleanup extracted folder
 			err = os.RemoveAll(t)
 			if err != nil {
-				return err
+				return nil
 			}
 
 			fmt.Println("Recompressed and cleaned:", path)
@@ -423,27 +423,21 @@ func writeFile(fpath string, fdata io.Reader, fMode, dMode os.FileMode) (int64, 
 }
 
 // overwrites config to the file appendTo and returns the new content as a string
-func OverwriteIniFiles(appendTo string, cfg *ini.File) (string, error) {
+func OverwriteIniFiles(r io.ReadCloser, cfg *ini.File) (string, error) {
 
-	file, err := os.Open(appendTo)
-	if err != nil {
-		log.LogDebugf("Error opening file: %e", err)
-		return "", err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(r)
+	scanner.Split(bufio.ScanLines)
 
 	sb := strings.Builder{}
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if keySecRegex.MatchString(line) {
+		if secRegex.MatchString(line) {
 
 			sb.WriteString(line)
 			sb.WriteRune('\n')
 
-			matches := keySecRegex.FindStringSubmatch(line)
+			matches := secRegex.FindStringSubmatch(line)
 			secName := strings.TrimRight(strings.TrimLeft(matches[0], "["), "]")
 
 			sec, err := cfg.GetSection(secName)
