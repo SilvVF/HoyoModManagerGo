@@ -76,7 +76,7 @@ function DevModeOverlay({ children }: { children: ReactNode }) {
 
   return (
     <div>
-      <div className="flex flex-row z-50 absolute top-0">
+      <div className="flex flex-row z-99 absolute top-0">
         <Button size={"icon"} onClick={() => setCollapsed((c) => !c)}>
           <ExpandIcon />
         </Button>

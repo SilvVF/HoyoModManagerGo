@@ -129,15 +129,6 @@ func (g *Generator) generateWithContext(
 	genPond := pond.NewPool(g.poolSize)
 	defer genPond.StopAndWait()
 
-	isActive := func() error {
-		select {
-		case <-ctx.Done():
-			return context.Canceled
-		default:
-			return nil
-		}
-	}
-
 	ignored := g.ignored.Get()
 	outputDir := g.outputDirs[game].Get()
 
@@ -173,31 +164,31 @@ func (g *Generator) generateWithContext(
 		ignored,
 		selected,
 		genPond,
-		isActive,
+		ctx,
 	)
 
 	cleanTask.Wait()
 
-	if err := isActive(); err != nil {
+	if ctx.Err() != nil {
 		genPond.StopAndWait()
 		return err
 	}
 
-	exportTask := g.copyToOutputDir(selected, outputDir, genPond, isActive)
+	exportTask := g.copyToOutputDir(selected, outputDir, genPond, ctx)
 	exportTask.Wait()
 
-	if err := isActive(); err != nil {
+	if ctx.Err() != nil {
 		genPond.StopAndWait()
 		return err
 	}
 
-	err = runModFixExe(ctx, exported, outputDir, isActive)
+	err = runModFixExe(ctx, exported, outputDir)
 
 	return err
 }
 
-func runModFixExe(ctx context.Context, exported []string, outputDir string, isActive func() error) error {
-	cmdCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+func runModFixExe(ctx context.Context, exported []string, outputDir string) error {
+	cmdCtx, cancel := context.WithTimeout(ctx, time.Second*15)
 	defer cancel()
 
 	fixExe := getModFixExe(exported)
@@ -211,7 +202,7 @@ func runModFixExe(ctx context.Context, exported []string, outputDir string, isAc
 	cmder.WithOutFn(func(b []byte) (int, error) {
 		value := string(b)
 		log.LogDebug(fmt.Sprintf("%s len: %d", value, len(value)))
-		if err := isActive(); err != nil || strings.Contains(value, "Done!") || strings.Contains(value, "quit...") {
+		if strings.Contains(value, "Done!") || strings.Contains(value, "quit...") {
 			log.LogDebug("Cancelling")
 			cancel()
 		}
@@ -225,12 +216,12 @@ func (g *Generator) copyToOutputDir(
 	selected []types.Mod,
 	outputDir string,
 	pond pond.Pool,
-	isActive func() error,
+	ctx context.Context,
 ) pond.TaskGroup {
 	modPool := pond.NewGroup()
 	for _, mod := range selected {
 		modPool.Submit(func() {
-			if err := isActive(); err != nil {
+			if ctx.Err() != nil {
 				return
 			}
 
@@ -271,12 +262,12 @@ func (g *Generator) cleanOutputDir(
 	ignored []string,
 	selected []types.Mod,
 	pond pond.Pool,
-	isActive func() error,
+	ctx context.Context,
 ) pond.TaskGroup {
 	exportPool := pond.NewGroup()
 	for _, file := range exported {
 		exportPool.Submit(func() {
-			if err := isActive(); err != nil {
+			if ctx.Err() != nil {
 				return
 			}
 
@@ -397,9 +388,14 @@ func overwriteMergedIniIfneeded(m types.Mod, outputDir string) error {
 		return nil
 	})
 
-	if err != nil || iniPath == "" {
+	if err != nil {
 		return err
 	}
+
+	if iniPath == "" {
+		return errors.New("ini not found")
+	}
+
 	// get the copy from keymaps if it doesnt exist use the original
 	enabled, ok := GetEnabledKeymapPath(m)
 	if !ok {

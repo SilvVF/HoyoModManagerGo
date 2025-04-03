@@ -2,10 +2,12 @@ package core
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"hmm/pkg/log"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,46 +29,62 @@ var (
 )
 
 // WalkAndRezip walks through the directory, finds ZIP files, extracts and recompresses them
-func WalkAndRezip(root string) error {
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+func WalkAndRezip(root string, ctx context.Context, onProgress func(total int, complete int)) error {
+
+	rezipWithNewCompression := func(path string) error {
+		t, _ := os.MkdirTemp(os.TempDir(), "")
+		_, err := extract(path, t, false, func(progress int64, total int64) {})
+		if err != nil {
+			return nil
+		}
+
+		newZip := strings.TrimSuffix(path, ".zip") + "_new.zip"
+		fmt.Println("extraxting to " + newZip + "from " + path)
+		err = ZipFolder(t, newZip)
+		if err != nil {
+			return nil
+		}
+		err = os.Rename(newZip, path)
+		if err != nil {
+			return nil
+		}
+
+		fmt.Println("Recompressed and cleaned:", path)
+		return os.RemoveAll(t)
+	}
+
+	paths := []string{}
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-
-		// Process only ZIP files
 		if filepath.Ext(path) == ".zip" {
-			fmt.Println("Processing:", path)
-
-			t, _ := os.MkdirTemp(os.TempDir(), "")
-			_, err := extract(path, t, false, func(progress int64, total int64) {})
-			if err != nil {
-				return nil
-			}
-
-			// Recompress with better compression
-			newZip := strings.TrimSuffix(path, ".zip") + "_new.zip"
-			fmt.Println("extraxting to " + newZip + "from " + path)
-			err = ZipFolder(t, newZip)
-			if err != nil {
-				return nil
-			}
-
-			// Replace original ZIP with optimized version
-			err = os.Rename(newZip, path)
-			if err != nil {
-				return nil
-			}
-
-			// Cleanup extracted folder
-			err = os.RemoveAll(t)
-			if err != nil {
-				return nil
-			}
-
-			fmt.Println("Recompressed and cleaned:", path)
+			paths = append(paths, path)
 		}
 		return nil
 	})
+
+	if err != nil {
+		return err
+	}
+
+	failed := []error{}
+	total := len(paths)
+	onProgress(total, 0)
+
+	for i, path := range paths {
+
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		if err := rezipWithNewCompression(path); err != nil {
+			failed = append(failed, err)
+		}
+		onProgress(total, i+1)
+	}
+
+	return errors.Join(failed...)
 }
 func ZipFolder(srcDir, destZip string) error {
 
@@ -442,7 +460,6 @@ func OverwriteIniFiles(r io.ReadCloser, cfg *ini.File) (string, error) {
 
 			sec, err := cfg.GetSection(secName)
 			if err != nil {
-				log.LogDebugf("error getting section %e", err)
 				continue
 			}
 			log.LogDebugf("SEARCHING FOR %v", sec.KeyStrings())

@@ -55,46 +55,53 @@ func (cs *ConfigSaver) saveConfig(g types.Game) ([]string, error) {
 	errs := []error{}
 
 	for path, vars := range paths {
+
+		if !strings.HasPrefix(path, "mods") {
+			continue
+		}
+
+		log.LogDebugf("saving for path %s values %v", path, vars)
 		ifp, ok := cs.getIniFilePath(path, g)
 		if !ok {
+			log.LogError("failed to read ini for " + path)
 			continue
 		}
 
 		rc, err := ifp.open()
 		if err != nil {
+			log.LogError("failed to open ini for " + path + err.Error())
 			errs = append(errs, err)
 			continue
 		}
 		defer rc.Close()
 
 		configSection := getConfigSection(rc)
+		log.LogDebug(configSection)
 		iniFile, err := ini.Load([]byte(configSection))
 
 		if err != nil {
+			log.LogError("failed to load ini for " + path + err.Error())
 			errs = append(errs, err)
 			continue
 		}
 
-		log.LogDebug("config for " + g.Name() + "\n" + configSection)
 		section, err := iniFile.GetSection("Constants")
 		if err != nil {
+			log.LogError("failed to get ini section for " + path + err.Error())
 			errs = append(errs, err)
 			continue
 		}
 
 		keys := section.Keys()
-		keyMap := make(map[string]*ini.Key, len(keys))
+		keyMap := map[string]*ini.Key{}
 		for _, v := range keys {
 			keyMap[strings.ToLower(v.Name())] = v
 		}
 
 		for _, v := range vars {
-
 			if key, ok := keyMap[strings.ToLower("global persist $"+v.name)]; !ok || key == nil {
-				log.LogDebug("Key not found " + v.name)
 				continue
 			} else {
-				log.LogDebugf("confvar = %v entry = %s : %s", v, key.Name(), key.Value())
 				if key.Value() == v.value {
 					continue
 				} else {
@@ -102,6 +109,7 @@ func (cs *ConfigSaver) saveConfig(g types.Game) ([]string, error) {
 				}
 			}
 		}
+		log.LogDebug(section.Body())
 
 		configCache := util.GetModConfigCache(ifp.mod)
 		conf := filepath.Join(configCache, "saved_conf.ini")
@@ -114,6 +122,7 @@ func (cs *ConfigSaver) saveConfig(g types.Game) ([]string, error) {
 
 		f, err := os.Create(conf)
 		if err != nil {
+			log.LogError(err.Error())
 			errs = append(errs, err)
 			continue
 		}
@@ -122,6 +131,7 @@ func (cs *ConfigSaver) saveConfig(g types.Game) ([]string, error) {
 		_, err = iniFile.WriteTo(f)
 		if err != nil {
 			log.LogError(err.Error())
+			continue
 		}
 
 		created = append(created, conf)
@@ -185,7 +195,7 @@ func (ifp IniFilePath) open() (io.ReadCloser, error) {
 func getPathsFromUserConfig(config string) map[string][]ConfVar {
 	paths := map[string][]ConfVar{}
 
-	for _, line := range strings.Split(config, "\n") {
+	for line := range strings.SplitSeq(config, "\n") {
 		path := strings.TrimLeft(line, "$")
 		eqIndex := strings.LastIndex(path, "=")
 
@@ -303,8 +313,11 @@ func getConfigSection(r io.Reader) string {
 					strings.TrimSpace(line) != "[Constants]" {
 					break
 				} else {
-					sb.WriteString(line)
-					sb.WriteRune('\n')
+
+					if len(strings.Split(line, "=")) > 1 {
+						sb.WriteString(line)
+						sb.WriteRune('\n')
+					}
 				}
 			}
 		}

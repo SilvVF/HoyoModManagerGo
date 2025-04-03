@@ -174,7 +174,10 @@ func (p *Plugins) Run(onEvent func(pe PluginEvent)) {
 	watcher, cancel := p.enabled.Watch()
 	for {
 		select {
-		case enabled := <-watcher:
+		case enabled, ok := <-watcher:
+			if !ok {
+				return
+			}
 			p.StartAllPlugins(enabled)
 		case <-p.ctx.Done():
 			cancel()

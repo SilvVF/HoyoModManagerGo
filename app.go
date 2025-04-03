@@ -22,7 +22,8 @@ import (
 )
 
 const (
-	EVENT_PLUGINS = "plugins_event"
+	EVENT_PLUGINS     = "plugins_event"
+	EVENT_COMPRESSION = "compresssion_event"
 
 	EVENT_PLUGINS_STARTED = "plugins_started"
 	EVENT_PLUGINS_STOPPED = "plugins_stopped"
@@ -38,26 +39,31 @@ const (
 
 // App struct
 type App struct {
-	ctx           context.Context
-	dev           bool
-	pluginExports map[string]lua.LGFunction
-	plugins       *plugin.Plugins
-	appPrefs      *core.AppPrefs
-	updator       *core.Updator
-	logType       int
-	transer       *core.Transfer
-	mutex         sync.Mutex
+	ctx            context.Context
+	dev            bool
+	pluginExports  map[string]lua.LGFunction
+	plugins        *plugin.Plugins
+	appPrefs       *core.AppPrefs
+	updator        *core.Updator
+	logType        int
+	transer        *core.Transfer
+	mutex          *sync.Mutex
+	compressMutex  *sync.Mutex
+	compressCancel context.CancelFunc
 }
 
 // NewApp creates a new App application struct
 func NewApp(appPrefs *core.AppPrefs, updator *core.Updator, transfer *core.Transfer) *App {
 	return &App{
-		appPrefs:      appPrefs,
-		dev:           *dev,
-		logType:       *logType,
-		pluginExports: make(map[string]lua.LGFunction),
-		updator:       updator,
-		transer:       transfer,
+		appPrefs:       appPrefs,
+		dev:            *dev,
+		logType:        *logType,
+		pluginExports:  make(map[string]lua.LGFunction),
+		updator:        updator,
+		transer:        transfer,
+		mutex:          &sync.Mutex{},
+		compressMutex:  &sync.Mutex{},
+		compressCancel: func() {},
 	}
 }
 
@@ -198,7 +204,22 @@ func (a *App) DownloadModFix(game types.Game, old, name, link string) error {
 }
 
 func (a *App) FixZipCompression() error {
-	return core.WalkAndRezip(util.GetRootModDir())
+
+	a.compressCancel()
+
+	a.compressMutex.Lock()
+	defer a.compressMutex.Unlock()
+
+	ctx, cancel := context.WithCancel(a.ctx)
+	defer cancel()
+	a.compressCancel = cancel
+
+	return core.WalkAndRezip(util.GetRootModDir(), ctx, func(total, complete int) {
+		runtime.EventsEmit(a.ctx, EVENT_COMPRESSION, struct {
+			total    int
+			complete int
+		}{total: total, complete: complete})
+	})
 }
 
 func (a *App) GetStats() (*types.DownloadStats, error) {
@@ -314,6 +335,9 @@ func (a *App) ForcePanic() {
 
 func (a *App) GetPluginsState() *PluginsState {
 
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	state := &PluginsState{
 		Started:     false,
 		PluginState: []PluginState{},
@@ -336,6 +360,10 @@ func (a *App) GetPluginsState() *PluginsState {
 }
 
 func (a *App) LoadPlugins() error {
+
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
+
 	if a.plugins == nil {
 		return errors.New("plugins not running")
 	}
