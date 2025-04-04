@@ -182,9 +182,11 @@ func (p *Plugins) Run(onEvent func(pe PluginEvent)) {
 		case <-p.ctx.Done():
 			cancel()
 			return
-		case pe := <-p.event:
-			onEvent(pe)
-			log.LogDebugf("plugin: %s, event: %d, data: %v", pe.Path, pe.Etype, pe.Data)
+		case pe, ok := <-p.event:
+			if ok {
+				onEvent(pe)
+				log.LogDebugf("plugin: %s, event: %d, data: %v", pe.Path, pe.Etype, pe.Data)
+			}
 		}
 	}
 }

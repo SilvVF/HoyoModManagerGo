@@ -8,6 +8,7 @@ import (
 	"hmm/pkg/types"
 	"hmm/pkg/util"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -26,6 +27,7 @@ const (
 	STATE_FINSIHED = "finished"
 	STATE_ERROR    = "error"
 	STATE_UNZIP    = "unzip"
+	STATE_COMPRESS = "compress"
 )
 
 type DLMeta struct {
@@ -44,6 +46,7 @@ type DLItem struct {
 	State    string       `json:"state"`
 	Unzip    DataProgress `json:"unzip"`
 	Fetch    DataProgress `json:"fetch"`
+	Compress DataProgress `json:"compress"`
 	meta     DLMeta
 }
 
@@ -77,22 +80,20 @@ func NewDownloader(
 	go func() {
 		for {
 			v, ok := <-watcher
-			if !ok {
+			if !ok || v == d.pool.MaxConcurrency() {
 				return
 			}
 
 			d.pool.StopAndWait()
 			d.pool = pond.NewPool(v)
 
-			d.mutex.RLock()
-
-			for _, item := range d.Queue {
-				if item.State != STATE_FINSIHED {
-					d.submitItem(item.Link, item.Filename, item.meta)
+			qCpy := d.GetQueue()
+			for _, item := range qCpy {
+				if item.State != STATE_FINSIHED && item.State != STATE_ERROR {
+					d.Retry(item.Link)
 				}
 			}
 
-			d.mutex.RUnlock()
 		}
 	}()
 
@@ -105,9 +106,7 @@ func (d *Downloader) GetQueue() map[string]*DLItem {
 
 	cpy := make(map[string]*DLItem, len(d.Queue))
 
-	for k, v := range d.Queue {
-		cpy[k] = v
-	}
+	maps.Copy(cpy, d.Queue)
 
 	return cpy
 }
@@ -308,7 +307,7 @@ func cleanup(d *Downloader, link string, err error) {
 
 	item, ok := d.Queue[link]
 
-	if !ok {
+	if !ok || item == nil {
 		log.LogDebugf("couldnt find item %s %e", link, err)
 		return
 	}
@@ -332,7 +331,9 @@ func (d *Downloader) localDownload(link, filename string, meta DLMeta) (err erro
 
 		item, ok := d.Queue[link]
 
-		if !ok {
+		if !ok ||
+			item == nil ||
+			item.State == STATE_ERROR || item.State == STATE_FINSIHED {
 			log.LogDebugf("item not in queue %s", link)
 			return
 		}
@@ -396,6 +397,8 @@ func (d *Downloader) httpDownload(link, filename string, meta DLMeta) (err error
 			item.Fetch = dp
 		case STATE_UNZIP:
 			item.Unzip = dp
+		case STATE_COMPRESS:
+			item.Compress = dp
 		}
 	}
 
@@ -529,7 +532,10 @@ func (d *Downloader) unzipAndInsertToDb(
 		path := filepath.Join(outputDir, dirs[0].Name())
 
 		dest := filepath.Join(filepath.Dir(path), filepath.Base(path)+".zip")
-		err = ZipFolder(path, dest)
+		err = ZipFolder(path, dest, func(total, complete int) {
+			updateProgress(STATE_COMPRESS, DataProgress{Total: int64(total), Progress: int64(complete)})
+		})
+
 		if err != nil {
 			return err
 		}

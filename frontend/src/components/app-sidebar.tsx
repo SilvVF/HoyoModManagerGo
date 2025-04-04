@@ -13,6 +13,7 @@ import {
   SettingsIcon,
   SparkleIcon,
   Sun,
+  SwordIcon,
   TrainIcon,
   TrashIcon,
   WavesIcon,
@@ -82,6 +83,7 @@ const games = [
   { game: "Honkai Star Rail", path: "starrail", icon: TrainIcon },
   { game: "Zenless Zone Zero", path: "zenless", icon: GlobeIcon },
   { game: "Wuthering Waves", path: "wuwa", icon: WavesIcon },
+  { game: "League of Legends", path: "league", icon: SwordIcon },
 ];
 
 function ModeToggle() {

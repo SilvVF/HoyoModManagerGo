@@ -3,6 +3,7 @@ import * as GApi from '../../wailsjs/go/api/GenshinApi'
 import * as SRApi from '../../wailsjs/go/api/StarRailApi'
 import * as WuWaApi from '../../wailsjs/go/api/WutheringWavesApi'
 import * as ZZZApi from '../../wailsjs/go/api/ZenlessZoneZeroApi'
+import * as LoLApi from '../../wailsjs/go/api/leagueApi'
 import * as DbHelper from '../../wailsjs/go/core/DbHelper'
 
 
@@ -20,9 +21,18 @@ export const Game = {
     StarRail: 2,
     ZZZ: 3,
     WuWa: 4,
+    League: 5,
 } as const;
 
-export const GenshinApi: DataApi = { 
+export const LeagueApi: DataApi = {
+    game: LoLApi.GetGame,
+    skinId: LoLApi.SkinId,
+    characters: async () => DbHelper.SelectCharactersByGame(await LoLApi.GetGame()),
+    charactersWithModsAndTags: async () => DbHelper.SelectCharacterWithModsTagsAndTextures(await LoLApi.GetGame(), "", "", ""),
+    elements: LoLApi.Elements
+}
+
+export const GenshinApi: DataApi = {
     game: GApi.GetGame,
     skinId: GApi.SkinId,
     characters: async () => DbHelper.SelectCharactersByGame(await GApi.GetGame()),

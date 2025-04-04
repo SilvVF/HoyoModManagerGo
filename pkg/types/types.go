@@ -5,6 +5,7 @@ const (
 	StarRail Game = 2
 	ZZZ      Game = 3
 	WuWa     Game = 4
+	LoL      Game = 5
 
 	AUTH_NONE  AuthType = 0
 	AUTH_BASIC AuthType = 1
@@ -30,8 +31,10 @@ func (g Game) Int64() int64 {
 		return 3
 	case WuWa:
 		return 4
+	case LoL:
+		return 5
 	}
-	return -1
+	panic("bad game in types.go")
 }
 
 func (g Game) Name() string {
@@ -44,8 +47,10 @@ func (g Game) Name() string {
 		return "ZZZ"
 	case WuWa:
 		return "WuWa"
+	case LoL:
+		return "League of Legends"
 	}
-	return ""
+	panic("bad game in name types.go")
 }
 
 type FileInfo struct {

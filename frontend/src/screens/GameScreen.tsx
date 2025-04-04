@@ -29,6 +29,7 @@ import {
   genshinElementPref,
   GoPref,
   honkaiElementPref,
+  inMemroyPerf,
   modsAvailablePref,
   usePrefrenceAsState,
   wuwaElementPref,
@@ -62,7 +63,7 @@ const getElementPref = (game: number): GoPref<string[]> => {
     case Game.WuWa:
       return wuwaElementPref;
     default:
-      return genshinElementPref;
+      return inMemroyPerf<string[]>([], game);
   }
 };
 
@@ -75,7 +76,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
   const [dialog, setDialog] = useState<GameDialog | undefined>(undefined);
 
   const [selectedElements, setSelectedElements] = usePrefrenceAsState(
-    getElementPref(props.game)
+    useMemo(() => getElementPref(props.game), [props.game])
   );
   const running = useDownloadStore(useShallow((state) => state.running));
 

@@ -484,7 +484,6 @@ func TestReadConfig(t *testing.T) {
 
 		t.Log(files)
 		t.Log("\n========================================")
-		break
 	}
 
 	t.Fail()

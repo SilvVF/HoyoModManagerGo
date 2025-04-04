@@ -96,7 +96,7 @@ export function ModIndexPage() {
 
   const updateState = useModSearchStateStore((state) => state.update);
   const state = useModSearchStateStore((state) => state);
-  const [collapsed, setCollapased] = useState(true);
+  const [collapsed, setCollapased] = useState(false);
 
   useModSearchStateInitializer();
 
@@ -132,13 +132,11 @@ export function ModIndexPage() {
             topLevelCrumbs={topLevelCrumbs}
           />
           {crumbs.length !== 3 ? (
-            <div className="flex flex-row justify-end">
+            <div className="flex flex-row items-center">
               <div
                 className={cn(
-                  collapsed
-                    ? "translate-x-0 opacity-100"
-                    : "translate-x-full opacity-0",
-                  "flex flex-row overflow-x-clip justify-center items-center space-x-2 slide-in-from-right-full slide-out-to-right-full transition-all duration-300 ease-in-out"
+                  "flex flex-row justify-center items-center gap-x-2 overflow-x-clip transition-transform duration-300 ease-in-out",
+                  collapsed ? "slide-out-to-right" : "slide-in-from-right"
                 )}
               >
                 <SearchBar></SearchBar>
@@ -200,9 +198,8 @@ export function ModIndexPage() {
                 variant="ghost"
                 onPointerDown={() => setCollapased((c) => !c)}
                 className={cn(
-                  collapsed ? "rotate-0" : "rotate-180",
-                  "backdrop-blur-lg backdrop-brightness-75 bg-primary/30 m-2 font-semibold text-foreground rounded-full",
-                  "transform transition-transform duration-300"
+                  "backdrop-blur backdrop-brightness-50 bg-primary/30 m-2 font-semibold text-foreground rounded-full transition duration-150 ease-in-out",
+                  !collapsed ? "rotate-0" : "rotate-180",
                 )}
               >
                 <ChevronRightIcon />
@@ -212,7 +209,7 @@ export function ModIndexPage() {
         </div>
         <Outlet />
       </div>
-    </DataApiContext.Provider>
+    </DataApiContext.Provider >
   );
 }
 
@@ -229,9 +226,13 @@ function FilterDropDown<T>({
 }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-1 w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 p-2 me-12 font-semibold text-foreground">
-        {valueName(selected)}
-        <ChevronDownIcon />
+      <DropdownMenuTrigger>
+        <Button
+          className="w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-30"
+          variant={"ghost"}>
+          {valueName(selected)}
+          <ChevronDownIcon />
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <ScrollArea className="h-64 flex flex-col overflow-auto">
@@ -266,7 +267,7 @@ function SearchBar() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-row w-fit rounded-full h-fit backdrop-blur-lg backdrop-brightness-75 bg-primary/30 items-center space-x-1"
+      className="flex flex-row w-fit rounded-full h-fit bg-primary/30 backdrop-blur-lg backdrop-brightness-75 items-center space-x-1 mx-2"
     >
       <Input
         value={text}

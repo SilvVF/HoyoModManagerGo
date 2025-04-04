@@ -27,7 +27,7 @@ type SyncRequest int
 type SyncHelper struct {
 	db              *DbHelper
 	running         map[types.Game]pond.Pool
-	initialComplete map[types.Game]bool
+	initialComplete map[types.Game]*sync.Once
 }
 
 func (s *SyncHelper) RunAll(request SyncRequest) {
@@ -48,19 +48,22 @@ func (s *SyncHelper) RunAll(request SyncRequest) {
 }
 
 func NewSyncHelper(db *DbHelper) *SyncHelper {
-
-	m := map[types.Game]bool{types.Genshin: false, types.StarRail: false, types.ZZZ: false, types.WuWa: false}
-	pools := map[types.Game]pond.Pool{
-		types.Genshin:  pond.NewPool(1),
-		types.StarRail: pond.NewPool(1),
-		types.ZZZ:      pond.NewPool(1),
-		types.WuWa:     pond.NewPool(1),
-	}
-
 	return &SyncHelper{
-		db:              db,
-		running:         pools,
-		initialComplete: m,
+		db: db,
+		running: map[types.Game]pond.Pool{
+			types.Genshin:  pond.NewPool(1),
+			types.StarRail: pond.NewPool(1),
+			types.ZZZ:      pond.NewPool(1),
+			types.WuWa:     pond.NewPool(1),
+			types.LoL:      pond.NewPool(1),
+		},
+		initialComplete: map[types.Game]*sync.Once{
+			types.Genshin:  {},
+			types.StarRail: {},
+			types.ZZZ:      {},
+			types.WuWa:     {},
+			types.LoL:      {},
+		},
 	}
 }
 
@@ -70,10 +73,11 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 	if !ok {
 		return fmt.Errorf("invalid data api %v", game)
 	}
-
-	completed := request == StartupRequest && s.initialComplete[game]
-	if completed {
-		return fmt.Errorf("completed Startup Sync for game id %s", dataApi.GetGame().Name())
+	if request == StartupRequest {
+		s.initialComplete[game].Do(func() {
+			s.Sync(game, SyncRequestForceNetwork)
+		})
+		return nil
 	}
 
 	pool := s.running[game]
@@ -190,7 +194,6 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 		log.LogPrint("Deleting mods not in: " + strings.Join(seenMods, "\n - "))
 		s.db.deleteUnusedMods(seenMods, game)
 		s.db.deleteUnusedTextures(seenTextures)
-		s.initialComplete[game] = true
 
 		return nil
 	})

@@ -23,6 +23,7 @@ import * as ServerAuthTypePref from "../../wailsjs/go/core/ServerAuthTypePref";
 import * as CleanModDirPref from "../../wailsjs/go/core/CleanModExportDirPref";
 import * as EnabledPluginsPref from "../../wailsjs/go/core/EnabledPluginsPref";
 import * as RootModDirPref from "../../wailsjs/go/core/RootModDirPref"
+import { LogDebug } from "wailsjs/runtime/runtime";
 
 export type GoPref<T extends any> = {
   DefaultValue(): Promise<T>;
@@ -63,6 +64,38 @@ const serverAuthTypePref = ServerAuthTypePref as GoPref<number>;
 
 const cleanModDirPref = CleanModDirPref as GoPref<boolean>;
 const rootModDirPref = RootModDirPref as GoPref<string>;
+
+//export type GoPref<T extends any> = {
+//   DefaultValue(): Promise<T>;
+//   Delete(): Promise<void>;
+//   Get(): Promise<T>;
+//   IsSet(): Promise<boolean>;
+//   Key(): Promise<string>;
+//   Set(arg1: T): Promise<void>;
+// };
+
+const memPref = new Map<number, any>()
+
+export function inMemroyPerf<T extends any>(value: T, game: number): GoPref<T> {
+  let isSet = false
+  return {
+    DefaultValue: async () => value,
+    Delete: async () => { memPref.delete(game) },
+    Get: async () => {
+      LogDebug("setting " + value)
+      if (memPref.has(game))
+        return memPref.get(game)
+      else
+        return value
+    },
+    IsSet: async () => isSet,
+    Key: async () => "",
+    Set: async (v) => {
+      isSet = true
+      memPref.set(game, v)
+    },
+  } as GoPref<T>
+}
 
 export function usePrefrenceAsStateDefault<T extends any>(
   defaultValue: T,

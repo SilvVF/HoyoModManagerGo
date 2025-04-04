@@ -40,7 +40,7 @@ func WalkAndRezip(root string, ctx context.Context, onProgress func(total int, c
 
 		newZip := strings.TrimSuffix(path, ".zip") + "_new.zip"
 		fmt.Println("extraxting to " + newZip + "from " + path)
-		err = ZipFolder(t, newZip)
+		err = ZipFolder(t, newZip, func(total, complete int) {})
 		if err != nil {
 			return nil
 		}
@@ -86,7 +86,8 @@ func WalkAndRezip(root string, ctx context.Context, onProgress func(total int, c
 
 	return errors.Join(failed...)
 }
-func ZipFolder(srcDir, destZip string) error {
+
+func ZipFolder(srcDir, destZip string, onProgress func(total int, complete int)) error {
 
 	err := os.MkdirAll(filepath.Dir(destZip), os.ModePerm)
 	if err != nil {
@@ -105,6 +106,26 @@ func ZipFolder(srcDir, destZip string) error {
 	zipWriter.RegisterCompressor(zip.Deflate, func(w io.Writer) (io.WriteCloser, error) {
 		return flate.NewWriter(w, flate.BestCompression)
 	})
+
+	total := 0
+	complete := 0
+
+	err = filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == srcDir {
+			return nil
+		}
+		total += 1
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	onProgress(total, complete)
 
 	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -138,6 +159,10 @@ func ZipFolder(srcDir, destZip string) error {
 		defer file.Close()
 
 		_, err = io.Copy(writer, file)
+		complete += 1
+
+		onProgress(total, complete)
+
 		return err
 	})
 }

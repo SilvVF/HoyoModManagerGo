@@ -64,6 +64,8 @@ func main() {
 		)
 	}
 
+	go api.CleanCache()
+
 	dbfile := util.GetDbFile()
 	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
 	util.CreateFileIfNotExists(dbfile)
@@ -87,6 +89,7 @@ func main() {
 	starRailApi := api.ApiList[types.StarRail]
 	zenlessApi := api.ApiList[types.ZZZ]
 	wuwaApi := api.ApiList[types.WuWa]
+	leagueApi := api.ApiList[types.LoL]
 	preferenceDirs := map[types.Game]pref.Preference[string]{
 		types.Genshin:  appPrefs.GenshinDirPref.Preference,
 		types.ZZZ:      appPrefs.ZZZDirPref.Preference,
@@ -164,6 +167,7 @@ func main() {
 			starRailApi,
 			zenlessApi,
 			wuwaApi,
+			leagueApi,
 			gbApi,
 			// CORE
 			sync,

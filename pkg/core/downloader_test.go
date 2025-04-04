@@ -46,7 +46,7 @@ func TestZip(t *testing.T) {
 
 	path := "C:\\Users\\david\\dev\\go\\skin-mod-manager\\test_resources\\clorinde"
 	out := "C:\\Users\\david\\dev\\go\\skin-mod-manager\\test_resources\\clorinde_new1.zip"
-	err := ZipFolder(path, out)
+	err := ZipFolder(path, out, func(total, complete int) {})
 	t.Error(err.Error())
 }
 

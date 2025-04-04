@@ -69,9 +69,7 @@ function DownloadItem({ download }: { download: Download }) {
         </Button>
       </div>
     );
-  }
-
-  if (download.state === "error") {
+  } else if (download.state === "error") {
     return (
       <div className="flex flex-row items-center justify-between pb-2">
         <div className="flex flex-col space-y-1 px-4">
@@ -98,11 +96,38 @@ function DownloadItem({ download }: { download: Download }) {
 
   return (
     <div className="flex flex-col space-y-1 p-4">
-      <b>{`${download.filename} ${
-        download.state === "queued" ? "queued" : ""
-      }`}</b>
-      <ProgressBar progress={download.fetch} title="Downloading" />
-      <ProgressBar progress={download.unzip} title="Unzipping" />
+      <b>{`${download.filename} ${download.state}`}</b>
+      {download.state === "compress" ? (
+        <CompressProgressBar title="Compressing" progress={download.compress} />
+      ) : (
+        <>
+          <ProgressBar progress={download.fetch} title="Downloading" />
+          <ProgressBar progress={download.unzip} title="Unzipping" />
+        </>
+      )}
+    </div>
+  );
+}
+
+function CompressProgressBar({
+  title,
+  progress,
+}: {
+  title: string;
+  progress: DownloadProgress;
+}) {
+  return (
+    <div className="flex flex-row items-center justify-start space-x-2">
+      <Progress
+        value={
+          progress.total !== 0 ? (progress.progress / progress.total) * 100 : 0
+        }
+        className="w-[75%] h-6"
+      />
+      <div className="flex flex-col">
+        <div>{title}</div>
+        <div className="text-sm">{`${progress.progress} / ${progress.total}`}</div>
+      </div>
     </div>
   );
 }
