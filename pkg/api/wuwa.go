@@ -1,62 +1,76 @@
 package api
 
 import (
+	"bufio"
 	"fmt"
 	"hash/fnv"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
+	"strings"
 
-	"github.com/anaskhan96/soup"
+	"golang.org/x/net/html"
 )
 
 const (
 	WUWA_SKIN_ID = 29524
 )
 
-type WutheringWavesApi struct {
+type wutheringWavesApi struct {
 	Game    types.Game `json:"game"`
 	SkinIdV int        `json:"skinIdV"`
 }
 
-func NewWutherWavesApi() *WutheringWavesApi {
-	return &WutheringWavesApi{
+func NewWutherWavesApi() *wutheringWavesApi {
+	return &wutheringWavesApi{
 		types.WuWa,
 		WUWA_SKIN_ID,
 	}
 }
 
-func (w *WutheringWavesApi) SkinId() int {
+func (w *wutheringWavesApi) SkinId() int {
 	return w.SkinIdV
 }
 
-func (w *WutheringWavesApi) GetGame() types.Game {
+func (w *wutheringWavesApi) GetGame() types.Game {
 	return w.Game
 }
 
-func (w *WutheringWavesApi) Elements() []string {
+func (w *wutheringWavesApi) Elements() []string {
 	return []string{"Aero", "Electro", "Fusion", "Glacio", "Havoc", "Spectro"}
 }
 
-func (w *WutheringWavesApi) Characters() []types.Character {
-	res, err := soup.GetWithClient(fmt.Sprintf("%s/wuthering-waves/characters/", PRYDWEN_URL), &client)
+func (w *wutheringWavesApi) Characters() []types.Character {
+	r, err := client.Get(fmt.Sprintf("%s/wuthering-waves/characters/", PRYDWEN_URL))
 	if err != nil {
 		return make([]types.Character, 0)
 	}
-	doc := soup.HTMLParse(res)
+	defer r.Body.Close()
+	doc, err := html.Parse(bufio.NewReader(r.Body))
+	if err != nil {
+		return make([]types.Character, 0)
+	}
 
-	elements := doc.FindAll("div", "class", "avatar-card")
-	characters := make([]types.Character, len(elements))
+	elements := findMatchingElemsWithClass(doc, "div", "avatar-card")
+	characters := make([]types.Character, 0, len(elements))
 
 	for _, element := range elements {
-		nameElement := element.Find("span", "class", "emp-name")
-		name := nameElement.Text()
-		imgElement := element.Find("div", "class", "gatsby-image-wrapper").FindAll("img")
-		log.LogDebug(imgElement[len(imgElement)-1].HTML())
-		log.LogDebug(imgElement[len(imgElement)-1].Attrs()["data-src"])
+		nameElement := findMatchingElemsWithClass(element, "span", "emp-name")
 
-		typeElement := element.FindAll("img")
+		if len(nameElement) <= 0 {
+			continue
+		}
 
-		log.LogDebug(typeElement[len(typeElement)-1].HTML())
+		name := strings.TrimSpace(getTextContent(nameElement[0]))
+
+		imgElements := findMatchingElemsWithClass(element, "div", "gatsby-image-wrapper")
+		imgElements = findMatchingElems(imgElements[len(imgElements)-1], "img")
+
+		ieAttrs := attrsForNode(imgElements[len(imgElements)-1])
+		log.LogDebugf("%v", ieAttrs)
+		avatar := ieAttrs["data-src"]
+		typeElement := findMatchingElems(element, "img")
+		teAttrs := attrsForNode(typeElement[len(typeElement)-1])
+		elem := teAttrs["alt"]
 
 		h := fnv.New32a()
 		h.Write([]byte(name))
@@ -65,8 +79,8 @@ func (w *WutheringWavesApi) Characters() []types.Character {
 			Id:        int(h.Sum32()),
 			Game:      w.Game,
 			Name:      name,
-			AvatarUrl: PRYDWEN_URL + imgElement[len(imgElement)-1].Attrs()["data-src"],
-			Element:   typeElement[len(typeElement)-1].Attrs()["alt"],
+			AvatarUrl: PRYDWEN_URL + avatar[0],
+			Element:   elem[0],
 		}
 		characters = append(characters, character)
 	}

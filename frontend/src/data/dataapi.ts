@@ -1,8 +1,8 @@
 import { types } from '../../wailsjs/go/models'
-import * as GApi from '../../wailsjs/go/api/GenshinApi'
-import * as SRApi from '../../wailsjs/go/api/StarRailApi'
-import * as WuWaApi from '../../wailsjs/go/api/WutheringWavesApi'
-import * as ZZZApi from '../../wailsjs/go/api/ZenlessZoneZeroApi'
+import * as GApi from '../../wailsjs/go/api/genshinApi'
+import * as SRApi from '../../wailsjs/go/api/starRailApi'
+import * as WuWaApi from '../../wailsjs/go/api/wutheringWavesApi'
+import * as ZZZApi from '../../wailsjs/go/api/zenlessZoneZeroApi'
 import * as LoLApi from '../../wailsjs/go/api/leagueApi'
 import * as DbHelper from '../../wailsjs/go/core/DbHelper'
 

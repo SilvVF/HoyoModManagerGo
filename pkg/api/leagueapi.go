@@ -73,9 +73,7 @@ func (l *leagueApi) Characters() []types.Character {
 		log.LogError("failed to read body for league api")
 		return make([]types.Character, 0)
 	}
-
-	requiredClasses := []string{"article-table"}
-	tables := findMatchingTables(doc, requiredClasses)
+	tables := findMatchingElemsWithClass(doc, "table", "article-table")
 
 	log.LogDebugf("%v %d", tables, len(tables))
 
@@ -113,41 +111,6 @@ func cleanName(n string) string {
 	return strings.Split(nq, " ")[0]
 }
 
-func hasAllClasses(attrVal string, required []string) bool {
-	classes := strings.Fields(attrVal)
-	classSet := map[string]bool{}
-	for _, c := range classes {
-		classSet[c] = true
-	}
-	for _, req := range required {
-		if !classSet[req] {
-			return false
-		}
-	}
-	return true
-}
-
-func findMatchingTables(n *html.Node, requiredClasses []string) []*html.Node {
-	var result []*html.Node
-
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "table" {
-			for _, attr := range n.Attr {
-				if attr.Key == "class" && hasAllClasses(attr.Val, requiredClasses) {
-					result = append(result, n)
-				}
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-
-	walk(n)
-	return result
-}
-
 type Champion struct {
 	Name     string
 	ImageURL string
@@ -172,8 +135,6 @@ func extractChampions(table *html.Node) ([]Champion, error) {
 
 	for row := tbody.FirstChild; row != nil; row = row.NextSibling {
 		if row.Type != html.ElementNode || row.Data != "tr" {
-			log.LogDebug("skipping")
-			printHTMLNode(row)
 			continue
 		}
 
@@ -184,9 +145,7 @@ func extractChampions(table *html.Node) ([]Champion, error) {
 			}
 		}
 		if len(tds) < 2 {
-			log.LogDebug("skipping")
-			printHTMLNode(row)
-			continue // skip if there aren't at least 2 columns
+			continue
 		}
 
 		name := extractChampionName(tds[0])
@@ -235,15 +194,6 @@ func extractChampionName(td *html.Node) string {
 	}
 	f(td)
 	return name
-}
-
-func printHTMLNode(n *html.Node) {
-	var sb strings.Builder
-	err := html.Render(&sb, n)
-	if err != nil {
-		log.LogErrorf("Error rendering HTML node: %v", err)
-	}
-	log.LogDebug(sb.String())
 }
 
 func extractChampionImage(td *html.Node) string {

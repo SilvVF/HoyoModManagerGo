@@ -12,27 +12,27 @@ const (
 	STARRAIL_SKIN_ID = 22832
 )
 
-type StarRailApi struct {
+type starRailApi struct {
 	Game    types.Game `json:"game"`
 	SkinIdV int        `json:"skinIdV"`
 }
 
-func NewStarRailApi() *StarRailApi {
-	return &StarRailApi{
+func NewStarRailApi() *starRailApi {
+	return &starRailApi{
 		types.StarRail,
 		STARRAIL_SKIN_ID,
 	}
 }
 
-func (s *StarRailApi) SkinId() int {
+func (s *starRailApi) SkinId() int {
 	return s.SkinIdV
 }
 
-func (s *StarRailApi) GetGame() types.Game {
+func (s *starRailApi) GetGame() types.Game {
 	return s.Game
 }
 
-func (s *StarRailApi) Elements() []string {
+func (s *starRailApi) Elements() []string {
 	return []string{"Ice", "Physical", "Fire", "Lightning", "Wind", "Quantum", "Imaginary"}
 }
 
@@ -52,7 +52,7 @@ type Characters map[string]struct {
 	Portrait   string   `json:"portrait"`
 }
 
-func (s *StarRailApi) Characters() []types.Character {
+func (s *starRailApi) Characters() []types.Character {
 	resp, err := client.Get("https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/index_new/en/characters.json")
 
 	if err != nil {

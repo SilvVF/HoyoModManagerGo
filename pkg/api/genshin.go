@@ -13,27 +13,27 @@ const (
 	GENSHIN_SKIN_ID = 18140
 )
 
-type GenshinApi struct {
+type genshinApi struct {
 	Game    types.Game `json:"game"`
 	SkinIdV int        `json:"skinIdV"`
 }
 
-func NewGenshinApi() *GenshinApi {
-	return &GenshinApi{
+func NewGenshinApi() *genshinApi {
+	return &genshinApi{
 		types.Genshin,
 		GENSHIN_SKIN_ID,
 	}
 }
 
-func (g *GenshinApi) SkinId() int {
+func (g *genshinApi) SkinId() int {
 	return g.SkinIdV
 }
 
-func (g *GenshinApi) GetGame() types.Game {
+func (g *genshinApi) GetGame() types.Game {
 	return g.Game
 }
 
-func (g *GenshinApi) Elements() []string {
+func (g *genshinApi) Elements() []string {
 	return []string{"Anemo", "Cryo", "Dendro", "Electro", "Geo", "Hydro", "Pyro"}
 }
 
@@ -99,7 +99,7 @@ func avatarIconUrl(name string) string {
 	}
 }
 
-func (g *GenshinApi) Characters() []types.Character {
+func (g *genshinApi) Characters() []types.Character {
 	resp, err := client.Get("https://api.github.com/repos/theBowja/genshin-db/contents/src/data/English/characters")
 
 	if err != nil {
