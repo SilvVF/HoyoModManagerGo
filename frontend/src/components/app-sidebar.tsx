@@ -192,6 +192,7 @@ export function AppSidebar({
             {games.map(({ game, path, icon }) => {
               return (
                 <SidebarItem
+                  key={path}
                   name={game}
                   onClick={() => navigate(path)}
                   selected={location.pathname.includes(path)}

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -196,6 +197,41 @@ func (d *Downloader) Retry(link string) error {
 	)
 }
 
+func convertDriveLinkToDownload(viewLink string) (string, error) {
+	re := regexp.MustCompile(`^https?://drive\.google\.com/file/d/([^/]+)/view`)
+	matches := re.FindStringSubmatch(viewLink)
+	if len(matches) != 2 {
+		return "", fmt.Errorf("invalid Google Drive file URL")
+	}
+	log.LogDebugf("%v", matches)
+	fileID := matches[1]
+	log.LogDebug(fileID)
+	downloadURL := fmt.Sprintf("https://drive.usercontent.google.com/u/0/uc?id=%s&export=download", fileID)
+	return downloadURL, nil
+}
+
+func getFilenameFromDriveLink(dlLink string) (string, error) {
+	resp, err := http.Get(dlLink)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	cd := resp.Header.Get("Content-Disposition")
+	if cd == "" {
+		return "", fmt.Errorf("Content-Disposition header not found")
+	}
+
+	// Extract filename using regex
+	re := regexp.MustCompile(`filename="([^"]+)"`)
+	matches := re.FindStringSubmatch(cd)
+	if len(matches) < 2 {
+		return "", fmt.Errorf("filename not found in Content-Disposition")
+	}
+
+	return matches[1], nil
+}
+
 func (d *Downloader) submitItem(link, filename string, meta DLMeta) {
 
 	d.mutex.Lock()
@@ -219,11 +255,30 @@ func (d *Downloader) submitItem(link, filename string, meta DLMeta) {
 	if !d.pool.Stopped() {
 		d.pool.SubmitErr(func() (err error) {
 
-			defer cleanup(d, link, err)
+			defer func() {
+				cleanup(d, link, err)
+			}()
 
 			switch {
 			case filepath.IsAbs(link):
 				err = d.localDownload(link, filename, meta)
+				return err
+			case strings.Contains(link, "drive.google") || strings.Contains(link, "drive.usercontent"):
+				link, err = convertDriveLinkToDownload(link)
+				log.LogDebug(link)
+				if err != nil {
+					return err
+				}
+
+				if filename == "" {
+					filename, err = getFilenameFromDriveLink(link)
+				}
+				log.LogDebug(filename)
+				if err != nil {
+					return err
+				}
+
+				err = d.httpDownload(link, filename, meta)
 				return err
 			case strings.HasPrefix(link, "https") || strings.HasPrefix(link, "http"):
 				err = d.httpDownload(link, filename, meta)
@@ -381,7 +436,7 @@ func (d *Downloader) localDownload(link, filename string, meta DLMeta) (err erro
 }
 
 func (d *Downloader) httpDownload(link, filename string, meta DLMeta) (err error) {
-	log.LogPrint(fmt.Sprintf("Downloading from http source %s %d", meta.character, meta.gbId))
+	log.LogDebug(fmt.Sprintf("Downloading from http source %s %d", meta.character, meta.gbId))
 
 	updateProgress := func(state string, dp DataProgress) {
 		d.mutex.Lock()
@@ -435,12 +490,17 @@ func (d *Downloader) httpDownload(link, filename string, meta DLMeta) (err error
 	if err != nil {
 		return err
 	}
+	defer func() {
+		file.Close()
+		err := os.RemoveAll(file.Name())
+		if err != nil {
+			log.LogError(err.Error())
+		}
+	}()
+
 	if _, err = io.Copy(file, byteCounter); err != nil {
 		return err
 	}
-
-	defer file.Close()
-	defer os.RemoveAll(file.Name())
 
 	err = d.unzipAndInsertToDb(filename, link, meta, file, updateProgress)
 
@@ -513,9 +573,19 @@ func (d *Downloader) unzipAndInsertToDb(
 		}
 	default:
 		log.LogDebug("copying regular file")
-		onProgress(0, 0)
-		if err = util.CopyRecursivley(filePath, filepath.Join(outputDir, filename), true); err != nil {
+		i, err := file.Stat()
+		if err != nil {
 			return err
+		}
+
+		if i.IsDir() {
+			if err = util.CopyRecursivleyProgFn(filePath, filepath.Join(outputDir, filename), true, onProgress); err != nil {
+				return err
+			}
+		} else {
+			if err = util.CopyFile(filePath, filepath.Join(outputDir, filename), true); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -525,6 +595,7 @@ func (d *Downloader) unzipAndInsertToDb(
 			return err
 		}
 		defer out.Close()
+
 		dirs, err := out.Readdir(1)
 		if err != nil {
 			return err

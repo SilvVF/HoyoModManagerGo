@@ -50,6 +50,59 @@ func TestZip(t *testing.T) {
 	t.Error(err.Error())
 }
 
+func TestGoogleDrive(t *testing.T) {
+	path := filepath.Join(workingDir, zipFile)
+	fmt.Println(path)
+
+	ctx := context.Background()
+
+	memStore := pref.NewInMemoryStore(ctx)
+	prefs := pref.NewPrefs(memStore)
+	emitter := TestEmitter()
+
+	downloader := NewDownloader(
+		_getDb(),
+		prefs.GetInt("test_workers", 1),
+		prefs.GetBoolean("test_space_saver", false),
+		emitter,
+	)
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		for {
+			e, ok := <-emitter.events
+			log.LogPrintf("event: %s, data: %v", e.e, e.data)
+			if !ok || e.data[0].(string) == STATE_ERROR {
+				t.Fail()
+				return
+			} else if e.data[0].(string) == STATE_FINSIHED {
+				return
+			}
+		}
+	}()
+
+	err := downloader.Download(
+		"https://drive.google.com/file/d/1p0lTVWiOTbpidTpRzIJ-B15P8BOyiXWq/view",
+		"",
+		"Clorinde",
+		10000098,
+		types.Genshin,
+		0,
+		[]string{},
+	)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	wg.Wait()
+	t.Fail()
+}
+
 func TestLocalSource(t *testing.T) {
 	path := filepath.Join(workingDir, zipFile)
 	fmt.Println(path)
