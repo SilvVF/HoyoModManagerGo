@@ -20,6 +20,8 @@ import {
   GetExclusionPaths,
   OpenDirectoryDialog,
   FixZipCompression,
+  CompressionRunning,
+  CancelZipCompression,
 } from "../../wailsjs/go/main/App";
 import { Card } from "@/components/ui/card";
 import { range } from "@/lib/tsutils";
@@ -43,7 +45,7 @@ import { ModSizeChart } from "@/components/mod-size-chart";
 import { NameDialog } from "./GameScreen";
 import { useServerStore } from "@/state/serverStore";
 import { useShallow } from "zustand/shallow";
-import { LogDebug } from "wailsjs/runtime/runtime";
+import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -62,6 +64,7 @@ import { useModTransferStore } from "@/state/modTransferStore";
 import { SectionList } from "@/components/SectionList";
 import { MigrateModsDirDialog } from "@/components/ModTransferFlow";
 import { SettingsDirItem } from "@/components/SettingsDirItem";
+import { useStateProducer } from "@/lib/utils";
 
 type SettingsDialog = "edit_port" | "edit_password" | "edit_username" | "check_updates" | "migrate_mods_dir";
 const AuthType: { [keyof: number]: string } = {
@@ -239,7 +242,7 @@ export default function SettingsScreen() {
       <ScrollArea className="max-w-600">
         <div className="flex flex-row overflow-x-scroll space-x-2">
           {stats?.map((data) => {
-            return <SizeChart item={data} />;
+            return <SizeChart key={data.game} item={data} />;
           }) ??
             range(1, 4).map(() => {
               return <Skeleton className="min-w-[400px] aspect-square" />;
@@ -250,6 +253,7 @@ export default function SettingsScreen() {
       {items.map((item) => {
         return (
           <SettingsDirItem
+            key={item.name}
             name={item.name}
             setDir={() => openDialogAndSet(item.setValue)}
             dir={item.value}
@@ -373,17 +377,76 @@ export default function SettingsScreen() {
           </Button>
         }
       />
-      <SettingsEditItem
-        title="Fix zip compression"
-        description={`compresses zips further using better compression method`}
-        content={
-          <Button size={"icon"} onPointerDown={() => FixZipCompression()}>
-            <HammerIcon />
-          </Button>
-        }
-      />
+      <FixCompressionButton />
     </div>
   );
+}
+
+function FixCompressionButton() {
+
+  const [cancelling, setCancelling] = useState(false)
+  const { running, progress } = useStateProducer<{
+    running: boolean,
+    progress: { total: number, progress: number }
+  }>({ running: false, progress: { total: 0, progress: 0 } }, async (update, onDispose) => {
+
+    const updateState = async () => {
+      const { running, prog } = await CompressionRunning()
+      const v = {
+        running: running,
+        progress: {
+          total: prog.total,
+          progress: prog.progress,
+        }
+      }
+      LogDebug(`update compress state ${v}`)
+      update(v)
+    }
+
+    const cancel = EventsOn("compresssion_event", (e) => {
+      LogDebug(`received compression event ${e}`)
+      updateState()
+    })
+
+    onDispose(() => {
+      LogDebug("disposing listener")
+      cancel()
+    })
+  })
+
+
+  const cancelJob = () => {
+    if (cancelling) return
+    setCancelling(true)
+    CancelZipCompression().finally(() => setCancelling(false))
+  }
+
+  return (
+    <SettingsEditItem
+      title="Fix zip compression"
+      description={running
+        ? `fixing zip compression Progress: ${progress.progress} / ${progress.total}${cancelling ? " cancelling..." : ""}`
+        : `compresses zips further using better compression method`
+      }
+      content={
+        <>
+          {running ? (
+            <Button
+              size={"icon"}
+              onPointerDown={() => cancelJob()}>
+              <StopCircleIcon />
+            </Button>
+          ) : (
+            <Button
+              size={"icon"}
+              onPointerDown={() => FixZipCompression()}>
+              <HammerIcon />
+            </Button>
+          )}
+        </>
+      }
+    />
+  )
 }
 
 

@@ -25,6 +25,9 @@ const (
 	EVENT_PLUGINS     = "plugins_event"
 	EVENT_COMPRESSION = "compresssion_event"
 
+	EVENT_TYPE_COMPRESSION_PROG  = "compression_progress"
+	EVENT_TYPE_COMPRESSION_STATE = "compression_STATE"
+
 	EVENT_PLUGINS_STARTED = "plugins_started"
 	EVENT_PLUGINS_STOPPED = "plugins_stopped"
 
@@ -39,31 +42,41 @@ const (
 
 // App struct
 type App struct {
-	ctx            context.Context
-	dev            bool
-	pluginExports  map[string]lua.LGFunction
-	plugins        *plugin.Plugins
-	appPrefs       *core.AppPrefs
-	updator        *core.Updator
-	logType        int
-	transer        *core.Transfer
-	mutex          *sync.Mutex
-	compressMutex  *sync.Mutex
-	compressCancel context.CancelFunc
+	ctx              context.Context
+	dev              bool
+	pluginExports    map[string]lua.LGFunction
+	plugins          *plugin.Plugins
+	appPrefs         *core.AppPrefs
+	updator          *core.Updator
+	logType          int
+	transer          *core.Transfer
+	mutex            *sync.Mutex
+	compressMutex    *sync.Mutex
+	compressCancel   context.CancelFunc
+	compressCtx      context.Context
+	compressWg       sync.WaitGroup
+	compressProgress CompressProgress
+}
+
+type CompressProgress struct {
+	Total    int `json:"total"`
+	Progress int `json:"progress"`
 }
 
 // NewApp creates a new App application struct
 func NewApp(appPrefs *core.AppPrefs, updator *core.Updator, transfer *core.Transfer) *App {
+
 	return &App{
-		appPrefs:       appPrefs,
-		dev:            *dev,
-		logType:        *logType,
-		pluginExports:  make(map[string]lua.LGFunction),
-		updator:        updator,
-		transer:        transfer,
-		mutex:          &sync.Mutex{},
-		compressMutex:  &sync.Mutex{},
-		compressCancel: func() {},
+		appPrefs:         appPrefs,
+		dev:              *dev,
+		logType:          *logType,
+		pluginExports:    make(map[string]lua.LGFunction),
+		updator:          updator,
+		transer:          transfer,
+		mutex:            &sync.Mutex{},
+		compressMutex:    &sync.Mutex{},
+		compressCancel:   func() {},
+		compressProgress: CompressProgress{},
 	}
 }
 
@@ -203,23 +216,90 @@ func (a *App) DownloadModFix(game types.Game, old, name, link string) error {
 	return a.updator.DownloadModFix(game, old, name, link)
 }
 
-func (a *App) FixZipCompression() error {
+type CompressionState struct {
+	Running bool             `json:"running"`
+	Prog    CompressProgress `json:"prog"`
+}
 
-	a.compressCancel()
+func (a *App) CompressionRunning() CompressionState {
 
 	a.compressMutex.Lock()
 	defer a.compressMutex.Unlock()
 
+	return CompressionState{
+		a.compressCtx != nil && a.compressCtx.Err() == nil,
+		a.compressProgress,
+	}
+}
+
+func (a *App) cancelCompressionInternal() {
+
+	a.compressCancel()
+	a.compressWg.Wait()
+
+	if a.compressCtx != nil {
+		runtime.EventsEmit(a.ctx,
+			EVENT_COMPRESSION,
+			EVENT_TYPE_COMPRESSION_STATE,
+		)
+	}
+
+	a.compressProgress = CompressProgress{}
+	a.compressCancel = func() {}
+	a.compressCtx = nil
+}
+
+func (a *App) CancelZipCompression() {
+
+	a.compressMutex.Lock()
+	defer a.compressMutex.Unlock()
+
+	a.cancelCompressionInternal()
+}
+
+func (a *App) FixZipCompression() {
+
+	a.compressMutex.Lock()
+	defer a.compressMutex.Unlock()
+
+	log.LogDebug("cancelling prev compress job")
+
+	a.cancelCompressionInternal()
+
+	log.LogDebug("starting compress job")
+
 	ctx, cancel := context.WithCancel(a.ctx)
-	defer cancel()
+	a.compressProgress = CompressProgress{}
+	a.compressCtx = ctx
 	a.compressCancel = cancel
 
-	return core.WalkAndRezip(util.GetRootModDir(), ctx, func(total, complete int) {
-		runtime.EventsEmit(a.ctx, EVENT_COMPRESSION, struct {
-			total    int
-			complete int
-		}{total: total, complete: complete})
-	})
+	runtime.EventsEmit(
+		a.ctx,
+		EVENT_COMPRESSION,
+		EVENT_TYPE_COMPRESSION_STATE,
+	)
+	a.compressWg.Add(1)
+
+	go func() {
+		defer func() {
+			a.compressWg.Done()
+			cancel()
+		}()
+
+		core.WalkAndRezip(util.GetRootModDir(), ctx, func(total, complete int) {
+			log.LogDebugf("on compress progres %d / %d", complete, total)
+
+			if ctx.Err() == nil {
+				log.LogDebugf("ctx active sending progress")
+				a.compressProgress = CompressProgress{Total: total, Progress: complete}
+				runtime.EventsEmit(
+					a.ctx,
+					EVENT_COMPRESSION,
+					EVENT_TYPE_COMPRESSION_PROG,
+				)
+			}
+		})
+	}()
 }
 
 func (a *App) GetStats() (*types.DownloadStats, error) {

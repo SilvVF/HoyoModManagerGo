@@ -32,7 +32,7 @@ export type DownloadState = {
   toggleExpanded: () => void,
 }
 
-export const useDownloadStore = create<DownloadState>((set) => ({
+export const useDownloadStore = create<DownloadState>((set, get) => ({
   downloads: {},
   running: 0,
   expanded: false,
@@ -40,7 +40,8 @@ export const useDownloadStore = create<DownloadState>((set) => ({
   updateQueue: async () => {
     Downloader.GetQueue().then((q) => {
       set(() => ({
-        downloads: q
+        downloads: q,
+        running: Object.values<Download>(q).filter((item) => item.state! in ["finished", "error"]).length
       }))
     })
   },
@@ -51,10 +52,9 @@ export const useDownloadStore = create<DownloadState>((set) => ({
         LogPrint("download event" + data)
         const event = (data as State);
         if (event === "queued") {
-          set((state) => ({ running: state.running + 1, expanded: true }))
-        } else {
-          set((state) => ({ running: Math.max(0, state.running - 1) }))
+          set(({ expanded: true }))
         }
+        get().updateQueue()
       })
     return cancel
   },
@@ -68,6 +68,7 @@ export const useDownloadStore = create<DownloadState>((set) => ({
       set(() => (
         {
           downloads: q,
+          running: Object.values<Download>(q).filter((item) => item.state! in ["finished", "error"]).length
         }
       ))
     })
