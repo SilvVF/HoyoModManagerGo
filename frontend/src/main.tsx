@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import GameScreen from './screens/GameScreen.tsx';
-import { Game, GenshinApi, LeagueApi, StarRailApi, WutheringWavesApi, ZenlessApi } from './data/dataapi.ts';
+import { Game, GenshinApi, StarRailApi, WutheringWavesApi, ZenlessApi } from './data/dataapi.ts';
 import { createHashRouter, Navigate, RouterProvider, useNavigate, useRouteError } from 'react-router-dom';
 import ModBrowseScreen from './screens/mod/ModBrowseScreen.tsx';
 import { ModViewScreen } from './screens/mod/ModViewScreen.tsx';
@@ -34,14 +34,14 @@ const router = createHashRouter([
         },
         element: <GameScreen dataApi={GenshinApi} game={Game.Genshin} />,
       },
-      {
-        path: "league",
-        loader: async () => {
-          await syncCharacters(LeagueApi, SyncType.StartupRequest);
-          return null
-        },
-        element: <GameScreen dataApi={LeagueApi} game={Game.League} />,
-      },
+      // {
+      //   path: "league",
+      //   loader: async () => {
+      //     await syncCharacters(LeagueApi, SyncType.StartupRequest);
+      //     return null
+      //   },
+      //   element: <GameScreen dataApi={LeagueApi} game={Game.League} />,
+      // },
       {
         path: "starrail",
         loader: async () => {
