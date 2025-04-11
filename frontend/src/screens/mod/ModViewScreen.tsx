@@ -39,7 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useDownloadStore } from "@/state/downloadStore";
+import { dlStates, State, useDownloadStore } from "@/state/downloadStore";
 import { useShallow } from "zustand/shallow";
 import {
   Dialog,
@@ -51,8 +51,7 @@ import {
 import { Game } from "@/data/dataapi";
 import { FileBoxIcon } from "lucide-react";
 
-const dlStates = ["download", "queued", "unzip"];
-const inDownloadState = (state: string | undefined) => {
+const inDownloadState = (state: State | undefined) => {
   if (state) {
     return dlStates.includes(state);
   }

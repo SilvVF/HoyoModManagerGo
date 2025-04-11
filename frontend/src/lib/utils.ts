@@ -87,24 +87,25 @@ export function useStateProducer<T extends any>(
     let disposed = false
     let disposeFn: ((() => void) | null) = null
 
+    const disposeIfAborted = () => {
+      if (aborted && !disposed && disposeFn) {
+        disposeFn()
+        disposed = true
+      }
+    }
+
     try {
       producer(
         (v) => {
           if (!aborted) {
             setValue(v)
           } else {
-            if (!disposed && disposeFn) {
-              disposeFn()
-              disposed = true
-            }
+            disposeIfAborted()
           }
         },
         (dispose) => {
           disposeFn = dispose
-          if (aborted && !disposed && disposeFn) {
-            disposeFn()
-            disposed = true
-          }
+          disposeIfAborted()
         }
       )
         .catch((e) => LogError(e));
@@ -114,10 +115,7 @@ export function useStateProducer<T extends any>(
 
     () => {
       aborted = true
-      if (!disposed && disposeFn) {
-        disposeFn()
-        disposed = true
-      }
+      disposeIfAborted()
     }
   }, keys);
 

@@ -38,7 +38,7 @@ export const useDownloadStoreListener = () => {
     const updateQueue = useDownloadStore((state) => state.updateQueue);
     const expanded = useDownloadStore((state) => state.expanded);
     const downloadsInQueue = useDownloadStore(
-        useShallow((state) => (Object.keys(state.downloads) as Array<any>).length)
+        useShallow((state) => Object.keys(state.downloads).length)
     );
 
 
