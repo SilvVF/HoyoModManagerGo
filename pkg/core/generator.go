@@ -485,10 +485,7 @@ func overwriteTextures(src, dst string, textures []types.Texture) error {
 		for _, d := range dirs {
 			log.LogDebug("dir " + d.Name())
 			if filepath.Ext(d.Name()) != ".zip" {
-				texturePaths[d.Name()] = types.Pair[string, string]{
-					X: texturePath,
-					Y: d.Name(),
-				}
+				texturePaths[d.Name()] = types.PairOf(texturePath, d.Name())
 				continue
 			}
 			tmp, err := os.MkdirTemp(util.GetGeneratorCache(), "")
@@ -509,10 +506,7 @@ func overwriteTextures(src, dst string, textures []types.Texture) error {
 				continue
 			}
 			for _, tmpDir := range tmpDirs {
-				texturePaths[tmpDir.Name()] = types.Pair[string, string]{
-					X: tmp,
-					Y: tmpDir.Name(),
-				}
+				texturePaths[tmpDir.Name()] = types.PairOf(tmp, tmpDir.Name())
 			}
 		}
 	}
@@ -523,7 +517,7 @@ func overwriteTextures(src, dst string, textures []types.Texture) error {
 
 	log.LogDebugf("%v \nsearching in: %s", texturePaths, dst)
 
-	cpy := [][2]string{}
+	srcToDest := []types.Pair[string, string]{}
 
 	err := filepath.WalkDir(dst, func(path string, info os.DirEntry, err error) error {
 		if err != nil || !info.IsDir() {
@@ -538,7 +532,7 @@ func overwriteTextures(src, dst string, textures []types.Texture) error {
 		}
 
 		log.LogDebugf("copying %s to %s", filepath.Join(t.X, t.Y), path)
-		cpy = append(cpy, [2]string{filepath.Join(t.X, t.Y), path})
+		srcToDest = append(srcToDest, types.PairOf(filepath.Join(t.X, t.Y), path))
 		return nil
 	})
 
@@ -546,8 +540,9 @@ func overwriteTextures(src, dst string, textures []types.Texture) error {
 		return err
 	}
 
-	for _, pair := range cpy {
-		err := util.CopyRecursivley(pair[0], pair[1], true)
+	for _, pair := range srcToDest {
+		src, dest := pair.Pair()
+		err := util.CopyRecursivley(src, dest, true)
 		if err != nil {
 			return err
 		}

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"hmm/pkg/api"
@@ -16,17 +15,11 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
-)
-
-const (
-	local = 0
-	net   = 1
+	"sync"
 )
 
 type Updator struct {
 	api        *api.GbApi
-	cancel     context.CancelFunc
 	exportDirs map[types.Game]pref.Preference[string]
 }
 
@@ -37,22 +30,49 @@ func NewUpdator(api *api.GbApi, dirs map[types.Game]pref.Preference[string]) *Up
 	}
 }
 
-func (u *Updator) CancelJob() {
-	if u.cancel != nil {
-		u.cancel()
-	}
-}
-
 func (u *Updator) CheckFixesForUpdate() []types.Update {
-	context, cancel := context.WithTimeout(context.Background(), time.Second*15)
-	defer cancel()
+	ret := make([]types.Update, len(types.Games))
 
-	if u.cancel != nil {
-		u.cancel()
+	wg := sync.WaitGroup{}
+
+	for i, game := range types.Games {
+		wg.Add(1)
+
+		var local string
+		var network types.Tool
+		var nOk bool
+
+		go func() {
+			defer wg.Done()
+
+			checkWg := sync.WaitGroup{}
+			checkWg.Add(2)
+
+			go func() {
+				defer checkWg.Done()
+				exePath, _ := u.checkLocalForCurrent(game)
+				local = exePath
+			}()
+
+			go func() {
+				defer checkWg.Done()
+				network, nOk = u.checkNetworkForUpdate(game)
+			}()
+
+			checkWg.Wait()
+		}()
+
+		ret[i] = types.Update{
+			Game:    game,
+			Current: local,
+			Newest:  network,
+			Found:   nOk,
+		}
 	}
-	u.cancel = cancel
 
-	return u.checkFixesForUpdateCancellable(context)
+	wg.Wait()
+
+	return ret
 }
 
 func (u *Updator) DownloadModFix(game types.Game, old, fname, link string) error {
@@ -117,82 +137,23 @@ func (u *Updator) DownloadModFix(game types.Game, old, fname, link string) error
 	}
 }
 
-func (u *Updator) checkFixesForUpdateCancellable(ctx context.Context) []types.Update {
-
-	final := make(chan types.Update, len(types.Games))
-	ret := make([]types.Update, len(types.Games))
-
-	for i, game := range types.Games {
-		ret[i] = types.Update{Game: game, Found: false}
-		go func() {
-			res := make(chan types.Pair[int, any], 2)
-			got := make([]types.Pair[int, any], 0, 2)
-
-			go u.checkLocalForCurrent(game, res)
-			go u.checkNetworkForUpdate(game, res)
-
-			for len(got) < 2 {
-				select {
-				case r := <-res:
-					got = append(got, r)
-				case <-ctx.Done():
-					return
-				}
-			}
-
-			final <- NewUpdate(got, game)
-		}()
-	}
-
-	for i := 0; i < len(types.Games); i++ {
-		select {
-		case u := <-final:
-			ret[i] = u
-		case <-ctx.Done():
-			return ret
-		}
-	}
-
-	return ret
-}
-
-func NewUpdate(pair []types.Pair[int, any], game types.Game) types.Update {
-	var l string
-	var n types.Tool
-	if pair[0].X == local {
-		l = pair[0].Y.(string)
-		n = pair[1].Y.(types.Tool)
-	} else {
-		l = pair[1].Y.(string)
-		n = pair[0].Y.(types.Tool)
-	}
-	return types.Update{Found: n.Dl != "", Game: game, Current: l, Newest: n}
-}
-
-func (u *Updator) checkLocalForCurrent(game types.Game, res chan<- types.Pair[int, any]) {
-	notfound := types.Pair[int, any]{X: local, Y: ""}
+func (u *Updator) checkLocalForCurrent(game types.Game) (string, bool) {
 	dir, ok := u.exportDirs[types.Game(game)]
 	if !ok || !dir.IsSet() {
-		res <- notfound
-		return
+		return "", false
 	}
 	path := dir.Get()
 	file, err := os.Open(path)
 	if err != nil {
 		log.LogDebug(err.Error())
-		res <- notfound
-		return
+		return "", false
 	}
 	subdirs, err := file.Readdirnames(-1)
 	if err != nil {
 		log.LogDebug(err.Error())
-		res <- notfound
-		return
+		return "", false
 	}
-	res <- types.Pair[int, any]{
-		X: local,
-		Y: getModFixExe(subdirs),
-	}
+	return getModFixExe(subdirs), true
 }
 
 func (u *Updator) gameToToolId(game types.Game) int {
@@ -245,33 +206,26 @@ func filterDigits(s string) (float64, error) {
 	return num, nil
 }
 
-func (u *Updator) checkNetworkForUpdate(game types.Game, res chan<- types.Pair[int, any]) {
-	notfound := types.Pair[int, any]{X: net, Y: nil}
-
+func (u *Updator) checkNetworkForUpdate(game types.Game) (types.Tool, bool) {
 	id := u.gameToToolId(game)
 	if id == -1 {
-		res <- notfound
-		return
+		return types.Tool{}, false
 	}
 	page, err := u.api.ToolPage(id)
 	if err != nil {
 		log.LogDebug(err.Error())
-		res <- notfound
-		return
+		return types.Tool{}, false
 	}
 	for _, file := range page.AFiles {
 		if file.BContainsExe {
-			res <- types.Pair[int, any]{
-				X: net,
-				Y: types.Tool{
-					Dl:          file.SDownloadURL,
-					Name:        page.SName,
-					Description: file.SDescription,
-					FName:       file.SFile,
-				},
+			tool := types.Tool{
+				Dl:          file.SDownloadURL,
+				Name:        page.SName,
+				Description: file.SDescription,
+				FName:       file.SFile,
 			}
-			break
+			return tool, true
 		}
 	}
-	res <- notfound
+	return types.Tool{}, false
 }
