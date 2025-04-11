@@ -13,7 +13,6 @@ import {
   SettingsIcon,
   SparkleIcon,
   Sun,
-  SwordIcon,
   TrainIcon,
   TrashIcon,
   WavesIcon,

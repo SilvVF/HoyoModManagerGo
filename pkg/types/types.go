@@ -21,6 +21,14 @@ type Pair[X any, Y any] struct {
 	Y Y
 }
 
+func PairOf[X any, Y any](x X, y Y) Pair[X, Y] {
+	return Pair[X, Y]{X: x, Y: y}
+}
+
+func (p Pair[X, Y]) Pair() (X, Y) {
+	return p.X, p.Y
+}
+
 func (g Game) Int64() int64 {
 	switch g {
 	case Genshin:

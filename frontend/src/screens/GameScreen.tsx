@@ -4,7 +4,7 @@ import { syncCharacters, SyncType } from "../data/sync";
 import { cn, useStateProducer } from "../lib/utils";
 import { type Pair } from "@/lib/tsutils";
 import { types } from "wailsjs/go/models";
-import { Reload } from "../../wailsjs/go/core/Generator";
+import * as Generator from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import {
   DisableAllModsByGame,
@@ -79,12 +79,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     useMemo(() => getElementPref(props.game), [props.game])
   );
   const running = useDownloadStore(useShallow((state) => state.running));
-
   const refreshCharacters = () => setRefreshTrigger((prev) => prev + 1);
-
-  useEffect(() => {
-    refreshCharacters();
-  }, [running, updates]);
 
   const elements = useStateProducer<string[]>(
     [],
@@ -99,7 +94,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     async (update) => {
       update(await props.dataApi.charactersWithModsAndTags());
     },
-    [props.dataApi, refreshTrigger]
+    [props.dataApi, running, updates, refreshTrigger]
   );
 
   const filteredCharacters = useMemo(() => {
@@ -323,11 +318,25 @@ function OverlayOptions({
 }: {
   dataApi: DataApi;
   dialog: GameDialog | undefined;
-  setDialog: (dialgo: GameDialog | undefined) => void;
+  setDialog: (dialog: GameDialog | undefined) => void;
   refreshCharacters: () => void;
 }) {
   const [reloading, setReloading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  // lazy way to restore the state of generating job TODO: maybe use events 
+  useEffect(() => {
+    dataApi.game().then((game) => {
+      Generator.IsRunning(game)
+        .then((reloading) => {
+          setReloading(reloading)
+          if (reloading) {
+            Generator
+              .AwaitCurrentJob(game)
+              .finally(() => setReloading(false))
+          }
+        })
+    })
+  }, [])
 
   const sync = (type: SyncType) => {
     setSyncing(true);
@@ -338,7 +347,7 @@ function OverlayOptions({
 
   const reload = async () => {
     setReloading(true);
-    Reload(await dataApi.game())
+    Generator.Reload(await dataApi.game())
       .finally(() => setReloading(false))
       .catch();
   };

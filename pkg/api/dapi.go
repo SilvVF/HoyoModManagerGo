@@ -59,7 +59,7 @@ func CleanCache() {
 
 		log.LogDebug("keeping in httpcache: " + info.Name() + " " + info.ModTime().String())
 		remaining -= info.Size()
-		cf = append(cf, types.Pair[string, time.Time]{X: filePath, Y: info.ModTime()})
+		cf = append(cf, types.PairOf(filePath, info.ModTime()))
 
 		return nil
 	})

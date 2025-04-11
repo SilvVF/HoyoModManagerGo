@@ -23,7 +23,7 @@ import (
 type Generator struct {
 	db         *DbHelper
 	poolSize   int
-	cancelFns  map[types.Game]context.CancelFunc
+	cancelFns  map[types.Game]types.Pair[context.Context, context.CancelFunc]
 	wgMap      map[types.Game]*sync.WaitGroup
 	mutexMap   map[types.Game]*sync.Mutex
 	outputDirs map[types.Game]pref.Preference[string]
@@ -41,11 +41,11 @@ func NewGenerator(
 	return &Generator{
 		db:       db,
 		poolSize: 4,
-		cancelFns: map[types.Game]context.CancelFunc{
-			types.Genshin:  func() {},
-			types.StarRail: func() {},
-			types.ZZZ:      func() {},
-			types.WuWa:     func() {},
+		cancelFns: map[types.Game]types.Pair[context.Context, context.CancelFunc]{
+			types.Genshin:  {},
+			types.StarRail: {},
+			types.ZZZ:      {},
+			types.WuWa:     {},
 		},
 		wgMap: map[types.Game]*sync.WaitGroup{
 			types.Genshin:  {},
@@ -76,6 +76,22 @@ func areModsSame(parts []string) func(m types.Mod) bool {
 	}
 }
 
+func (g *Generator) AwaitCurrentJob(game types.Game) {
+	wg, ok := g.wgMap[game]
+	if !ok {
+		return
+	}
+	wg.Wait()
+}
+
+func (g *Generator) IsRunning(game types.Game) bool {
+	ctx, cancel := g.cancelFns[game].Pair()
+	if ctx == nil || cancel == nil {
+		return false
+	}
+	return ctx.Err() == nil
+}
+
 // unzips mod folders into export dir for given game deleting any
 // previous mod files
 func (g *Generator) Reload(game types.Game) error {
@@ -89,14 +105,16 @@ func (g *Generator) Reload(game types.Game) error {
 		g.mutexMap[game].Lock()
 		defer g.mutexMap[game].Unlock()
 
-		if g.cancelFns[game] != nil {
-			g.cancelFns[game]()
+		_, cancel := g.cancelFns[game].Pair()
+
+		if cancel != nil {
+			cancel()
 			g.wgMap[game].Wait()
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
 
-		g.cancelFns[game] = cancel
+		g.cancelFns[game] = types.PairOf(ctx, cancel)
 		errCh := make(chan error, 1)
 
 		g.wgMap[game].Add(1)
