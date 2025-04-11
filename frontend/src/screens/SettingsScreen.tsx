@@ -123,11 +123,6 @@ export default function SettingsScreen() {
         value: zzzDir,
         setValue: setZZZdir,
       },
-      {
-        name: "Zenless Zone Zero",
-        value: zzzDir,
-        setValue: setZZZdir,
-      },
     ],
     [honkaiDir, zzzDir, genshinDir, wuwaDir, setHonkaiDir, setZZZdir, setGenshinDir, setWuwaDir]
   );
