@@ -1,6 +1,5 @@
 @import 'tailwindcss';
-
-@plugin 'tailwindcss-animate';
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -286,6 +285,28 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+.fade-in {
+  opacity: 1;
+  transition: opacity 300ms;
+}
+
+
+.fade-out {
+  opacity: 0;
+  transition: opacity 300ms;
+}
+
+/* Define a starting style */
+@starting-style {
+  .fade-in {
+    opacity: 0;
+  }
+
+  .fade-out {
+    opacity: 1;
   }
 }
 

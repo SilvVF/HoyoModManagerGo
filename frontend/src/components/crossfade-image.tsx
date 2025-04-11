@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 import { ImgHTMLAttributes, useEffect, useState } from "react";
 
-export interface CrossfadeImageProps extends ImgHTMLAttributes<HTMLImageElement>{}
+export interface CrossfadeImageProps extends ImgHTMLAttributes<HTMLImageElement> { }
 
-export const CrossfadeImage = ({ src, alt, className, onClick, ...imgProps}: CrossfadeImageProps) => {
+export const CrossfadeImage = ({ src, alt, className, onClick, ...imgProps }: CrossfadeImageProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -13,16 +13,16 @@ export const CrossfadeImage = ({ src, alt, className, onClick, ...imgProps}: Cro
   }, [src]);
 
   return (
-    <div className="relative"   onClick={onClick}>
+    <div className="relative" onClick={onClick}>
       {/* Placeholder */}
-      <div className={cn(className, `absolute inset-0 transition-opacity duration-500 ${isLoaded ? 'opacity-0' : 'opacity-100'}`)} />
+      <div className={cn(className, "absolute inset-0", isLoaded ? 'fade-out hidden' : 'fade-in visible')} />
 
       {/* Image */}
       <img
         {...imgProps}
         src={src}
         alt={alt}
-        className={cn(className, `transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`)}
+        className={cn(className, `${isLoaded ? 'fade-in' : 'fade-out'}`)}
       />
     </div>
   );

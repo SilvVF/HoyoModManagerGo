@@ -60,14 +60,14 @@ func (u *Updator) CheckFixesForUpdate() []types.Update {
 			}()
 
 			checkWg.Wait()
-		}()
 
-		ret[i] = types.Update{
-			Game:    game,
-			Current: local,
-			Newest:  network,
-			Found:   nOk,
-		}
+			ret[i] = types.Update{
+				Game:    game,
+				Current: local,
+				Newest:  network,
+				Found:   nOk,
+			}
+		}()
 	}
 
 	wg.Wait()
@@ -76,6 +76,7 @@ func (u *Updator) CheckFixesForUpdate() []types.Update {
 }
 
 func (u *Updator) DownloadModFix(game types.Game, old, fname, link string) error {
+
 	outputDir, ok := u.exportDirs[game]
 	if !ok {
 		return errors.New("output dir not set")
@@ -89,7 +90,7 @@ func (u *Updator) DownloadModFix(game types.Game, old, fname, link string) error
 
 	ext := filepath.Ext(fname)
 	if ext != ".exe" && !slices.Contains([]string{".zip", ".rar", ".7z"}, ext) {
-		return errors.New("file is not an executable")
+		return errors.New("file is not an executable or extractable")
 	}
 
 	path := filepath.Join(outputDir.Get(), fname)
@@ -103,36 +104,33 @@ func (u *Updator) DownloadModFix(game types.Game, old, fname, link string) error
 	}
 	file.Close()
 
-	removeIfNotOverwritten := func(newFile string) {
-		// if they are the same extraction would have overwritten
-		// dont want to delete the file that was just extracted
-		log.LogDebug(old)
-		log.LogDebug(newFile)
-		if old != newFile {
-			os.Remove(filepath.Join(outputDir.Get(), old))
-		}
-	}
-
 	switch filepath.Ext(file.Name()) {
 	case ".exe":
-		removeIfNotOverwritten(file.Name())
+		os.Remove(old)
 		return err
 	case ".rar":
-		_, files, _, err := extractRAR(&XFile{
+		defer os.RemoveAll(path)
+		_, _, _, err := extractRAR(&XFile{
 			FilePath:  path,
 			OutputDir: filepath.Dir(path),
 			FileMode:  os.ModePerm,
 			DirMode:   os.ModePerm,
 		}, false, func(progress, total int64) {})
-		if len(files) > 0 {
-			removeIfNotOverwritten(filepath.Base(files[0]))
+
+		if err == nil {
+			os.Remove(old)
 		}
+
 		return err
+	// can only be .zip or .7z checked above
 	default:
-		files, err := extract(path, filepath.Dir(path), false, func(progress, total int64) {})
-		if len(files) > 0 {
-			removeIfNotOverwritten(filepath.Base(files[0]))
+		defer os.RemoveAll(path)
+		_, err := extract(path, filepath.Dir(path), false, func(progress, total int64) {})
+
+		if err == nil {
+			os.Remove(old)
 		}
+
 		return err
 	}
 }

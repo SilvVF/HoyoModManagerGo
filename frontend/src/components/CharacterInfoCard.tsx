@@ -1,3 +1,4 @@
+import { DialogTrigger } from "@radix-ui/react-dialog";
 import {
   CheckCheckIcon,
   ChevronDown,
@@ -5,7 +6,10 @@ import {
   Trash,
   ViewIcon,
 } from "lucide-react";
+import React, { ReactElement, useEffect, useRef, useState } from "react";
+import { types } from "wailsjs/go/models";
 import { Button } from "./ui/button";
+import { Card } from "./ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,12 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Separator } from "./ui/separator";
-import { Card } from "./ui/card";
 import { Switch } from "./ui/switch";
-import { types } from "wailsjs/go/models";
-import { ReactElement, useEffect, useRef, useState } from "react";
-import { DialogTrigger } from "@radix-ui/react-dialog";
-import React from "react";
 export interface CharacterInfoCardProps {
   cmt: types.CharacterWithModsAndTags;
   enableMod: (id: number, enabled: boolean) => void;
@@ -193,12 +192,14 @@ export function CharacterInfoCard({
       {/* Marquee Animation */}
       <style>{`
         @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-100%); }
+            0% { transform: translateX(0); }
+            20% { transform: translateX(0); }
+            80% { transform: translateX(-100%); }
+            100% { transform: translateX(-100%); }
         }
         .animate-marquee {
           white-space: nowrap;
-          animation: marquee 5s linear infinite;
+          animation: marquee 6s linear infinite;
         }
       `}</style>
     </Card>

@@ -125,8 +125,9 @@ export function ModIndexPage() {
   return (
     <DataApiContext.Provider value={dataApi}>
       <div className="flex flex-col">
-        <div className="flex flex-row justify-between items-center sticky top-2 end-0 m-2 z-30">
+        <div className="flex flex-row justify-between items-center sticky top-2 end-0 m-2 z-99">
           <BreadCrumbList
+            className="backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-30"
             onCrumbSelected={(path) => navigate(path)}
             crumbs={crumbs}
             topLevelCrumbs={topLevelCrumbs}
@@ -135,8 +136,8 @@ export function ModIndexPage() {
             <div className="flex flex-row items-center">
               <div
                 className={cn(
-                  "flex flex-row justify-center items-center gap-x-2 overflow-x-clip transition-transform duration-300 ease-in-out",
-                  collapsed ? "slide-out-to-right" : "slide-in-from-right"
+                  "flex flex-row justify-center items-center gap-x-2 overflow-x-clip",
+                  collapsed ? "fade-out" : "fade-in"
                 )}
               >
                 <SearchBar></SearchBar>
@@ -307,7 +308,7 @@ function BreadCrumbList({
     <Breadcrumb
       className={cn(
         className,
-        "w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-30"
+        "w-fit rounded-full"
       )}
     >
       <BreadcrumbList>

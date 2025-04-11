@@ -63,7 +63,9 @@ func (w *wutheringWavesApi) Characters() []types.Character {
 		name := strings.TrimSpace(getTextContent(nameElement[0]))
 
 		imgElements := findMatchingElemsWithClass(element, "div", "gatsby-image-wrapper")
-		imgElements = findMatchingElems(imgElements[len(imgElements)-1], "img")
+		log.LogDebugf("%v", imgElements)
+		imgElements = findMatchingElems(imgElements[0], "img")
+		log.LogDebugf("%v", imgElements)
 
 		ieAttrs := attrsForNode(imgElements[len(imgElements)-1])
 		log.LogDebugf("%v", ieAttrs)

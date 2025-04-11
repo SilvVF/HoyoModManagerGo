@@ -206,9 +206,6 @@ func getDirSize(path string) (int64, error) {
 }
 
 func (a *App) GetUpdates() []types.Update {
-
-	a.updator.CancelJob()
-
 	return a.updator.CheckFixesForUpdate()
 }
 

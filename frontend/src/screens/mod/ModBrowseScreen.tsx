@@ -46,7 +46,7 @@ export default function ModBrowseScreen() {
     async (update) => {
       if (state.sort !== undefined) {
         /*
-        	id,
+          id,
           perPage,
           page int,
           sort Sort,
@@ -93,7 +93,7 @@ export default function ModBrowseScreen() {
 
   return (
     <div className="flex flex-row justify-end items-start max-w-full h-full min-w-full">
-      <div className="absolute z-20 bottom-4 start-1/2 -translate-x-1/2 bg-primary/30 backdrop-blur-lg rounded-full">
+      <div className="absolute z-30 bottom-4 start-1/2 -translate-x-1/2 bg-primary/30 backdrop-blur-lg rounded-full">
         <Paginator
           page={state.page}
           lastPage={lastPage}
@@ -116,7 +116,7 @@ export default function ModBrowseScreen() {
               onClick={() => navigate("/mods/cats/" + c._idRow)}
               variant={
                 c._idRow !== undefined &&
-                location.pathname.includes(c._idRow?.toString() ?? "")
+                  location.pathname.includes(c._idRow?.toString() ?? "")
                   ? "secondary"
                   : "ghost"
               }

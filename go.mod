@@ -7,6 +7,7 @@ require (
 	github.com/klauspost/compress v1.18.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/nwaples/rardecode v1.1.3
+	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/wailsapp/wails/v2 v2.10.1
 	github.com/yuin/gopher-lua v1.1.1
 	gopkg.in/ini.v1 v1.67.0
@@ -17,7 +18,6 @@ require (
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/robfig/cron/v3 v3.0.0 // indirect
 	github.com/rosedblabs/wal v1.3.8 // indirect
 )

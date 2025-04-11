@@ -773,7 +773,7 @@ function UpdatesDialog(
                           <text className="text-zinc-500  m-2">{`Current: ${v.current}`}</text>
                           <text className="text-zinc-500  m-2">{`Newest: ${v.newest.name}`}</text>
                         </div>
-                        {inProgress.has(v.newest.dl) ? (
+                        {inProgress.includes(v.newest.dl) ? (
                           <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
                             <svg
                               className="h-4 w-4 animate-spin"

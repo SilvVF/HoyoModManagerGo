@@ -13,6 +13,7 @@ import (
 
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
+	"github.com/peterbourgon/diskv"
 )
 
 type DataApi interface {
@@ -30,10 +31,17 @@ var ApiList map[types.Game]DataApi = map[types.Game]DataApi{
 	types.LoL:      NewLeagueApi(),
 }
 
-const CacheSizeBytes = 100 * 1024 * 1024 // 100 mb
+const CacheSizeBytes = 200 * 1024 * 1024 // 200 mb will be cleaned at 100
+
+func newCache() *diskv.Diskv {
+	return diskv.New(diskv.Options{
+		BasePath:     filepath.Join(util.GetCacheDir(), "http"),
+		CacheSizeMax: CacheSizeBytes,
+	})
+}
 
 var client = http.Client{
-	Transport: httpcache.NewTransport(diskcache.New(filepath.Join(util.GetCacheDir(), "http"))),
+	Transport: httpcache.NewTransport(diskcache.NewWithDiskv(newCache())),
 }
 
 func CleanCache() {
@@ -64,7 +72,7 @@ func CleanCache() {
 		return nil
 	})
 
-	if remaining > int64(float64(CacheSizeBytes)*0.5) && len(cf) > 0 {
+	if remaining > CacheSizeBytes/2 && len(cf) > 0 {
 		slices.SortStableFunc(cf, func(i, j types.Pair[string, time.Time]) int {
 			return i.Y.Compare(j.Y)
 		})
@@ -72,5 +80,8 @@ func CleanCache() {
 		for i := range len(cf) / 2 {
 			_ = os.Remove(cf[i].X)
 		}
+	}
+	client = http.Client{
+		Transport: httpcache.NewTransport(diskcache.NewWithDiskv(newCache())),
 	}
 }

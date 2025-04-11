@@ -64,9 +64,7 @@ function SidebarItem(props: {
         <props.icon />
         <text
           className={cn(
-            open ? "opacity-100" : "opacity-0",
-            "transition-all duration-300 ease-in-out",
-            "animate-fade-in animate-fade-out",
+            open ? "fade-in" : "fade-out",
             "text-md line-clamp-1"
           )}
         >

@@ -6,7 +6,7 @@ interface UpdatesStore {
     loading: boolean,
     error: Error | undefined,
     value: types.Update[]
-    inProgress: Set<string>
+    inProgress: string[]
     started: boolean
     start: () => void
     refresh: () => void
@@ -17,7 +17,7 @@ export const useUpdatesStore = create<UpdatesStore>((set, get) => ({
     started: false,
     loading: false,
     error: undefined,
-    inProgress: new Set(),
+    inProgress: [],
     value: [],
     refresh: () => {
         if (get().loading) {
@@ -51,23 +51,23 @@ export const useUpdatesStore = create<UpdatesStore>((set, get) => ({
     },
     downloadItem: (update) => {
 
-        if (get().inProgress.has(update.newest.dl)) {
+        if (get().inProgress.includes(update.newest.dl)) {
             return
         }
 
         set((state) => {
-            state.inProgress.add(update.newest.dl)
+            const inProg = [update.newest.dl, ...state.inProgress]
             return {
-                inProgress: new Set(state.inProgress)
+                inProgress: inProg
             }
         })
         DownloadModFix(update.game, update.current, update.newest.fname, update.newest.dl)
             .then(() => get().refresh())
             .finally(() => {
                 set((state) => {
-                    state.inProgress.delete(update.newest.dl)
+                    const inProg = state.inProgress.filter((it) => it !== update.newest.dl)
                     return {
-                        inProgress: new Set(state.inProgress)
+                        inProgress: inProg
                     }
                 })
             })
