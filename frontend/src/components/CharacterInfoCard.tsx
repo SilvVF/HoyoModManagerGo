@@ -19,6 +19,7 @@ import {
 } from "./ui/dropdown-menu";
 import { Separator } from "./ui/separator";
 import { Switch } from "./ui/switch";
+import { cn } from "@/lib/utils";
 export interface CharacterInfoCardProps {
   cmt: types.CharacterWithModsAndTags;
   enableMod: (id: number, enabled: boolean) => void;
@@ -38,13 +39,22 @@ const TextDisplay = ({ text, availableSpace }: { text: string, availableSpace: n
   }, [text, availableSpace]);
 
   return (
-    <div className="overflow-hidden" style={{ maxWidth: availableSpace }}>
-      <span
-        ref={textRef}
-        className={`inline-block text-sm ${isOverflowing ? 'animate-marquee' : 'truncate'}`}
-      >
-        {text}
-      </span>
+    <div className="overflow-hidden whitespace-nowrap" style={{ maxWidth: availableSpace }}>
+      <div className={cn("inline-block", isOverflowing ? "animate-marquee" : "")}>
+        <span ref={textRef} className="inline-block text-sm">  {text}</span>
+        {isOverflowing ? <span className="inline-block text-sm px-4">  {text}</span> : undefined}
+      </div>
+      <style>{`
+      @keyframes marquee {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); }
+      }
+
+        .animate-marquee {
+          display: inline-block;
+          animation: marquee 6s linear infinite;
+        }
+      `}</style>
     </div>
   );
 };
@@ -165,7 +175,7 @@ export function CharacterInfoCard({
                   hasTextures={mwt.textures.length > 0}
                 />
                 {showT && mwt.textures.length > 0 && (
-                  <div className="slide-in fade-out flex flex-col">
+                  <div className="slide-in-from-top fade-in fade-out flex flex-col">
                     <div className="text-sm font-semibold my-1">{`Textures for ${mwt.mod.filename}`}</div>
                     {mwt.textures.map((t) => (
                       <ModRow
@@ -188,20 +198,6 @@ export function CharacterInfoCard({
           </div>
         </div>
       </div>
-
-      {/* Marquee Animation */}
-      <style>{`
-        @keyframes marquee {
-            0% { transform: translateX(0); }
-            20% { transform: translateX(0); }
-            80% { transform: translateX(-100%); }
-            100% { transform: translateX(-100%); }
-        }
-        .animate-marquee {
-          white-space: nowrap;
-          animation: marquee 6s linear infinite;
-        }
-      `}</style>
     </Card>
   );
 }
