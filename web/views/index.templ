@@ -1,0 +1,49 @@
+package views
+
+import (
+	"context"
+	"hmmweb/components"
+	"net/http"
+)
+
+func HandleIndex(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	index().Render(context.Background(), w)
+	return
+}
+
+templ index() {
+	@components.Layout() {
+		<div class="min-w-screen min-h-screen flex flex-col text-lg bg-[#11111B] p-16">
+			<div class="flex flex-col-reverse lg:flex-row lg:items-center items-start justify-start gap-12">
+				<div class="flex flex-col lg:w-1/2 text-3xl font-bold space-y-6 pe-6">
+					<h1 class="text-primary">HoyoModManager</h1>
+					<p>
+						Source available mod manager
+						<br/>
+						for Hoyoverse games, and
+						<br/>
+						Wuthering Waves
+					</p>
+					<span class="text-gray-500 font-normal text-xl">
+						Manage and download mods easier than ever,
+						<br/>
+						while saving disk space.
+					</span>
+					<div class="flex flex-row items-center space-x-6">
+						@components.Button("", "lg", "rounded-full", templ.Attributes{}) {
+							{ "Get Started" }
+						}
+						@components.Button("secondary", "lg", "rounded-full", templ.Attributes{}) {
+							{ "Download" }
+						}
+					</div>
+				</div>
+				<div class="flex flex-1 items-center justify-center w-full">
+					<img class="object-contain w-full md:max-w-md sm:max-w-sm  rounded-sm shadow-[0_0_100px] shadow-primary/75" src="/app-image.png"/>
+				</div>
+			</div>
+		</div>
+	}
+}

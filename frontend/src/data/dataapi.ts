@@ -20,8 +20,7 @@ export const Game = {
     Genshin: 1,
     StarRail: 2,
     ZZZ: 3,
-    WuWa: 4,
-    League: 5,
+    WuWa: 4
 } as const;
 
 export const LeagueApi: DataApi = {

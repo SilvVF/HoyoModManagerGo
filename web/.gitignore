@@ -1,0 +1,10 @@
+/bin
+/tmp
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+*_templ.go
+assets/style.css

@@ -1,0 +1,16 @@
+package components
+
+templ Layout() {
+	<html>
+		<head>
+			<title>Hoyomod</title>
+			<link href="/style.css" type="text/css" rel="stylesheet"/>
+			<script src="/scripts/htmx.min.js"></script>
+		</head>
+		<body>
+			<div class="flex flex-col">
+				{ children... }
+			</div>
+		</body>
+	</html>
+}

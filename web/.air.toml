@@ -1,0 +1,40 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+bin = "tmp/main.exe"
+cmd = "go build -o ./tmp/main.exe ."
+include_file = [
+    "C:\\Users\\david\\dev\\go\\skin-mod-manager\\frontend\\src\\index.css",
+]
+delay = 1000
+exclude_dir = ["assets", "tmp"]
+exclude_regex = ["_test.go", "_templ.go"]
+exclude_unchanged = true
+follow_symlink = true
+include_ext = ["go", "templ"]
+kill_delay = "0s"
+log = "build-errors.log"
+poll = false
+pre_cmd = ["task tailwindcss", "task templ"]
+rerun = false
+rerun_delay = 500
+send_interrupt = false
+stop_on_error = true
+
+[log]
+main_only = false
+time = false
+
+[misc]
+clean_on_exit = true
+
+[screen]
+clear_on_rebuild = true
+keep_scroll = true
+
+[proxy]
+# Enable live-reloading on the browser.
+enabled = true
+proxy_port = 8090
+app_port = 3000
