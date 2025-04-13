@@ -125,9 +125,9 @@ export function ModIndexPage() {
   return (
     <DataApiContext.Provider value={dataApi}>
       <div className="flex flex-col">
-        <div className="flex flex-row justify-between items-center sticky top-2 end-0 m-2 z-99">
+        <div className="flex flex-row justify-between items-center sticky top-2 end-0 m-2 z-20">
           <BreadCrumbList
-            className="backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-30"
+            className="backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-20"
             onCrumbSelected={(path) => navigate(path)}
             crumbs={crumbs}
             topLevelCrumbs={topLevelCrumbs}
@@ -229,7 +229,7 @@ function FilterDropDown<T>({
     <DropdownMenu>
       <DropdownMenuTrigger>
         <Button
-          className="w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-30"
+          className="w-fit rounded-full backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-20"
           variant={"ghost"}>
           {valueName(selected)}
           <ChevronDownIcon />

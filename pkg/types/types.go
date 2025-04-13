@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 const (
 	Genshin  Game = 1
 	StarRail Game = 2
@@ -142,6 +144,14 @@ type Tool struct {
 	FName       string `json:"fname"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+}
+
+type AppUpdate struct {
+	Version      string    `json:"version"`
+	PublishedAt  time.Time `json:"publishesAt"`
+	CreatedAt    time.Time `json:"createdAt"`
+	DLLink       string    `json:"dlLink"`
+	ReleaseNotes string    `json:"releaseNotes"`
 }
 
 type Update struct {

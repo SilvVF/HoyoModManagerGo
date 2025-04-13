@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -65,7 +66,6 @@ type CompressProgress struct {
 
 // NewApp creates a new App application struct
 func NewApp(appPrefs *core.AppPrefs, updator *core.Updator, transfer *core.Transfer) *App {
-
 	return &App{
 		appPrefs:         appPrefs,
 		dev:              *dev,
@@ -203,6 +203,32 @@ func getDirSize(path string) (int64, error) {
 	})
 
 	return totalSize, err
+}
+
+func (a *App) DismissUpdate() {
+	now := time.Now().UTC()
+	formatted := now.Format(time.RFC3339)
+	a.appPrefs.LastReleaseAckedDate.Set(formatted)
+}
+
+func (a *App) GetAppUpdate() (types.AppUpdate, error) {
+	lastAcked := a.appPrefs.LastReleaseAckedDate.Get()
+
+	update, err := a.updator.CheckAppForUpdates()
+	if err != nil {
+		return types.AppUpdate{}, err
+	}
+
+	if lastAcked != "" {
+		parsedTime, err := time.Parse(time.RFC3339, lastAcked)
+		if err == nil {
+			if update.PublishedAt.Before(parsedTime) {
+				return update, errors.New("update dismissed")
+			}
+		}
+	}
+
+	return update, nil
 }
 
 func (a *App) GetUpdates() []types.Update {

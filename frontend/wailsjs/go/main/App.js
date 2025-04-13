@@ -26,6 +26,10 @@ export function DevModeEnabled() {
   return window['go']['main']['App']['DevModeEnabled']();
 }
 
+export function DismissUpdate() {
+  return window['go']['main']['App']['DismissUpdate']();
+}
+
 export function DownloadModFix(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['DownloadModFix'](arg1, arg2, arg3, arg4);
 }
@@ -36,6 +40,10 @@ export function FixZipCompression() {
 
 export function ForcePanic() {
   return window['go']['main']['App']['ForcePanic']();
+}
+
+export function GetAppUpdate() {
+  return window['go']['main']['App']['GetAppUpdate']();
 }
 
 export function GetExclusionPaths() {

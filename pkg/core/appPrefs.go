@@ -33,6 +33,7 @@ type AppPrefs struct {
 	CleanModExportDirPref  *CleanModExportDirPref
 	EnabledPluginsPref     *EnabledPluginsPref
 	RootModDirPref         *RootModDirPref
+	LastReleaseAckedDate   *LastReleaseAckedDate
 }
 
 func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
@@ -111,6 +112,9 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 		&RootModDirPref{
 			Preference: store.GetString("root_mod_dir", filepath.Join(util.GetCacheDir(), "mods")),
 		},
+		&LastReleaseAckedDate{
+			Preference: store.GetString("last_release_acked", ""),
+		},
 	}
 }
 
@@ -150,3 +154,5 @@ type ServerAuthTypePref struct{ pref.Preference[int] }
 type SpaceSaverPref struct{ pref.Preference[bool] }
 
 type EnabledPluginsPref struct{ pref.Preference[[]string] }
+
+type LastReleaseAckedDate struct{ pref.Preference[string] }
