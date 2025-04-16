@@ -14,6 +14,7 @@ type Character struct {
 	Name      string
 	AvatarUrl string
 	Element   string
+	Flags     int64
 }
 
 type Mod struct {

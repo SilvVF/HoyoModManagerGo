@@ -265,7 +265,7 @@ func (q *Queries) SelectAllTexturesByModIds(ctx context.Context, ids []int64) ([
 }
 
 const selectCharacterById = `-- name: SelectCharacterById :one
-SELECT id, game, name, avatar_url, element FROM character WHERE id = ?1 AND game = ?2 LIMIT 1
+SELECT id, game, name, avatar_url, element, flags FROM character WHERE id = ?1 AND game = ?2 LIMIT 1
 `
 
 type SelectCharacterByIdParams struct {
@@ -282,12 +282,13 @@ func (q *Queries) SelectCharacterById(ctx context.Context, arg SelectCharacterBy
 		&i.Name,
 		&i.AvatarUrl,
 		&i.Element,
+		&i.Flags,
 	)
 	return i, err
 }
 
 const selectCharactersByGame = `-- name: SelectCharactersByGame :many
-SELECT id, game, name, avatar_url, element FROM character WHERE game = ?1
+SELECT id, game, name, avatar_url, element, flags FROM character WHERE game = ?1
 `
 
 func (q *Queries) SelectCharactersByGame(ctx context.Context, game int64) ([]Character, error) {
@@ -305,6 +306,7 @@ func (q *Queries) SelectCharactersByGame(ctx context.Context, game int64) ([]Cha
 			&i.Name,
 			&i.AvatarUrl,
 			&i.Element,
+			&i.Flags,
 		); err != nil {
 			return nil, err
 		}
@@ -321,7 +323,7 @@ func (q *Queries) SelectCharactersByGame(ctx context.Context, game int64) ([]Cha
 
 const selectCharactersWithModsAndTags = `-- name: SelectCharactersWithModsAndTags :many
 SELECT 
-    c.id, c.game, c.name, c.avatar_url, c.element,
+    c.id, c.game, c.name, c.avatar_url, c.element, c.flags,
     m.id, m.fname, m.game, m.char_name, m.char_id, m.selected, m.preview_images, m.gb_id, m.mod_link, m.gb_file_name, m.gb_download_link,
     t.mod_id, t.tag_name,
     tex.id, tex.mod_id, tex.fname, tex.selected, tex.preview_images, tex.gb_id, tex.mod_link, tex.gb_file_name, tex.gb_download_link
@@ -363,6 +365,7 @@ type SelectCharactersWithModsAndTagsRow struct {
 	Name             string
 	AvatarUrl        string
 	Element          string
+	Flags            int64
 	ID_2             sql.NullInt64
 	Fname            sql.NullString
 	Game_2           sql.NullInt64
@@ -407,6 +410,7 @@ func (q *Queries) SelectCharactersWithModsAndTags(ctx context.Context, arg Selec
 			&i.Name,
 			&i.AvatarUrl,
 			&i.Element,
+			&i.Flags,
 			&i.ID_2,
 			&i.Fname,
 			&i.Game_2,
@@ -444,7 +448,7 @@ func (q *Queries) SelectCharactersWithModsAndTags(ctx context.Context, arg Selec
 }
 
 const selectClosestCharacter = `-- name: SelectClosestCharacter :one
-SELECT id, game, name, avatar_url, element FROM character WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' AND game = ?2 LIMIT 1
+SELECT id, game, name, avatar_url, element, flags FROM character WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' AND game = ?2 LIMIT 1
 `
 
 type SelectClosestCharacterParams struct {
@@ -461,12 +465,13 @@ func (q *Queries) SelectClosestCharacter(ctx context.Context, arg SelectClosestC
 		&i.Name,
 		&i.AvatarUrl,
 		&i.Element,
+		&i.Flags,
 	)
 	return i, err
 }
 
 const selectClosestCharacterMatch = `-- name: SelectClosestCharacterMatch :one
-SELECT id, game, name, avatar_url, element FROM character WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' AND game = ?2 LIMIT 1
+SELECT id, game, name, avatar_url, element, flags FROM character WHERE LOWER(name) LIKE '%' || LOWER(?1) || '%' AND game = ?2 LIMIT 1
 `
 
 type SelectClosestCharacterMatchParams struct {
@@ -483,6 +488,7 @@ func (q *Queries) SelectClosestCharacterMatch(ctx context.Context, arg SelectClo
 		&i.Name,
 		&i.AvatarUrl,
 		&i.Element,
+		&i.Flags,
 	)
 	return i, err
 }

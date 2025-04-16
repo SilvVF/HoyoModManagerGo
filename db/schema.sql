@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS character(
     name TEXT NOT NULL,
     avatar_url TEXT NOT NULL DEFAULT '',
     element TEXT NOT NULL,
+    flags INT NOT NULL DEFAULT 0,
     PRIMARY KEY(id, game)
 );
 

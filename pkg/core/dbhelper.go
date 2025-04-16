@@ -18,6 +18,10 @@ import (
 	"strings"
 )
 
+const (
+	CHAR_FLAG_IS_CUSTOM = 0 << 1
+)
+
 type DbHelper struct {
 	queries         *db.Queries
 	ctx             context.Context
@@ -60,6 +64,7 @@ func characterFromDb(c db.Character) types.Character {
 		Name:      c.Name,
 		AvatarUrl: c.AvatarUrl,
 		Element:   c.Element,
+		Custom:    c.Flags&CHAR_FLAG_IS_CUSTOM == 1,
 	}
 }
 
@@ -106,13 +111,7 @@ func (h *DbHelper) SelectClosestCharacter(name string, game types.Game) (types.C
 	if err != nil {
 		return types.Character{}, err
 	}
-	return types.Character{
-		Id:        int(value.ID),
-		Game:      types.Game(value.Game),
-		Name:      value.Name,
-		AvatarUrl: value.AvatarUrl,
-		Element:   value.Element,
-	}, nil
+	return characterFromDb(value), nil
 }
 
 func (h *DbHelper) SelecteTextureById(id int) (types.Texture, error) {
@@ -155,17 +154,28 @@ func (h *DbHelper) SelectEnabledModsByGame(game types.Game) ([]types.Mod, error)
 	return mods, nil
 }
 
-const upsertCharacter = `INSERT INTO character(id, game, name, avatar_url, element) 
-VALUES(?, ?, ?, ?, ?) ON CONFLICT (id, game) DO UPDATE SET 
-    avatar_url = ?,
-    name = ?,
-    element = ?
-`
-
 func (h *DbHelper) UpsertCharacter(c types.Character) error {
 
+	const upsertCharacterQuery = `
+		INSERT INTO character(id, game, name, avatar_url, element, flags) 
+		VALUES(?, ?, ?, ?, ?, ?) 
+		ON CONFLICT (id, game) 
+		DO UPDATE SET 
+			avatar_url = ?,
+			name = ?,
+			element = ?,
+			flags = ?
+	`
+
 	if c.Name != "" && c.Id != 0 {
-		_, err := h.db.ExecContext(h.ctx, upsertCharacter,
+
+		flags := 0
+
+		if c.Custom {
+			flags |= CHAR_FLAG_IS_CUSTOM
+		}
+
+		_, err := h.db.ExecContext(h.ctx, upsertCharacterQuery,
 			c.Id,
 			c.Game,
 			c.Name,
@@ -174,6 +184,7 @@ func (h *DbHelper) UpsertCharacter(c types.Character) error {
 			c.AvatarUrl,
 			c.Name,
 			c.Element,
+			flags,
 		)
 		return err
 	}
@@ -379,6 +390,7 @@ func (h *DbHelper) SelectCharacterWithModsTagsAndTextures(game types.Game, modFi
 			Name:      item.Name,
 			AvatarUrl: item.AvatarUrl,
 			Element:   item.Element,
+			Custom:    item.Flags&CHAR_FLAG_IS_CUSTOM == 1,
 		}
 
 		if _, ok := charMap[char]; !ok {

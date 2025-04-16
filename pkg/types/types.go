@@ -79,6 +79,7 @@ type Character struct {
 	Name      string `json:"name"`
 	AvatarUrl string `json:"avatarUrl"`
 	Element   string `json:"element"`
+	Custom    bool   `json:"custom"`
 }
 
 type CharacterWithModsAndTags struct {

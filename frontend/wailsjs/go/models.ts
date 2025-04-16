@@ -677,6 +677,7 @@ export namespace types {
 	    name: string;
 	    avatarUrl: string;
 	    element: string;
+	    custom: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Character(source);
@@ -689,6 +690,7 @@ export namespace types {
 	        this.name = source["name"];
 	        this.avatarUrl = source["avatarUrl"];
 	        this.element = source["element"];
+	        this.custom = source["custom"];
 	    }
 	}
 	export class Texture {

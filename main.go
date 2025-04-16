@@ -18,8 +18,8 @@ import (
 	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pressly/goose/v3"
 	"github.com/rosedblabs/rosedb/v2"
-
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -31,10 +31,13 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed db/migrations/*.sql
+var embedMigrations embed.FS
+
 //go:embed build/appicon.jpg
 var icon []byte
 
-//go:embed schema.sql
+//go:embed db/schema.sql
 var ddl string
 
 var dev = flag.Bool("dev", false, "enable dev mode")
@@ -77,6 +80,17 @@ func main() {
 	if _, err := dbSql.ExecContext(ctx, ddl); err != nil {
 		panic(err)
 	}
+
+	goose.SetBaseFS(embedMigrations)
+
+	if err := goose.SetDialect(string(goose.DialectSQLite3)); err != nil {
+		panic(err)
+	}
+
+	if err := goose.Up(dbSql, "db/migrations"); err != nil {
+		panic(err)
+	}
+
 	queries := db.New(dbSql)
 
 	// CORE
