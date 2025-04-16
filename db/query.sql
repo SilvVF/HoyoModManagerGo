@@ -203,3 +203,7 @@ WHERE mod.game = ?;
 UPDATE playlist SET
     playlist_name = :name
 WHERE id = :id;
+
+-- name: DeleteCharacterById :exec
+DELETE FROM character 
+WHERE id = :id;

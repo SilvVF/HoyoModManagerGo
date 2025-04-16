@@ -4,6 +4,8 @@ import {types} from '../models';
 
 export function CreatePlaylist(arg1:types.Game,arg2:string):Promise<void>;
 
+export function DeleteCharacter(arg1:types.Character):Promise<void>;
+
 export function DeleteModById(arg1:number):Promise<void>;
 
 export function DeletePlaylistById(arg1:number):Promise<void>;

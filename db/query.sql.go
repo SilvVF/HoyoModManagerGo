@@ -11,6 +11,16 @@ import (
 	"strings"
 )
 
+const deleteCharacterById = `-- name: DeleteCharacterById :exec
+DELETE FROM character 
+WHERE id = ?1
+`
+
+func (q *Queries) DeleteCharacterById(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteCharacterById, id)
+	return err
+}
+
 const deleteModById = `-- name: DeleteModById :exec
 DELETE FROM mod WHERE mod.id = ?1
 `

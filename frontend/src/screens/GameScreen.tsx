@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { DataApi, Game } from "../data/dataapi";
 import { syncCharacters, SyncType } from "../data/sync";
 import { cn, useStateProducer } from "../lib/utils";
-import { type Pair } from "@/lib/tsutils";
 import { types } from "wailsjs/go/models";
 import * as Generator from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
@@ -44,13 +43,25 @@ import {
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
 
-export type DialogType =
+type RenameDialogType =
   | "rename_mod"
-  | "create_tag"
-  | "rename_tag"
   | "rename_texture";
 
-export type GameDialog = Pair<DialogType, number>;
+type CustomDialogType =
+  | "add_character"
+
+interface CustomDialog {
+  type: "custom",
+  name: CustomDialogType
+};
+
+interface RenameDialog {
+  type: "rename"
+  x: RenameDialogType
+  y: number
+};
+
+export type DialogType = RenameDialog | CustomDialog
 
 const getElementPref = (game: number): GoPref<string[]> => {
   switch (game) {
@@ -73,7 +84,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
   const updates = usePlaylistStore(useShallow((state) => state.updates));
   const [available, setAvailableOnly] = usePrefrenceAsState(modsAvailablePref);
 
-  const [dialog, setDialog] = useState<GameDialog | undefined>(undefined);
+  const [dialog, setDialog] = useState<DialogType | undefined>(undefined);
 
   const [selectedElements, setSelectedElements] = usePrefrenceAsState(
     useMemo(() => getElementPref(props.game), [props.game])
@@ -157,16 +168,6 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
           RenameMod(id, name).then(refreshCharacters);
         },
       },
-      create_tag: {
-        title: "Create tag",
-        description: "create a tag for the mod",
-        onSuccess: () => { },
-      },
-      rename_tag: {
-        title: "Rename tag",
-        description: "Rename the current tag",
-        onSuccess: () => { },
-      },
       rename_texture: {
         title: "Rename Texture",
         description:
@@ -179,15 +180,16 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
   }, [refreshCharacters]);
 
   const Settings = useMemo(() => {
-    if (dialog === undefined) return undefined;
-    const curr = dialogSettings[dialog.x];
+    if (dialog === undefined || dialog.type !== "rename") return undefined;
+    const renameDialog: RenameDialog = dialog as any
+    const curr = dialogSettings[renameDialog.x];
     return (
       <NameDialogContent
         title={curr.title}
         description={curr.description}
         input={inputValue}
         onInputChange={handleChange}
-        onSuccess={() => curr.onSuccess(dialog.y, inputValue)}
+        onSuccess={() => curr.onSuccess(renameDialog.y, inputValue)}
       />
     );
   }, [dialog, dialogSettings]);
@@ -203,6 +205,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
           available={available ?? false}
           toggleElement={onElementSelected}
           toggleAvailable={setAvailableOnly}
+          addCharacter={() => setDialog({ type: "custom", name: "add_character" })}
           importMod={() => navigate("/import", {
             state: { game: props.game }
           })}
@@ -225,7 +228,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
                   <ModActionsDropDown
                     onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
                     onDelete={() => deleteMod(mwt.mod.id)}
-                    onRename={() => setDialog({ x: "rename_mod", y: mwt.mod.id })}
+                    onRename={() => setDialog({ type: "rename", x: "rename_mod", y: mwt.mod.id })}
                     onView={() => {
                       if (mwt.mod.gbId !== 0) {
                         navigate(`/mods/${mwt.mod.gbId}`);
@@ -245,7 +248,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
                   <TextureActionDropDown
                     onEnable={() => enableTexture(t.id, !t.enabled)}
                     onDelete={() => deleteTexture(t.id)}
-                    onRename={() => setDialog({ x: "rename_texture", y: t.id })}
+                    onRename={() => setDialog({ type: "rename", x: "rename_texture", y: t.id })}
                     onView={() => {
                       if (t.gbId !== 0) {
                         navigate(`/mods/${t.gbId}`);
@@ -314,13 +317,17 @@ export function NameDialog(props: {
 
 function OverlayOptions({
   dataApi,
+  dialog,
+  setDialog,
   refreshCharacters,
 }: {
   dataApi: DataApi;
-  dialog: GameDialog | undefined;
-  setDialog: (dialog: GameDialog | undefined) => void;
+  dialog: DialogType | undefined;
+  setDialog: (dialog: DialogType | undefined) => void;
   refreshCharacters: () => void;
 }) {
+
+  const customDialog = dialog !== undefined && dialog.type === "custom" ? dialog as CustomDialog : undefined
   const [reloading, setReloading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   // lazy way to restore the state of generating job TODO: maybe use events 
@@ -353,53 +360,31 @@ function OverlayOptions({
   };
 
   return (
-    <div className="fixed bottom-4 -translate-y-1 end-6 flex flex-row z-10">
-      {!reloading ? (
-        <Button
-          className="mx-2 rounded-full backdrop-blur-md bg-primary/30"
-          variant={"ghost"}
-          onClick={reload}
-        >
-          Generate
-        </Button>
-      ) : (
-        <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
-          <svg
-            className="h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-          Generating...
-        </div>
-      )}
-      {!syncing ? (
-        <div>
+    <>
+      <Dialog open={customDialog !== undefined} onOpenChange={() => setDialog(undefined)}>
+        <DialogContent>
+          <DialogTitle>
+            Add a custom category
+          </DialogTitle>
+          <DialogDescription>
+            create a custom category that will be added as a character to the db. Use this for things like npc mods or weapon mods
+          </DialogDescription>
+          {customDialog !== undefined
+            ? <CustomDialogContent dialog={customDialog} createCharacter={() => { }} />
+            : undefined
+          }
+        </DialogContent>
+      </Dialog>
+      <div className="fixed bottom-4 -translate-y-1 end-6 flex flex-row z-10">
+        {!reloading ? (
           <Button
             className="mx-2 rounded-full backdrop-blur-md bg-primary/30"
             variant={"ghost"}
-            onClick={() => sync(SyncType.SyncRequestLocal)}
+            onClick={reload}
           >
-            Refresh Local
+            Generate
           </Button>
-          <Button
-            className="mx-2 rounded-full backdrop-blur-md bg-primary/30"
-            variant={"ghost"}
-            onClick={() => sync(SyncType.SyncRequestForceNetwork)}
-          >
-            Refresh
-          </Button>
-        </div>
-      ) : (
-        <>
+        ) : (
           <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
             <svg
               className="h-4 w-4 animate-spin"
@@ -415,29 +400,95 @@ function OverlayOptions({
             >
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
-            Syncing...
+            Generating...
           </div>
-          <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
-            <svg
-              className="h-4 w-4 animate-spin"
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        )}
+        {!syncing ? (
+          <div>
+            <Button
+              className="mx-2 rounded-full backdrop-blur-md bg-primary/30"
+              variant={"ghost"}
+              onClick={() => sync(SyncType.SyncRequestLocal)}
             >
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-            Syncing...
+              Refresh Local
+            </Button>
+            <Button
+              className="mx-2 rounded-full backdrop-blur-md bg-primary/30"
+              variant={"ghost"}
+              onClick={() => sync(SyncType.SyncRequestForceNetwork)}
+            >
+              Refresh
+            </Button>
           </div>
-        </>
-      )}
-    </div>
+        ) : (
+          <>
+            <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
+              <svg
+                className="h-4 w-4 animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Syncing...
+            </div>
+            <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
+              <svg
+                className="h-4 w-4 animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Syncing...
+            </div>
+          </>
+        )}
+      </div>
+    </>
   );
+}
+
+function CustomDialogContent(
+  { dialog, createCharacter }: {
+    dialog: CustomDialog,
+    createCharacter: (name: string, image: string, element: string) => void
+  }
+) {
+  if (dialog.name === "add_character") {
+    const CharacterAddDialog = () => {
+
+      return (
+        <form onSubmit={(e) => { e.preventDefault() }}>
+          <div className="flex flex-col space-y-1">
+            <text>Name</text>
+            <Input type="text" className="w-fit" />
+            <Input type="image" />
+          </div>
+        </form>
+      )
+    }
+
+    return (
+      <div>
+        <CharacterAddDialog />
+      </div>
+    )
+  }
 }
 
 interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -448,6 +499,7 @@ interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement> {
   toggleElement: (element: string) => void;
   unselectAll: () => void;
   importMod: () => void;
+  addCharacter: () => void;
 }
 
 function CharacterFilters({
@@ -458,6 +510,7 @@ function CharacterFilters({
   toggleAvailable,
   toggleElement,
   importMod,
+  addCharacter,
   className,
 }: CharacterFilterProps) {
   return (
@@ -492,6 +545,12 @@ function CharacterFilters({
         })}
       </div>
       <div className="flex flex-row pe-2">
+        <Button
+          className="mx-2 backdrop-blur-md border-0"
+          onPointerDown={addCharacter}
+        >
+          Add Character
+        </Button>
         <Button
           className="mx-2 backdrop-blur-md border-0"
           onPointerDown={importMod}

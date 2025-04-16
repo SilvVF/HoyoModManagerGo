@@ -154,6 +154,10 @@ func (h *DbHelper) SelectEnabledModsByGame(game types.Game) ([]types.Mod, error)
 	return mods, nil
 }
 
+func (h *DbHelper) DeleteCharacter(c types.Character) error {
+	return h.queries.DeleteCharacterById(h.ctx, int64(c.Id))
+}
+
 func (h *DbHelper) UpsertCharacter(c types.Character) error {
 
 	const upsertCharacterQuery = `
@@ -191,26 +195,6 @@ func (h *DbHelper) UpsertCharacter(c types.Character) error {
 	return errors.New("name was empty")
 }
 
-func deleteUnusedModsQuery(fnames []string, game types.Game) string {
-
-	for i, name := range fnames {
-		fnames[i] = fmt.Sprintf("'%s'", name)
-	}
-
-	var fileArg string
-	if len(fnames) == 0 {
-		fileArg = "NULL"
-	} else {
-		fileArg = "(" + strings.Join(fnames, ",") + ")"
-	}
-
-	return fmt.Sprintf(
-		"DELETE FROM mod WHERE fname NOT IN %s AND game = %d",
-		fileArg,
-		game,
-	)
-}
-
 func (h *DbHelper) deleteUnusedTextures(textures []types.Pair[int, string]) error {
 	modIds := []int64{}
 
@@ -235,6 +219,26 @@ func (h *DbHelper) deleteUnusedTextures(textures []types.Pair[int, string]) erro
 }
 
 func (h *DbHelper) deleteUnusedMods(fileNames []string, game types.Game) error {
+	deleteUnusedModsQuery := func(fnames []string, game types.Game) string {
+
+		for i, name := range fnames {
+			fnames[i] = fmt.Sprintf("'%s'", name)
+		}
+
+		var fileArg string
+		if len(fnames) == 0 {
+			fileArg = "NULL"
+		} else {
+			fileArg = "(" + strings.Join(fnames, ",") + ")"
+		}
+
+		return fmt.Sprintf(
+			"DELETE FROM mod WHERE fname NOT IN %s AND game = %d",
+			fileArg,
+			game,
+		)
+	}
+
 	query := deleteUnusedModsQuery(fileNames, game)
 	log.LogDebug(query)
 	_, err := h.db.ExecContext(h.ctx, query)

@@ -6,6 +6,10 @@ export function CreatePlaylist(arg1, arg2) {
   return window['go']['core']['DbHelper']['CreatePlaylist'](arg1, arg2);
 }
 
+export function DeleteCharacter(arg1) {
+  return window['go']['core']['DbHelper']['DeleteCharacter'](arg1);
+}
+
 export function DeleteModById(arg1) {
   return window['go']['core']['DbHelper']['DeleteModById'](arg1);
 }
