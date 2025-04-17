@@ -162,12 +162,23 @@ func TestExtractRar(t *testing.T) {
 	os.RemoveAll(out)
 	os.MkdirAll(out, os.ModePerm)
 
-	err := archiveExtract(path, out, true, func(progress, total int64) {
+	fp := int64(0)
+	ft := int64(0)
 
+	root, err := archiveExtract(path, out, true, func(progress, total int64) {
+		log.LogDebugf("%d / %d bytes", progress, total)
+		fp = progress
+		ft = total
 	})
+
+	log.LogDebug(root)
 
 	if err != nil {
 		t.Error(err)
+	}
+
+	if fp != ft {
+		t.Error("progress was not equal to total")
 	}
 }
 
@@ -181,11 +192,22 @@ func TestExtractZip(t *testing.T) {
 	os.RemoveAll(out)
 	os.MkdirAll(out, os.ModePerm)
 
-	err := archiveExtract(path, out, true, func(progress, total int64) {})
+	fp := int64(0)
+	ft := int64(0)
+
+	root, err := archiveExtract(path, out, true, func(progress, total int64) {
+		log.LogDebugf("%d / %d bytes", progress, total)
+		fp = progress
+		ft = total
+	})
+
+	log.LogDebug(root)
 
 	if err != nil {
-		log.LogError(err.Error())
+		t.Error(err)
 	}
 
-	t.Fail()
+	if fp != ft {
+		t.Error("progress was not equal to total")
+	}
 }

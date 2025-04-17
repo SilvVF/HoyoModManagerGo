@@ -556,22 +556,12 @@ func (d *Downloader) unzipAndInsertToDb(
 	ext := filepath.Ext(filePath)
 	switch {
 	case ext == ".rar":
-		log.LogDebug("extracting rar " + filePath)
-		xFile := &XFile{
-			FilePath:  filePath,
-			OutputDir: outputDir,
-			DirMode:   os.ModePerm,
-			FileMode:  os.ModePerm,
-		}
-		if _, _, _, err = extractRAR(xFile, true, onProgress); err != nil {
-			return err
-		}
 	case unarrSupported(ext):
 		log.LogDebugf("extracting %s", filepath.Ext(filePath))
-		if _, err = extract(filePath, outputDir, true, onProgress); err != nil {
+		if _, err = archiveExtract(filePath, outputDir, true, onProgress); err != nil {
 			return err
 		}
-	default:
+	case ext == "":
 		log.LogDebug("copying regular file")
 		i, err := file.Stat()
 		if err != nil {
@@ -587,6 +577,8 @@ func (d *Downloader) unzipAndInsertToDb(
 				return err
 			}
 		}
+	default:
+		return errors.New("unsupported compression format")
 	}
 
 	if d.spaceSaver.Get() {

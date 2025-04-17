@@ -380,7 +380,7 @@ func copyAndUnzip(src, dst string, overwrite bool) error {
 			return os.MkdirAll(dstPath, info.Type().Perm())
 		} else {
 			if filepath.Ext(path) == ".zip" {
-				_, err := extract(path, strings.TrimSuffix(dstPath, ".zip"), false, nil)
+				_, err := archiveExtract(path, strings.TrimSuffix(dstPath, ".zip"), false, nil)
 				return err
 			}
 			return util.CopyFile(path, dstPath, overwrite)
@@ -495,7 +495,7 @@ func overwriteTextures(src, dst string, textures []types.Texture) error {
 			}
 
 			log.LogDebug("extracting " + filepath.Join(texturePath, d.Name()) + "to " + tmp)
-			_, err = extract(filepath.Join(texturePath, d.Name()), tmp, false, nil)
+			_, err = archiveExtract(filepath.Join(texturePath, d.Name()), tmp, false, nil)
 			if err != nil {
 				log.LogError(err.Error())
 				continue

@@ -136,24 +136,9 @@ func (u *Updator) DownloadModFix(game types.Game, old, fname, link string) error
 	case ".exe":
 		os.Remove(old)
 		return err
-	case ".rar":
-		defer os.RemoveAll(path)
-		_, _, _, err := extractRAR(&XFile{
-			FilePath:  path,
-			OutputDir: filepath.Dir(path),
-			FileMode:  os.ModePerm,
-			DirMode:   os.ModePerm,
-		}, false, func(progress, total int64) {})
-
-		if err == nil {
-			os.Remove(old)
-		}
-
-		return err
-	// can only be .zip or .7z checked above
 	default:
 		defer os.RemoveAll(path)
-		_, err := extract(path, filepath.Dir(path), false, func(progress, total int64) {})
+		_, err := archiveExtract(path, filepath.Dir(path), false, func(progress, total int64) {})
 
 		if err == nil {
 			os.Remove(old)
