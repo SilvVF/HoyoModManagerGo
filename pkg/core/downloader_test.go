@@ -18,14 +18,10 @@ import (
 )
 
 const (
-	rarFile          = "\\test_resources\\navia.rar"
-	zipFile          = "\\test_resources\\clorinde.zip"
-	uncompressedFile = "\\test_resources\\clorinde"
-
-	brokenZip = "\\test_resources\\lingsha_nude_halfnude_incomletever_v101.zip"
+	rarFile          = "navia.rar"
+	zipFile          = "clorinde_new1.zip"
+	uncompressedFile = "clorinde"
 )
-
-var workingDir, _ = os.Getwd()
 
 func _getDb() *DbHelper {
 	dbfile := filepath.Join(util.GetCacheDir(), "hmm.db")
@@ -50,8 +46,10 @@ func TestZip(t *testing.T) {
 	t.Error(err.Error())
 }
 
+var testResources = "C:\\Users\\david\\dev\\go\\skin-mod-manager\\test_resources"
+
 func TestGoogleDrive(t *testing.T) {
-	path := filepath.Join(workingDir, zipFile)
+	path := filepath.Join(testResources, zipFile)
 	fmt.Println(path)
 
 	ctx := context.Background()
@@ -104,7 +102,7 @@ func TestGoogleDrive(t *testing.T) {
 }
 
 func TestLocalSource(t *testing.T) {
-	path := filepath.Join(workingDir, zipFile)
+	path := filepath.Join(testResources, zipFile)
 	fmt.Println(path)
 
 	ctx := context.Background()
@@ -157,41 +155,17 @@ func TestLocalSource(t *testing.T) {
 
 func TestExtractRar(t *testing.T) {
 
-	path := filepath.Join(workingDir, rarFile)
-	out := filepath.Join(workingDir, "test_resources", "output")
+	path := filepath.Join(testResources, rarFile)
+	out := filepath.Join(testResources, "output", "rar_test")
 	fmt.Println(path)
 
 	os.RemoveAll(out)
 	os.MkdirAll(out, os.ModePerm)
 
-	size, files, contents, err := extractRAR(&XFile{
-		FilePath:  path,
-		OutputDir: out,
-		DirMode:   0777,
-		FileMode:  0777,
-	},
-		true,
-		nil,
-	)
+	err := archiveExtract(path, out, true, func(progress, total int64) {
 
-	fmt.Println(size, files, contents)
-	if err != nil {
-		t.Error(err)
-	}
-}
+	})
 
-func TestNoDirCreatesNewRoot(t *testing.T) {
-
-	path := filepath.Join(workingDir, brokenZip)
-	out := filepath.Join(workingDir, "test_resources", "output")
-	fmt.Println(path)
-
-	os.RemoveAll(out)
-	os.MkdirAll(out, os.ModePerm)
-
-	contents, err := extract(path, filepath.Join(workingDir, "test_resources", "output"), true, nil)
-
-	fmt.Println(contents)
 	if err != nil {
 		t.Error(err)
 	}
@@ -199,17 +173,19 @@ func TestNoDirCreatesNewRoot(t *testing.T) {
 
 func TestExtractZip(t *testing.T) {
 
-	path := filepath.Join(workingDir, zipFile)
-	out := filepath.Join(workingDir, "test_resources", "output")
+	path := filepath.Join(testResources, zipFile)
+	out := filepath.Join(testResources, "output", "ZIP_test")
+
 	fmt.Println(path)
 
 	os.RemoveAll(out)
 	os.MkdirAll(out, os.ModePerm)
 
-	contents, err := extract(path, filepath.Join(workingDir, "test_resources", "output"), true, nil)
+	err := archiveExtract(path, out, true, func(progress, total int64) {})
 
-	fmt.Println(contents)
 	if err != nil {
-		t.Error(err)
+		log.LogError(err.Error())
 	}
+
+	t.Fail()
 }

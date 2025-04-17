@@ -14,6 +14,7 @@ import (
 
 	"github.com/klauspost/compress/flate"
 	"github.com/klauspost/compress/zip"
+	"github.com/mholt/archives"
 
 	unarr "github.com/gen2brain/go-unarr"
 	"github.com/nwaples/rardecode"
@@ -222,6 +223,112 @@ func hasUniformRoot(contents []string) bool {
 	}
 
 	return true
+}
+
+func getUncompressedSize(ctx context.Context, archivePath string) (int64, []string, error) {
+
+	total := int64(0)
+	contents := []string{}
+	fsys, err := archives.FileSystem(ctx, archivePath, nil)
+	if err != nil {
+		return total, contents, err
+	}
+
+	err = fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		i, err := d.Info()
+		if err != nil {
+			return err
+		}
+		total += i.Size()
+
+		contents = append(contents, path)
+
+		return nil
+	})
+	if err != nil {
+		return total, contents, err
+	}
+
+	return total, contents, err
+}
+
+func archiveExtract(archivePath, path string, unifyRoot bool, onProgress func(progress int64, total int64)) error {
+	ctx := context.Background()
+
+	total, contents, _ := getUncompressedSize(ctx, archivePath)
+	progress := int64(0)
+
+	basePath := path
+	if !hasUniformRoot(contents) && unifyRoot {
+		basePath = filepath.Join(path, filepath.Base(path))
+	}
+
+	file, err := os.Open(archivePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	format, stream, err := archives.Identify(ctx, archivePath, file)
+
+	log.LogDebugf("type = %s, path = %s", format.Extension(), basePath)
+
+	if err != nil {
+		log.LogDebug("err identifying")
+		return err
+	}
+
+	ex, ok := format.(archives.Extractor)
+	if !ok {
+		return errors.New("nothing to extract")
+	}
+
+	err = ex.Extract(ctx, stream, func(ctx context.Context, f archives.FileInfo) error {
+
+		name := f.NameInArchive
+		dirname := filepath.Join(basePath, filepath.Dir(name))
+
+		log.LogDebug("dirname " + dirname + " name " + name)
+
+		if f.IsDir() {
+			return os.MkdirAll(dirname, 0755)
+		} else {
+
+			os.MkdirAll(dirname, 0755)
+
+			file, err := f.Open()
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			b, err := io.ReadAll(file)
+			if err != nil {
+				return err
+			}
+
+			err = os.WriteFile(filepath.Join(dirname, filepath.Base(name)), b, 0644)
+			if err != nil {
+				return err
+			}
+
+			progress += f.Size()
+			onProgress(progress, total)
+
+			return nil
+		}
+	})
+
+	return err
 }
 
 func extract(archivePath, path string, unifyRoot bool, onProgress func(progress int64, total int64)) (contents []string, err error) {
