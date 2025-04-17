@@ -55,14 +55,12 @@ func NewSyncHelper(db *DbHelper) *SyncHelper {
 			types.StarRail: pond.NewPool(1),
 			types.ZZZ:      pond.NewPool(1),
 			types.WuWa:     pond.NewPool(1),
-			types.LoL:      pond.NewPool(1),
 		},
 		initialComplete: map[types.Game]*sync.Once{
 			types.Genshin:  {},
 			types.StarRail: {},
 			types.ZZZ:      {},
 			types.WuWa:     {},
-			types.LoL:      {},
 		},
 	}
 }

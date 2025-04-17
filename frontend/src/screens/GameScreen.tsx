@@ -232,7 +232,9 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
       />
       <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4 mb-16 mx-2">
         {filteredCharacters.map((c) => (
-          <div key={c.characters.id} className="break-inside-avoid mb-4">
+          <div
+            key={c.characters.id}
+            className="break-inside-avoid mb-4">
             <CharacterInfoCard
               enableMod={enableMod}
               cmt={c}

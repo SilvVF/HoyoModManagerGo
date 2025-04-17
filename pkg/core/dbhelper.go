@@ -571,7 +571,7 @@ func (h *DbHelper) SelectPlaylistWithModsAndTags(game types.Game) ([]types.Playl
 func arrayToString(A []int64, delim string) string {
 
 	var buffer bytes.Buffer
-	for i := 0; i < len(A); i++ {
+	for i := range A {
 		buffer.WriteString(strconv.Itoa(int(A[i])))
 		if i != len(A)-1 {
 			buffer.WriteString(delim)

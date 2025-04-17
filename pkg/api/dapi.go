@@ -28,7 +28,6 @@ var ApiList map[types.Game]DataApi = map[types.Game]DataApi{
 	types.StarRail: NewStarRailApi(),
 	types.ZZZ:      NewZenlessZoneZeroApi(),
 	types.WuWa:     NewWutherWavesApi(),
-	types.LoL:      NewLeagueApi(),
 }
 
 const CacheSizeBytes = 200 * 1024 * 1024 // 200 mb will be cleaned at 100

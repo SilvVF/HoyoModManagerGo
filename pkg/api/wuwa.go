@@ -42,46 +42,63 @@ func (w *wutheringWavesApi) Elements() []string {
 func (w *wutheringWavesApi) Characters() []types.Character {
 	r, err := client.Get(fmt.Sprintf("%s/wuthering-waves/characters/", PRYDWEN_URL))
 	if err != nil {
-		return make([]types.Character, 0)
+		return []types.Character{}
 	}
 	defer r.Body.Close()
+
 	doc, err := html.Parse(bufio.NewReader(r.Body))
 	if err != nil {
-		return make([]types.Character, 0)
+		return []types.Character{}
 	}
 
 	elements := findMatchingElemsWithClass(doc, "div", "avatar-card")
 	characters := make([]types.Character, 0, len(elements))
 
 	for _, element := range elements {
-		nameElement := findMatchingElemsWithClass(element, "span", "emp-name")
+		nameEls := findMatchingElemsWithClass(element, "span", "emp-name")
+		if len(nameEls) == 0 {
+			continue
+		}
+		name := strings.TrimSpace(getTextContent(nameEls[0]))
 
-		if len(nameElement) <= 0 {
+		imgWrapper := findMatchingElemsWithClass(element, "div", "gatsby-image-wrapper")
+		if len(imgWrapper) == 0 {
+			continue
+		}
+		imgEls := findMatchingElems(imgWrapper[0], "img")
+		if len(imgEls) == 0 {
 			continue
 		}
 
-		name := strings.TrimSpace(getTextContent(nameElement[0]))
-
-		imgElements := findMatchingElemsWithClass(element, "div", "gatsby-image-wrapper")
-		log.LogDebugf("%v", imgElements)
-		imgElements = findMatchingElems(imgElements[0], "img")
-		log.LogDebugf("%v", imgElements)
-
-		ieAttrs := attrsForNode(imgElements[len(imgElements)-1])
+		lastImg := imgEls[len(imgEls)-1]
+		ieAttrs := attrsForNode(lastImg)
 		log.LogDebugf("%v", ieAttrs)
-		avatar := ieAttrs["data-src"]
-		typeElement := findMatchingElems(element, "img")
-		teAttrs := attrsForNode(typeElement[len(typeElement)-1])
-		elem := teAttrs["alt"]
 
-		character := types.Character{
+		avatar := ieAttrs["data-src"]
+		if len(avatar) == 0 {
+			continue
+		}
+
+		typeEls := findMatchingElems(element, "img")
+		if len(typeEls) == 0 {
+			continue
+		}
+		lastTypeImg := typeEls[len(typeEls)-1]
+		teAttrs := attrsForNode(lastTypeImg)
+
+		elem := teAttrs["alt"]
+		if len(elem) == 0 {
+			continue
+		}
+
+		characters = append(characters, types.Character{
 			Id:        util.HashForName(name),
 			Game:      w.Game,
 			Name:      name,
 			AvatarUrl: PRYDWEN_URL + avatar[0],
 			Element:   elem[0],
-		}
-		characters = append(characters, character)
+		})
 	}
+
 	return characters
 }
