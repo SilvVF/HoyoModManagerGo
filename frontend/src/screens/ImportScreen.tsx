@@ -23,7 +23,6 @@ import * as Downloader from "wailsjs/go/core/Downloader";
 export default function ImportScreen() {
 
   const location = useLocation();
-  //const downloads = useDownloadStore(useShallow(state => Array.from(Object.keys(state.down))))
 
   const [character, setCharacter] = useState<types.Character | undefined>(
     undefined

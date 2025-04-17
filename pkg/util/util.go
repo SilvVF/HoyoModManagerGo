@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"hash/fnv"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"io"
@@ -88,6 +89,13 @@ func GetDbFile() string {
 
 func GetModConfigCache(m types.Mod) string {
 	return filepath.Join(GetModDir(m), "config")
+}
+
+func HashForName(name string) int {
+	h := fnv.New32a()
+	h.Write([]byte(name))
+
+	return int(h.Sum32())
 }
 
 func FileExists(path string) (bool, error) {

@@ -139,6 +139,19 @@ func (a *App) ReadImageFile(path string) (string, error) {
 	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
+func (a *App) OpenFileDialog(display string, filters []string) (string, error) {
+	return runtime.OpenFileDialog(
+		a.ctx,
+		runtime.OpenDialogOptions{
+			Filters: []runtime.FileFilter{
+				{
+					DisplayName: display,
+					Pattern:     strings.Join(filters, ";"),
+				},
+			},
+		})
+}
+
 func (a *App) OpenMultipleFilesDialog(display string, filters []string) ([]string, error) {
 	return runtime.OpenMultipleFilesDialog(
 		a.ctx,

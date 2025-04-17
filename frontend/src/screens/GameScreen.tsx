@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DataApi, Game } from "../data/dataapi";
 import { syncCharacters, SyncType } from "../data/sync";
 import { cn, useStateProducer } from "../lib/utils";
@@ -6,6 +6,7 @@ import { types } from "wailsjs/go/models";
 import * as Generator from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import {
+  CreateCustomCharacter,
   DisableAllModsByGame,
   EnableModById,
   EnableTextureById,
@@ -42,6 +43,10 @@ import {
   TextureActionDropDown,
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
+import { ImageIcon } from "lucide-react";
+import { OpenFileDialog } from "wailsjs/go/main/App";
+import { imageFileExtensions } from "./EditScreen";
+import { DialogTrigger } from "@radix-ui/react-dialog";
 
 type RenameDialogType =
   | "rename_mod"
@@ -74,7 +79,7 @@ const getElementPref = (game: number): GoPref<string[]> => {
     case Game.WuWa:
       return wuwaElementPref;
     default:
-      return inMemroyPerf<string[]>([], game);
+      return inMemroyPerf<string[]>([], "game" + game + "_element_pref");
   }
 };
 
@@ -89,6 +94,10 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
   const [selectedElements, setSelectedElements] = usePrefrenceAsState(
     useMemo(() => getElementPref(props.game), [props.game])
   );
+  const [onlyCustom, setOnlyCustom] = usePrefrenceAsState(
+    useMemo(() => inMemroyPerf<boolean>(false, "only_custom"), [])
+  )
+
   const running = useDownloadStore(useShallow((state) => state.running));
   const refreshCharacters = () => setRefreshTrigger((prev) => prev + 1);
 
@@ -116,11 +125,12 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
             selectedElements.includes(cwmt.characters.element.toLowerCase()) ||
             selectedElements.isEmpty()
         )
-        .filter((cwmt) => (available ? !cwmt.modWithTags.isEmpty() : true));
+        .filter((cwmt) => (available ? !cwmt.modWithTags.isEmpty() : true))
+        .filter((cwmt) => (onlyCustom ? cwmt.characters.custom : true));
     } else {
       return [];
     }
-  }, [characters, selectedElements, available]);
+  }, [characters, selectedElements, available, onlyCustom]);
 
   const onElementSelected = (element: string) => {
     setSelectedElements((prev) => {
@@ -202,9 +212,11 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
           unselectAll={disableAllMods}
           elements={elements}
           selectedElements={selectedElements ?? []}
+          onlyCustom={onlyCustom ?? false}
           available={available ?? false}
           toggleElement={onElementSelected}
           toggleAvailable={setAvailableOnly}
+          toggleCustom={() => setOnlyCustom(p => !p)}
           addCharacter={() => setDialog({ type: "custom", name: "add_character" })}
           importMod={() => navigate("/import", {
             state: { game: props.game }
@@ -212,6 +224,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
         />
       </div>
       <OverlayOptions
+        elements={elements}
         dataApi={props.dataApi}
         dialog={dialog}
         setDialog={setDialog}
@@ -319,10 +332,12 @@ function OverlayOptions({
   dataApi,
   dialog,
   setDialog,
+  elements,
   refreshCharacters,
 }: {
   dataApi: DataApi;
   dialog: DialogType | undefined;
+  elements: string[];
   setDialog: (dialog: DialogType | undefined) => void;
   refreshCharacters: () => void;
 }) {
@@ -359,6 +374,10 @@ function OverlayOptions({
       .catch();
   };
 
+  const createCharacter = async (name: string, image: string, element: string | undefined) => {
+    CreateCustomCharacter(name, image, element ?? "", await dataApi.game()).then(refreshCharacters)
+  }
+
   return (
     <>
       <Dialog open={customDialog !== undefined} onOpenChange={() => setDialog(undefined)}>
@@ -370,7 +389,11 @@ function OverlayOptions({
             create a custom category that will be added as a character to the db. Use this for things like npc mods or weapon mods
           </DialogDescription>
           {customDialog !== undefined
-            ? <CustomDialogContent dialog={customDialog} createCharacter={() => { }} />
+            ? <CustomDialogContent
+              dialog={customDialog}
+              createCharacter={createCharacter}
+              elements={elements}
+            />
             : undefined
           }
         </DialogContent>
@@ -464,22 +487,80 @@ function OverlayOptions({
 }
 
 function CustomDialogContent(
-  { dialog }: {
+  { dialog, elements, createCharacter }: {
     dialog: CustomDialog,
-    createCharacter: (name: string, image: string, element: string) => void
+    elements: string[],
+    createCharacter: (name: string, image: string, element: string | undefined) => void
   }
 ) {
   if (dialog.name === "add_character") {
     const CharacterAddDialog = () => {
 
+      const imageInput = useRef<HTMLInputElement>(null)
+      const nameInput = useRef<HTMLInputElement>(null)
+      const [selectedElement, setSelectedElement] = useState<string | undefined>(undefined)
+
+
+      const onCreateCategory = () => {
+        const image = imageInput.current?.value
+        const name = nameInput.current?.value
+
+        if (image && name) {
+          createCharacter(name, image, selectedElement)
+        }
+      }
+
+      const openImageFilePicker = () => {
+        OpenFileDialog("select a category image", imageFileExtensions).then((file) => {
+          if (imageInput.current) {
+            imageInput.current.value = file
+          }
+        })
+      }
+
       return (
-        <form onSubmit={(e) => { e.preventDefault() }}>
-          <div className="flex flex-col space-y-1">
-            <text>Name</text>
-            <Input type="text" className="w-fit" />
-            <Input type="image" />
+        <div className="flex flex-col space-y-1 w-full overflow-clip">
+          <text>Name</text>
+          <Input ref={nameInput} type="text" className="w-full" />
+          <text>Image</text>
+          <div className="flex flex-row space-x-2">
+            <Input ref={imageInput} type="text" className="w-full" />
+            <Button onPointerDown={openImageFilePicker} size={"icon"}>
+              <ImageIcon />
+            </Button>
           </div>
-        </form>
+          <div className="grid grid-cols-4 space-x-2 space-y-2 p-2">
+            {elements.map((element) => {
+              return (
+                <Button
+                  key={element}
+                  size={"sm"}
+                  variant={
+                    selectedElement === element
+                      ? "secondary"
+                      : "outline"
+                  }
+                  className={cn(
+                    selectedElement === element
+                      ? "bg-primary/50 hover:bg-primary/50"
+                      : "bg-secondary/40",
+                    "rounded-full backdrNop-blur-md border-0"
+                  )}
+                  onPointerDown={() => setSelectedElement(e => element === e ? undefined : element)}
+                >
+                  {element}
+                </Button>
+              );
+            })}
+          </div>
+          <DialogTrigger>
+            <Button
+              className="w-full"
+              onPointerDown={onCreateCategory}>
+              Create
+            </Button>
+          </DialogTrigger>
+        </div>
       )
     }
 
@@ -493,10 +574,12 @@ function CustomDialogContent(
 
 interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement> {
   elements: string[];
+  onlyCustom: boolean;
   selectedElements: string[];
   available: boolean;
   toggleAvailable: (change: boolean) => void;
   toggleElement: (element: string) => void;
+  toggleCustom: () => void;
   unselectAll: () => void;
   importMod: () => void;
   addCharacter: () => void;
@@ -505,10 +588,12 @@ interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement> {
 function CharacterFilters({
   elements,
   unselectAll,
+  onlyCustom,
   selectedElements,
   available,
   toggleAvailable,
   toggleElement,
+  toggleCustom,
   importMod,
   addCharacter,
   className,
@@ -572,6 +657,16 @@ function CharacterFilters({
           onPointerDown={() => toggleAvailable(!available)}
         >
           Mods available
+        </Button>
+        <Button
+          className={cn(
+            onlyCustom ? "bg-primary/50" : "bg-secondary/20",
+            "mx-2 rounded-full backdrop-blur-md border-0"
+          )}
+          variant={available ? "secondary" : "outline"}
+          onPointerDown={toggleCustom}
+        >
+          Custom only
         </Button>
       </div>
     </div>

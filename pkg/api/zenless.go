@@ -3,9 +3,9 @@ package api
 import (
 	"bufio"
 	"fmt"
-	"hash/fnv"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
+	"hmm/pkg/util"
 	"slices"
 	"strings"
 
@@ -82,9 +82,6 @@ func (z *zenlessZoneZeroApi) Characters() []types.Character {
 			continue
 		}
 
-		h := fnv.New32a()
-		h.Write([]byte(name))
-
 		typeDoc := typeElement[len(typeElement)-1]
 		// Traverse the HTML nodes and find the img tag
 		var altText string
@@ -110,7 +107,7 @@ func (z *zenlessZoneZeroApi) Characters() []types.Character {
 		avatar := dataSrc[0]
 
 		character := types.Character{
-			Id:        int(h.Sum32()),
+			Id:        util.HashForName(name),
 			Game:      z.Game,
 			Name:      name,
 			AvatarUrl: PRYDWEN_URL + avatar,

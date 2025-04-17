@@ -3,9 +3,9 @@ package api
 import (
 	"bufio"
 	"fmt"
-	"hash/fnv"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
+	"hmm/pkg/util"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -74,11 +74,8 @@ func (w *wutheringWavesApi) Characters() []types.Character {
 		teAttrs := attrsForNode(typeElement[len(typeElement)-1])
 		elem := teAttrs["alt"]
 
-		h := fnv.New32a()
-		h.Write([]byte(name))
-
 		character := types.Character{
-			Id:        int(h.Sum32()),
+			Id:        util.HashForName(name),
 			Game:      w.Game,
 			Name:      name,
 			AvatarUrl: PRYDWEN_URL + avatar[0],

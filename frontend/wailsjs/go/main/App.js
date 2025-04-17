@@ -74,6 +74,10 @@ export function OpenDirectoryDialog(arg1, arg2) {
   return window['go']['main']['App']['OpenDirectoryDialog'](arg1, arg2);
 }
 
+export function OpenFileDialog(arg1, arg2) {
+  return window['go']['main']['App']['OpenFileDialog'](arg1, arg2);
+}
+
 export function OpenMultipleFilesDialog(arg1, arg2) {
   return window['go']['main']['App']['OpenMultipleFilesDialog'](arg1, arg2);
 }

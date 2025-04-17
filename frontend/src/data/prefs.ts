@@ -74,17 +74,17 @@ const rootModDirPref = RootModDirPref as GoPref<string>;
 //   Set(arg1: T): Promise<void>;
 // };
 
-const memPref = new Map<number, any>()
+const memPref = new Map<string, any>()
 
-export function inMemroyPerf<T extends any>(value: T, game: number): GoPref<T> {
+export function inMemroyPerf<T extends any>(value: T, key: string): GoPref<T> {
   let isSet = false
   return {
     DefaultValue: async () => value,
-    Delete: async () => { memPref.delete(game) },
+    Delete: async () => { memPref.delete(key) },
     Get: async () => {
       LogDebug("setting " + value)
-      if (memPref.has(game))
-        return memPref.get(game)
+      if (memPref.has(key))
+        return memPref.get(key)
       else
         return value
     },
@@ -92,7 +92,7 @@ export function inMemroyPerf<T extends any>(value: T, game: number): GoPref<T> {
     Key: async () => "",
     Set: async (v) => {
       isSet = true
-      memPref.set(game, v)
+      memPref.set(key, v)
     },
   } as GoPref<T>
 }

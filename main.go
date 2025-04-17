@@ -37,7 +37,7 @@ var embedMigrations embed.FS
 //go:embed build/appicon.jpg
 var icon []byte
 
-//go:embed db/schema.sql
+//go:embed db/sql/schema.sql
 var ddl string
 
 var dev = flag.Bool("dev", false, "enable dev mode")

@@ -40,6 +40,8 @@ export function LoadPlugins():Promise<void>;
 
 export function OpenDirectoryDialog(arg1:string,arg2:Array<string>):Promise<string>;
 
+export function OpenFileDialog(arg1:string,arg2:Array<string>):Promise<string>;
+
 export function OpenMultipleFilesDialog(arg1:string,arg2:Array<string>):Promise<Array<string>>;
 
 export function ReadImageFile(arg1:string):Promise<string>;

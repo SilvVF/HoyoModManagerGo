@@ -158,6 +158,19 @@ func (h *DbHelper) DeleteCharacter(c types.Character) error {
 	return h.queries.DeleteCharacterById(h.ctx, int64(c.Id))
 }
 
+func (h *DbHelper) CreateCustomCharacter(name, img, element string, game types.Game) error {
+	return h.UpsertCharacter(
+		types.Character{
+			Id:        util.HashForName(name),
+			Game:      game,
+			Name:      name,
+			AvatarUrl: img,
+			Element:   element,
+			Custom:    true,
+		},
+	)
+}
+
 func (h *DbHelper) UpsertCharacter(c types.Character) error {
 
 	const upsertCharacterQuery = `
@@ -185,6 +198,7 @@ func (h *DbHelper) UpsertCharacter(c types.Character) error {
 			c.Name,
 			c.AvatarUrl,
 			c.Element,
+			flags,
 			c.AvatarUrl,
 			c.Name,
 			c.Element,

@@ -51,7 +51,7 @@ type DialogType =
   | "rename_tag"
   | "set_mod_image"
 
-const imageFileExtensions = [
+export const imageFileExtensions = [
   "*.jpg",
   "*.jpeg",
   "*.png",
