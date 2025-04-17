@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"hmm/pkg/log"
+	"hmm/pkg/util"
 	"io"
 	"io/fs"
 	"os"
@@ -32,7 +33,7 @@ func WalkAndRezip(root string, ctx context.Context, onProgress func(total int, c
 
 	rezipWithNewCompression := func(path string) error {
 		t, _ := os.MkdirTemp(os.TempDir(), "")
-		_, err := archiveExtract(path, t, false, func(progress int64, total int64) {})
+		_, err := archiveExtract(path, t, false, true, func(progress int64, total int64) {})
 		if err != nil {
 			return nil
 		}
@@ -210,6 +211,7 @@ func getUncompressedSize(ctx context.Context, archivePath string) (int64, []stri
 
 	total := int64(0)
 	contents := []string{}
+
 	fsys, err := archives.FileSystem(ctx, archivePath, nil)
 	if err != nil {
 		return total, contents, err
@@ -242,7 +244,11 @@ func getUncompressedSize(ctx context.Context, archivePath string) (int64, []stri
 	return total, contents, err
 }
 
-func archiveExtract(archivePath, path string, unifyRoot bool, onProgress func(progress int64, total int64)) (string, error) {
+func archiveExtract(
+	archivePath, path string,
+	unifyRoot, overwrite bool,
+	onProgress func(progress int64, total int64),
+) (string, error) {
 	ctx := context.Background()
 
 	total, contents, _ := getUncompressedSize(ctx, archivePath)
@@ -259,6 +265,11 @@ func archiveExtract(archivePath, path string, unifyRoot bool, onProgress func(pr
 	}
 	defer file.Close()
 
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+		return "", err
+	}
+
 	format, stream, err := archives.Identify(ctx, archivePath, file)
 
 	log.LogDebugf("type = %s, path = %s", format.Extension(), basePath)
@@ -268,43 +279,58 @@ func archiveExtract(archivePath, path string, unifyRoot bool, onProgress func(pr
 		return "", err
 	}
 
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+		return "", err
+	}
+
 	ex, ok := format.(archives.Extractor)
 	if !ok {
 		return "", errors.New("nothing to extract")
 	}
 
+	if onProgress != nil {
+		onProgress(progress, total)
+	}
+
 	err = ex.Extract(ctx, stream, func(ctx context.Context, f archives.FileInfo) error {
 
-		name := f.NameInArchive
+		name := filepath.Clean(f.NameInArchive)
 		dirname := filepath.Join(basePath, filepath.Dir(name))
 
 		if f.IsDir() {
-			return os.MkdirAll(dirname, 0755)
-		} else {
-
-			os.MkdirAll(dirname, 0755)
-
-			file, err := f.Open()
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-
-			b, err := io.ReadAll(file)
-			if err != nil {
-				return err
-			}
-
-			err = os.WriteFile(filepath.Join(dirname, filepath.Base(name)), b, 0644)
-			if err != nil {
-				return err
-			}
-
-			progress += f.Size()
-			onProgress(progress, total)
-
 			return nil
 		}
+
+		out := filepath.Join(dirname, filepath.Base(name))
+		if exists, _ := util.FileExists(out); exists && !overwrite {
+			return nil
+		}
+
+		os.MkdirAll(dirname, 0755)
+
+		file, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		b, err := io.ReadAll(file)
+		if err != nil {
+			return err
+		}
+
+		err = os.WriteFile(out, b, 0644)
+		if err != nil {
+			return err
+		}
+
+		progress += f.Size()
+
+		if onProgress != nil {
+			onProgress(progress, total)
+		}
+
+		return nil
 	})
 
 	return basePath, err

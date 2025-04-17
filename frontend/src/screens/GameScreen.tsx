@@ -464,7 +464,7 @@ function OverlayOptions({
 }
 
 function CustomDialogContent(
-  { dialog, createCharacter }: {
+  { dialog }: {
     dialog: CustomDialog,
     createCharacter: (name: string, image: string, element: string) => void
   }

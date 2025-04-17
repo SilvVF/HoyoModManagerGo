@@ -43,6 +43,7 @@ var ddl string
 var dev = flag.Bool("dev", false, "enable dev mode")
 var prefs = flag.Int("prefs", 0, "set prefs mode 0 - DISK (DEFAULT) 1 - MEMORY")
 var logType = flag.Int("log", 0, "set the log type 0 - println, 1 - file")
+var logLevel = flag.String("log_level", "debub", "set level for logs")
 
 func main() {
 	// Create an instance of the app structure
@@ -143,6 +144,10 @@ func main() {
 	} else {
 		bgColor = options.NewRGB(240, 240, 240)
 	}
+	ll, err := logger.StringToLogLevel(*logLevel)
+	if err != nil {
+		ll = logger.DEBUG
+	}
 
 	err = wails.Run(&options.App{
 		Title:             "hoyomodmanager",
@@ -163,7 +168,7 @@ func main() {
 		},
 		Menu:     nil,
 		Logger:   app.CreateLogger(),
-		LogLevel: logger.DEBUG,
+		LogLevel: ll,
 		OnStartup: func(ctx context.Context) {
 			log.InitLogging(ctx)
 			defaultEmitter.Bind(ctx)

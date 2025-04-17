@@ -6,7 +6,7 @@ require (
 	github.com/alitto/pond/v2 v2.0.4
 	github.com/klauspost/compress v1.18.0
 	github.com/mattn/go-sqlite3 v1.14.22
-	github.com/nwaples/rardecode v1.1.3
+	github.com/mholt/archives v0.1.1
 	github.com/peterbourgon/diskv v2.0.1+incompatible
 	github.com/wailsapp/wails/v2 v2.10.1
 	github.com/yuin/gopher-lua v1.1.1
@@ -27,9 +27,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
-	github.com/mholt/archives v0.1.1 // indirect
 	github.com/minio/minlz v1.0.0 // indirect
 	github.com/nwaples/rardecode/v2 v2.1.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
@@ -46,7 +44,6 @@ require (
 
 require (
 	github.com/bep/debounce v1.2.1 // indirect
-	github.com/gen2brain/go-unarr v0.2.3
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect

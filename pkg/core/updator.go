@@ -138,7 +138,7 @@ func (u *Updator) DownloadModFix(game types.Game, old, fname, link string) error
 		return err
 	default:
 		defer os.RemoveAll(path)
-		_, err := archiveExtract(path, filepath.Dir(path), false, func(progress, total int64) {})
+		_, err := archiveExtract(path, filepath.Dir(path), false, true, func(progress, total int64) {})
 
 		if err == nil {
 			os.Remove(old)

@@ -165,7 +165,7 @@ func TestExtractRar(t *testing.T) {
 	fp := int64(0)
 	ft := int64(0)
 
-	root, err := archiveExtract(path, out, true, func(progress, total int64) {
+	root, err := archiveExtract(path, out, true, true, func(progress, total int64) {
 		log.LogDebugf("%d / %d bytes", progress, total)
 		fp = progress
 		ft = total
@@ -186,6 +186,7 @@ func TestExtractZip(t *testing.T) {
 
 	path := filepath.Join(testResources, zipFile)
 	out := filepath.Join(testResources, "output", "ZIP_test")
+	out2 := filepath.Join(testResources, "output", "ZIP_test2")
 
 	fmt.Println(path)
 
@@ -195,11 +196,13 @@ func TestExtractZip(t *testing.T) {
 	fp := int64(0)
 	ft := int64(0)
 
-	root, err := archiveExtract(path, out, true, func(progress, total int64) {
+	root, err := archiveExtract(path, out, true, true, func(progress, total int64) {
 		log.LogDebugf("%d / %d bytes", progress, total)
 		fp = progress
 		ft = total
 	})
+
+	copyAndUnzip(root, out2, false)
 
 	log.LogDebug(root)
 
