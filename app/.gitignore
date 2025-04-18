@@ -1,0 +1,4 @@
+../build/bin
+build/bin
+./build/bin
+test_resources
