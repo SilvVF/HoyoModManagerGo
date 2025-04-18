@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -24,9 +25,6 @@ type Job struct {
 	startedAt   time.Time
 	completedAt time.Time
 }
-
-var jobs = map[int]*Job{}
-var jobId = &atomic.Int32{}
 
 func (j *Job) Status() string {
 	if j.startedAt.IsZero() {
@@ -47,6 +45,9 @@ type Server struct {
 	authType  pref.Preference[int]
 	username  pref.Preference[string]
 	password  pref.Preference[string]
+	jobs      map[int]*Job
+	jobId     *atomic.Int32
+	jobMutex  *sync.Mutex
 }
 
 func newServer(
@@ -62,6 +63,9 @@ func newServer(
 		authType:  prefs.ServerAuthTypePref,
 		username:  prefs.ServerUsernamePref,
 		password:  prefs.ServerPasswordPref,
+		jobs:      map[int]*Job{},
+		jobId:     &atomic.Int32{},
+		jobMutex:  &sync.Mutex{},
 	}
 }
 
@@ -170,9 +174,9 @@ func (s *Server) registerHandlers(mux *http.ServeMux) {
 
 	mux.HandleFunc("POST /update/mod", basicAuthMiddleware(updateModHandler(s.db)))
 
-	mux.HandleFunc("POST /generate", basicAuthMiddleware(generateHandler(s.generator)))
+	mux.HandleFunc("POST /generate", basicAuthMiddleware(s.generateHandler()))
 
-	mux.HandleFunc("GET /poll-generation", basicAuthMiddleware(pollGenerationHandler()))
+	mux.HandleFunc("GET /poll-generation", basicAuthMiddleware(s.pollGenerationHandler()))
 }
 func validateGame(w http.ResponseWriter, r *http.Request) (types.Game, error) {
 	game, err := strconv.Atoi(r.PathValue("game"))
@@ -269,7 +273,7 @@ func updateModHandler(db *core.DbHelper) func(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func generateHandler(g *core.Generator) func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) generateHandler() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -291,15 +295,25 @@ func generateHandler(g *core.Generator) func(w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		jobId := jobId.Add(1)
+		jobId := s.jobId.Add(1)
 
 		go func() {
-			job := &Job{startedAt: time.Now()}
-			jobs[int(jobId)] = job
 
-			err := g.Reload(types.Game(t.Game))
+			s.jobMutex.Lock()
+			job := &Job{startedAt: time.Now()}
+			s.jobs[int(jobId)] = job
+			s.jobMutex.Unlock()
+
+			err := s.generator.Reload(types.Game(t.Game))
+
+			if err != nil {
+				log.LogError(err.Error())
+			}
+
+			s.jobMutex.Lock()
 			job.completedAt = time.Now()
 			job.err = err
+			s.jobMutex.Unlock()
 		}()
 
 		w.WriteHeader(http.StatusOK)
@@ -307,7 +321,7 @@ func generateHandler(g *core.Generator) func(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func pollGenerationHandler() func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) pollGenerationHandler() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(r.URL.Query().Get("jobId"))
 		if err != nil {
@@ -315,7 +329,10 @@ func pollGenerationHandler() func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		job, ok := jobs[id]
+		s.jobMutex.Lock()
+		job, ok := s.jobs[id]
+		s.jobMutex.Unlock()
+
 		if !ok {
 			http.Error(w, "Bad Request: job does not exist", http.StatusBadRequest)
 			return
@@ -329,30 +346,40 @@ func pollGenerationHandler() func(w http.ResponseWriter, r *http.Request) {
 		for {
 			select {
 			case <-timeout:
+				s.jobMutex.Lock()
 				status = job.Status()
+				s.jobMutex.Unlock()
 				break outer
 			case <-ticker.C:
+				s.jobMutex.Lock()
 				status = job.Status()
+				s.jobMutex.Unlock()
 				if status == "completed" || status == "failed" {
 					break outer
 				}
 			}
 		}
-		response := map[string]interface{}{
+		response := map[string]any{
 			"jobId":  id,
 			"status": status,
 		}
+
 		if status == "completed" {
 			response["completedAt"] = job.completedAt
 		} else if status == "failed" {
 			response["error"] = job.err.Error()
 		}
+
 		w.Header().Set("Content-Type", "application/json")
+
 		if status == "in progress" {
 			w.WriteHeader(http.StatusNoContent)
 		} else {
 			w.WriteHeader(http.StatusOK)
 		}
+
+		log.LogDebugf("server sending response to polling %v", response)
+
 		json.NewEncoder(w).Encode(response)
 	}
 }

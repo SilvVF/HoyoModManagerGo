@@ -19,8 +19,10 @@ class HmmApi(
     private val client: OkHttpClient,
     private val prefs: SharedPreferences,
 ) {
-    private suspend fun getAddr() = prefs.get(PrefKeys.ADDR, "").also {
-        if (it.isBlank()) error("address needs to be set")
+    private suspend fun getAddr() = prefs.get(PrefKeys.ADDR, "").run {
+        if (isBlank()) error("address needs to be set")
+        removePrefix("https://")
+        removePrefix("http://")
     }
 
     suspend fun data(): Result<List<ModsWithTagsAndTextures>> = withContext(Dispatchers.IO) {
@@ -96,7 +98,7 @@ class HmmApi(
                         .getOrNull()
 
                     endMillis = System.currentTimeMillis()
-                } while(response.code == 204 || !lastStatus!!.isComplete)
+                } while(response.code == 204 || lastStatus?.isComplete != true)
             }
             lastStatus!!
         }

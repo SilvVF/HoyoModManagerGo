@@ -69,9 +69,14 @@ suspend fun Call.awaitSuccess(): Response  {
     return response
 }
 
+val json = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+}
+
 inline fun <reified T> Response.parseAs(): T {
     return body!!.source().use {
-        Json.decodeFromStream(it.inputStream())
+        json.decodeFromStream(it.inputStream())
     }
 }
 
@@ -83,7 +88,7 @@ inline fun <reified T> OkHttpClient.POST(url: String, body: T) = newCall(
     Request.Builder()
         .url(url)
         .post(
-            body = Json.encodeToString(body)
+            body = json.encodeToString(body)
                 .toRequestBody(
                     "application/json".toMediaType()
                 )

@@ -47,6 +47,7 @@ import { ImageIcon } from "lucide-react";
 import { OpenFileDialog } from "wailsjs/go/main/App";
 import { imageFileExtensions } from "./EditScreen";
 import { DialogTrigger } from "@radix-ui/react-dialog";
+import { EventsOn } from "wailsjs/runtime/runtime";
 
 type RenameDialogType =
   | "rename_mod"
@@ -347,19 +348,32 @@ function OverlayOptions({
   const customDialog = dialog !== undefined && dialog.type === "custom" ? dialog as CustomDialog : undefined
   const [reloading, setReloading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+
+
   // lazy way to restore the state of generating job TODO: maybe use events 
   useEffect(() => {
-    dataApi.game().then((game) => {
-      Generator.IsRunning(game)
-        .then((reloading) => {
-          setReloading(reloading)
-          if (reloading) {
-            Generator
-              .AwaitCurrentJob(game)
-              .finally(() => setReloading(false))
-          }
-        })
+    const handleGenStarted = () => {
+      dataApi.game().then((game) => {
+        Generator.IsRunning(game)
+          .then((reloading) => {
+            setReloading(reloading)
+            if (reloading) {
+              Generator
+                .AwaitCurrentJob(game)
+                .finally(() => setReloading(false))
+            }
+          })
+      })
+    }
+
+    handleGenStarted()
+    const cancel = EventsOn("gen_started", () => {
+      handleGenStarted()
     })
+
+    return () => {
+      cancel()
+    }
   }, [])
 
   const sync = (type: SyncType) => {

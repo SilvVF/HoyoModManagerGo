@@ -20,16 +20,21 @@ import (
 	"github.com/alitto/pond/v2"
 )
 
+const (
+	EVENT_GEN_STARTED = "gen_started"
+)
+
 type Generator struct {
-	db         *DbHelper
-	poolSize   int
-	cancelFns  map[types.Game]types.Pair[context.Context, context.CancelFunc]
-	wgMap      map[types.Game]*sync.WaitGroup
-	mutexMap   map[types.Game]*sync.Mutex
-	outputDirs map[types.Game]pref.Preference[string]
-	ignored    pref.Preference[[]string]
-	cleanDir   pref.Preference[bool]
-	cs         *ConfigSaver
+	db           *DbHelper
+	poolSize     int
+	cancelFns    map[types.Game]types.Pair[context.Context, context.CancelFunc]
+	wgMap        map[types.Game]*sync.WaitGroup
+	mutexMap     map[types.Game]*sync.Mutex
+	outputDirs   map[types.Game]pref.Preference[string]
+	ignored      pref.Preference[[]string]
+	cleanDir     pref.Preference[bool]
+	cs           *ConfigSaver
+	eventEmitter EventEmmiter
 }
 
 func NewGenerator(
@@ -37,6 +42,7 @@ func NewGenerator(
 	outputDirs map[types.Game]pref.Preference[string],
 	ignoredDirPref pref.Preference[[]string],
 	cleanExportDir pref.Preference[bool],
+	eventEmitter EventEmmiter,
 ) *Generator {
 	return &Generator{
 		db:       db,
@@ -59,10 +65,11 @@ func NewGenerator(
 			types.ZZZ:      {},
 			types.WuWa:     {},
 		},
-		cs:         NewConfigSaver(outputDirs, db),
-		outputDirs: outputDirs,
-		ignored:    ignoredDirPref,
-		cleanDir:   cleanExportDir,
+		cs:           NewConfigSaver(outputDirs, db),
+		outputDirs:   outputDirs,
+		ignored:      ignoredDirPref,
+		cleanDir:     cleanExportDir,
+		eventEmitter: eventEmitter,
 	}
 }
 
@@ -98,6 +105,7 @@ func (g *Generator) Reload(game types.Game) error {
 	if !g.outputDirs[game].IsSet() {
 		return errors.New("output dir not set")
 	}
+	g.eventEmitter.Emit(EVENT_GEN_STARTED, game)
 
 	// cancels the prev job and waits for it to finsih
 	// return context and errCh for the created job
@@ -217,16 +225,24 @@ func runModFixExe(ctx context.Context, exported []string, outputDir string) erro
 		return errors.New("unable to run mod fix")
 	}
 
+	cancelled := false
 	cmder.WithOutFn(func(b []byte) (int, error) {
 		value := string(b)
 		log.LogDebug(fmt.Sprintf("%s len: %d", value, len(value)))
 		if strings.Contains(value, "Done!") || strings.Contains(value, "quit...") {
 			log.LogDebug("Cancelling")
+			cancelled = true
 			cancel()
 		}
 		return len(b), nil
 	})
-	return cmder.Run(make([]string, 0))
+
+	err := cmder.Run(make([]string, 0))
+	if cancelled {
+		return nil
+	}
+
+	return err
 }
 
 // overwrites mods with textures and overwrites merged.ini with saved config and keymaps

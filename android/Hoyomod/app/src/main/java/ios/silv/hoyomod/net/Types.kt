@@ -58,7 +58,9 @@ data class ModsWithTagsAndTextures(
             @SerialName("id")
             val id: Long,
             @SerialName("name")
-            val name: String
+            val name: String,
+            @SerialName("custom")
+            val custom: Boolean? = false,
         )
 
         @Serializable
@@ -68,7 +70,7 @@ data class ModsWithTagsAndTextures(
             @SerialName("tags")
             val tags: List<Map<String, String>> = emptyList(),
             @SerialName("textures")
-            val textures: List<Texture>
+            val textures: List<Texture> = emptyList()
         ) {
             @Serializable
             data class Mod(
@@ -93,7 +95,7 @@ data class ModsWithTagsAndTextures(
                 @SerialName("modLink")
                 val modLink: String,
                 @SerialName("previewImages")
-                val previewImages: List<String>
+                val previewImages: List<String> = emptyList()
             )
 
             @Serializable
@@ -115,7 +117,7 @@ data class ModsWithTagsAndTextures(
                 @SerialName("modLink")
                 val modLink: String,
                 @SerialName("previewImages")
-                val previewImages: List<String>
+                val previewImages: List<String> = emptyList()
             )
         }
     }

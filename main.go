@@ -104,7 +104,6 @@ func main() {
 	starRailApi := api.ApiList[types.StarRail]
 	zenlessApi := api.ApiList[types.ZZZ]
 	wuwaApi := api.ApiList[types.WuWa]
-	leagueApi := api.ApiList[types.LoL]
 	preferenceDirs := map[types.Game]pref.Preference[string]{
 		types.Genshin:  appPrefs.GenshinDirPref.Preference,
 		types.ZZZ:      appPrefs.ZZZDirPref.Preference,
@@ -130,6 +129,7 @@ func main() {
 		preferenceDirs,
 		appPrefs.IgnoreDirPref.Preference,
 		appPrefs.CleanModExportDirPref.Preference,
+		defaultEmitter,
 	)
 
 	serverManager := server.NewServerManager(appPrefs, dbHelper, generator)
@@ -186,7 +186,6 @@ func main() {
 			starRailApi,
 			zenlessApi,
 			wuwaApi,
-			leagueApi,
 			gbApi,
 			// CORE
 			sync,
