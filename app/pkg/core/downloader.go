@@ -81,8 +81,12 @@ func NewDownloader(
 	go func() {
 		for {
 			v, ok := <-watcher
-			if !ok || v == d.pool.MaxConcurrency() {
+			if !ok {
 				return
+			}
+
+			if v == d.pool.MaxConcurrency() {
+				continue
 			}
 
 			d.pool.StopAndWait()
@@ -177,7 +181,6 @@ func (d *Downloader) Stop() {
 func (d *Downloader) Retry(link string) error {
 
 	d.mutex.Lock()
-	defer d.mutex.Unlock()
 
 	item, ok := d.Queue[link]
 	if !ok {
@@ -185,6 +188,8 @@ func (d *Downloader) Retry(link string) error {
 	}
 
 	delete(d.Queue, item.Link)
+
+	d.mutex.Unlock()
 
 	return d.Download(
 		item.Link,
@@ -555,7 +560,6 @@ func (d *Downloader) unzipAndInsertToDb(
 
 	ext := filepath.Ext(filePath)
 	switch {
-	case ext == ".rar":
 	case unarrSupported(ext):
 		log.LogDebugf("extracting %s", filepath.Ext(filePath))
 		if _, err = archiveExtract(filePath, outputDir, true, true, onProgress); err != nil {
