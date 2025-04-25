@@ -35,7 +35,7 @@ import {
 } from "wailsjs/go/core/DbHelper";
 import { types } from "wailsjs/go/models";
 import { useShallow } from "zustand/shallow";
-import { NameDialogContent } from "./GameScreen";
+import { NameDialogContent } from "@/components/NameDialog";
 import { ModActionsDropDown } from "@/components/CharacterInfoCard";
 import * as Downloader from "wailsjs/go/core/Downloader"
 import { Switch } from "@/components/ui/switch";
@@ -43,6 +43,7 @@ import { OpenMultipleFilesDialog, ReadImageFile } from "wailsjs/go/main/App";
 import { ConfirmInput } from "@/components/ConfirmInput";
 import { SectionList } from "@/components/SectionList";
 import { Card } from "@/components/ui/card";
+import { imageFileExtensions, isValidUrl } from "@/lib/tsutils";
 
 
 type DialogType =
@@ -50,30 +51,6 @@ type DialogType =
   | "create_tag"
   | "rename_tag"
   | "set_mod_image"
-
-export const imageFileExtensions = [
-  "*.jpg",
-  "*.jpeg",
-  "*.png",
-  "*.gif",
-  "*.bmp",
-  "*.webp",
-  "*.tiff",
-  "*.tif",
-  "*.ico",
-  "*.svg"
-];
-
-function isValidUrl(url: string): boolean {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-
 
 export function KeymappingScreen() {
   const { modId } = useParams();

@@ -64,7 +64,7 @@ func characterFromDb(c db.Character) types.Character {
 		Name:      c.Name,
 		AvatarUrl: c.AvatarUrl,
 		Element:   c.Element,
-		Custom:    c.Flags&CHAR_FLAG_IS_CUSTOM == 1,
+		Custom:    c.Flags&CHAR_FLAG_IS_CUSTOM != 0,
 	}
 }
 
@@ -420,7 +420,7 @@ func (h *DbHelper) SelectCharacterWithModsTagsAndTextures(game types.Game, modFi
 			Name:      item.Name,
 			AvatarUrl: item.AvatarUrl,
 			Element:   item.Element,
-			Custom:    item.Flags&CHAR_FLAG_IS_CUSTOM == 1,
+			Custom:    item.Flags&CHAR_FLAG_IS_CUSTOM != 0,
 		}
 
 		if _, ok := charMap[char]; !ok {

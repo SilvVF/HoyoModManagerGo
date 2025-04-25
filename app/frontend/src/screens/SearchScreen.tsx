@@ -19,7 +19,7 @@ import {
   ModActionsDropDown,
   TextureActionDropDown,
 } from "@/components/CharacterInfoCard";
-import { NameDialog } from "./GameScreen";
+import { NameDialog } from "@/components/NameDialog";
 import { useMemo, useState } from "react";
 import { type Pair } from "@/lib/tsutils";
 import { Delete, DeleteTexture } from "wailsjs/go/core/Downloader";

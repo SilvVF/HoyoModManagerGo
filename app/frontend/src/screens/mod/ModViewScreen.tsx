@@ -91,13 +91,14 @@ export function ModViewScreen() {
   const images = useMemo(() => {
     return (
       content?._aPreviewMedia?._aImages
-        ?.map((it) => `${it._sBaseUrl}/${it._sFile}`)
-        ?.filter((it) => it !== undefined) ?? []
+        ?.map((image) => `${image._sBaseUrl}/${image._sFile}`)
+        ?.filter((url) => url !== undefined)
+      ?? []
     );
   }, [content]);
 
   const deleteMod = async (id: number) => {
-    Downloader.Delete(id).then(() => refresh());
+    Downloader.Delete(id).then(refresh);
   };
 
   const refresh = async () => {
@@ -136,17 +137,19 @@ export function ModViewScreen() {
   };
 
   useEffect(() => {
-    (async () => {
-      let cName = content?._aCategory?._sName;
-      if (cName !== undefined && dataApi !== undefined) {
-        if ((await dataApi.game()) === Game.ZZZ) {
-          cName = cName.split(" ")[0];
+    let cName = content?._aCategory?._sName;
+    if (cName !== undefined && dataApi !== undefined) {
+      dataApi.game().then((game) => {
+        if (game === Game.ZZZ) {
+          return { name: cName.split(" ")[0], game: game }
+        } else {
+          return { name: cName, game: game }
         }
-        SelectClosestCharacter(cName, await dataApi?.game()).then((character) =>
-          setCharacter(character)
-        );
-      }
-    })();
+      })
+        .then(({ name, game }) =>
+          SelectClosestCharacter(name, game).then(setCharacter)
+        )
+    }
   }, [content, dataApi]);
 
   return (

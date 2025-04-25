@@ -35,21 +35,20 @@ function App() {
     <ThemeProvider defaultTheme="dark">
       <DevModeOverlay>
         <div className="bg-background max-h-screen overflow-hidden flex flex-col">
-          <DownloadOverlay />
-          <AppUpdateDialog />
           <SidebarProvider>
             <AppSidebar
               refreshPlaylist={refreshAllPlaylists}
               playlists={playlists}
               onDeletePlaylist={deletePlaylist}
             />
-
             <SidebarInset className="overflow-hidden">
+              <DownloadOverlay />
+              <AppUpdateDialog />
               <ScrollProvider provideRef={scrollAreaRef}>
                 <div
                   ref={scrollAreaRef}
                   className={cn(
-                    !expanded && queued >= 1
+                    !expanded && queued > 0
                       ? "max-h-[calc(100vh-30px)]"
                       : "max-h-[calc(100vh)]",
                     "overflow-y-auto overflow-x-hidden"

@@ -1,5 +1,5 @@
 import { formatBytes } from "@/lib/tsutils";
-import { useDownloadStore, Download, DownloadProgress } from "@/state/downloadStore";
+import { useDownloadStore, Download, DownloadProgress, dlStates } from "@/state/downloadStore";
 import { ChevronUpIcon, CheckCircle2Icon, RefreshCwIcon, XIcon } from "lucide-react";
 import { useShallow } from "zustand/shallow";
 import { Button } from "./ui/button";
@@ -16,7 +16,7 @@ export function DownloadOverlay() {
 
   if (expanded && downloads.length > 0) {
     return (
-      <Card className="bg-primary/20 backdrop-blur-md flex flex-col absolute top-2 w-2/3 max-h-60 min-h-40 z-40 start-1/2 -translate-x-1/2 overflow-y-hidden overflow-x-hidden">
+      <Card className="bg-primary/20 backdrop-brightness-50 backdrop-blur-md flex flex-col fixed top-2 w-2/3 max-h-60 min-h-40 z-40 start-1/2 -translate-x-1/2 overflow-y-hidden overflow-x-hidden">
         <ChevronUpIcon
           className="w-full m-2"
           onPointerDown={() => toggleExpanded()}
@@ -34,9 +34,15 @@ export function DownloadOverlay() {
     return (
       <div
         className="h-[30px] w-full bg-primary"
-        onPointerDown={() => toggleExpanded()}
+        onPointerDown={toggleExpanded}
       >
-        {`Downloading ${downloads.length}`}
+        <div className="flex flex-col items-start justify-center h-full px-2">
+          <div className="text-primary-foreground font-semibold flex flex-row space-x-4">
+            <span>{`Downloading: ${downloads.filter(d => d.state in dlStates).length}`}</span>
+            <span>{`Finsished: ${downloads.filter(d => d.state === "finished").length}`}</span>
+            <span>{`Errors: ${downloads.filter(d => d.state === "error").length}`}</span>
+          </div>
+        </div>
       </div>
     );
   }

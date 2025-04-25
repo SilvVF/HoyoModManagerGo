@@ -40,8 +40,6 @@ Array.prototype.any = arrayAny;
 String.prototype.ifEmpty = ifEmpty;
 String.prototype.isBlank = isBlank;
 
-
-
 function arrayAny<T>(this: Array<T>, predicate: (value: T, index: number, array: T[]) => boolean): boolean {
   for (const [i, item] of this.entries()) {
     if (predicate(item, i, this)) {
@@ -258,4 +256,27 @@ export function formatBytes(bytes: number, decimals: number = 2): string {
   ];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
+
+export const imageFileExtensions = [
+  "*.jpg",
+  "*.jpeg",
+  "*.png",
+  "*.gif",
+  "*.bmp",
+  "*.webp",
+  "*.tiff",
+  "*.tif",
+  "*.ico",
+  "*.svg"
+];
+
+export function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
 }

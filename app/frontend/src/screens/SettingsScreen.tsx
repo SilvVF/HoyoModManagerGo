@@ -42,7 +42,7 @@ import {
   WavesIcon,
 } from "lucide-react";
 import { ModSizeChart } from "@/components/mod-size-chart";
-import { NameDialog } from "./GameScreen";
+import { NameDialog } from "@/components/NameDialog";
 import { useServerStore } from "@/state/serverStore";
 import { useShallow } from "zustand/shallow";
 import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";

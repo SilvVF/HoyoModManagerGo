@@ -191,7 +191,7 @@ export function CharacterInfoCard({
                   hasTextures={mwt.textures.length > 0}
                 />
                 {showT && mwt.textures.length > 0 && (
-                  <div className="slide-in-from-top fade-in fade-out flex flex-col">
+                  <div className="slide-in-from-top flex flex-col">
                     <div className="text-sm font-semibold my-1">{`Textures for ${mwt.mod.filename}`}</div>
                     {mwt.textures.map((t) => (
                       <ModRow
