@@ -6,7 +6,7 @@ export function CreateCustomCharacter(arg1:string,arg2:string,arg3:string,arg4:t
 
 export function CreatePlaylist(arg1:types.Game,arg2:string):Promise<void>;
 
-export function DeleteCharacter(arg1:types.Character):Promise<void>;
+export function DeleteCharacter(arg1:string,arg2:number,arg3:types.Game):Promise<void>;
 
 export function DeleteModById(arg1:number):Promise<void>;
 

@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS mod(
     mod_link TEXT,
     gb_file_name TEXT,
     gb_download_link TEXT,
-    UNIQUE(fname, char_id, char_name)
+    UNIQUE(fname, char_id, char_name),
+    FOREIGN KEY (char_id) REFERENCES character(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS texture(

@@ -6,7 +6,7 @@ import {
   Trash,
   ViewIcon,
 } from "lucide-react";
-import React, { ReactElement, useEffect, useRef, useState } from "react";
+import React, { HTMLAttributes, ReactElement, useEffect, useRef, useState } from "react";
 import { types } from "wailsjs/go/models";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -20,12 +20,15 @@ import {
 import { Separator } from "./ui/separator";
 import { Switch } from "./ui/switch";
 import { cn } from "@/lib/utils";
-export interface CharacterInfoCardProps {
+import { LongPressEvent, useLongPress } from "@/hooks/useLongPress";
+import { LogDebug } from "wailsjs/runtime/runtime";
+export interface CharacterInfoCardProps extends HTMLAttributes<HTMLDivElement> {
   cmt: types.CharacterWithModsAndTags;
   enableMod: (id: number, enabled: boolean) => void;
   enableTexture: (id: number, enabled: boolean) => void;
   modDropdownMenu: (mwt: types.ModWithTags) => ReactElement | undefined;
   textureDropdownMenu: (texture: types.Texture) => ReactElement | undefined;
+  onLongPress?: (event: LongPressEvent) => void
 }
 
 const TextDisplay = ({ text, availableSpace }: { text: string, availableSpace: number }) => {
@@ -145,12 +148,25 @@ export function CharacterInfoCard({
   textureDropdownMenu,
   enableMod,
   enableTexture,
+  onLongPress,
+  ...props
 }: CharacterInfoCardProps) {
   const character: types.Character = cmt.characters;
   const [showT, setShowT] = useState(true);
 
+  const characterCardLongPressProps = useLongPress((e) => {
+    LogDebug("Long pressed" + cmt.characters.id)
+    if (onLongPress) {
+      onLongPress(e)
+    }
+  })
+
   return (
-    <Card className="w-full">
+    <Card
+      className="w-full"
+      {...characterCardLongPressProps}
+      {...props}
+    >
       <div className="flex flex-row m-2 w-full">
         <div className="w-1/3 pr-2 flex flex-col items-center">
           <img

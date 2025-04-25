@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	CHAR_FLAG_IS_CUSTOM = 0 << 1
+	CHAR_FLAG_IS_CUSTOM = 1 << 0
 )
 
 type DbHelper struct {
@@ -154,11 +154,23 @@ func (h *DbHelper) SelectEnabledModsByGame(game types.Game) ([]types.Mod, error)
 	return mods, nil
 }
 
-func (h *DbHelper) DeleteCharacter(c types.Character) error {
-	return h.queries.DeleteCharacterById(h.ctx, int64(c.Id))
+func (h *DbHelper) DeleteCharacter(name string, id int64, game types.Game) error {
+
+	dir := util.GetCharacterDir(name, game)
+
+	if err := os.RemoveAll(dir); err != nil {
+		return err
+	}
+
+	return h.queries.DeleteCharacterById(h.ctx, id)
 }
 
 func (h *DbHelper) CreateCustomCharacter(name, img, element string, game types.Game) error {
+
+	if err := os.MkdirAll(util.GetCharacterDir(name, game), os.ModePerm); err != nil {
+		return err
+	}
+
 	return h.UpsertCharacter(
 		types.Character{
 			Id:        util.HashForName(name),

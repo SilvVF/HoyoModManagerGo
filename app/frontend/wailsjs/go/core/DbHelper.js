@@ -10,8 +10,8 @@ export function CreatePlaylist(arg1, arg2) {
   return window['go']['core']['DbHelper']['CreatePlaylist'](arg1, arg2);
 }
 
-export function DeleteCharacter(arg1) {
-  return window['go']['core']['DbHelper']['DeleteCharacter'](arg1);
+export function DeleteCharacter(arg1, arg2, arg3) {
+  return window['go']['core']['DbHelper']['DeleteCharacter'](arg1, arg2, arg3);
 }
 
 export function DeleteModById(arg1) {

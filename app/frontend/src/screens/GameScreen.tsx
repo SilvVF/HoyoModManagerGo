@@ -7,6 +7,7 @@ import * as Generator from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import {
   CreateCustomCharacter,
+  DeleteCharacter,
   DisableAllModsByGame,
   EnableModById,
   EnableTextureById,
@@ -47,7 +48,7 @@ import { ImageIcon } from "lucide-react";
 import { OpenFileDialog } from "wailsjs/go/main/App";
 import { imageFileExtensions } from "./EditScreen";
 import { DialogTrigger } from "@radix-ui/react-dialog";
-import { EventsOn } from "wailsjs/runtime/runtime";
+import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";
 
 type RenameDialogType =
   | "rename_mod"
@@ -89,6 +90,8 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const updates = usePlaylistStore(useShallow((state) => state.updates));
   const [available, setAvailableOnly] = usePrefrenceAsState(modsAvailablePref);
+  const [multiSelect, setMultiSelect] = useState(false)
+  const [selectedCardsUnfiltered, setSelectedCards] = useState<number[] | undefined>(undefined)
 
   const [dialog, setDialog] = useState<DialogType | undefined>(undefined);
 
@@ -143,6 +146,10 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
       }
     });
   };
+
+  const selectedCards = useMemo(() => {
+    return selectedCardsUnfiltered?.filter(id => characters.any(c => c.characters.id === id) ?? [])
+  }, [characters, selectedCardsUnfiltered])
 
   const deleteMod = async (id: number) => {
     Downloader.Delete(id).then(refreshCharacters);
@@ -205,24 +212,71 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     );
   }, [dialog, dialogSettings]);
 
+
+  const deleteCharacters = () => {
+    const toDelete = selectedCards?.map(id => characters.find(c => c.characters.id === id)!)!
+    //.filter((c) => c?.characters.custom)!
+
+    Promise.all(
+      toDelete.map((c) => DeleteCharacter(c.characters.name, c.characters.id, c.characters.game))
+    ).finally(refreshCharacters)
+  }
+
   return (
     <div className="flex flex-col w-full" key={props.game}>
       <div className="sticky top-0 z-10 backdrop-blur-md">
-        <CharacterFilters
-          className={`relative w-full`}
-          unselectAll={disableAllMods}
-          elements={elements}
-          selectedElements={selectedElements ?? []}
-          onlyCustom={onlyCustom ?? false}
-          available={available ?? false}
-          toggleElement={onElementSelected}
-          toggleAvailable={setAvailableOnly}
-          toggleCustom={() => setOnlyCustom(p => !p)}
-          addCharacter={() => setDialog({ type: "custom", name: "add_character" })}
-          importMod={() => navigate("/import", {
-            state: { game: props.game }
-          })}
-        />
+        {multiSelect ? (
+          <div className="flex flex-row">
+            <Button
+              className="mx-2 backdrop-blur-md border-0"
+              onClick={deleteCharacters}
+            >
+              Delete
+            </Button>
+            <Button
+              className="mx-2 backdrop-blur-md border-0"
+              onPointerDown={() => {
+                setSelectedCards([])
+                setMultiSelect(false)
+              }}
+            >
+              Cancel
+            </Button>
+            <div className="flex flex-row space-x-2 p-2">
+              {characters?.filter((it) => selectedCards?.includes(it.characters.id))?.map((mwt) => {
+                return (
+                  <Button
+                    key={mwt.characters.id}
+                    size={"sm"}
+                    variant={"secondary"}
+                    className={"bg-primary/50 rounded-full backdrop-blur-md border-0"}
+                    onPointerDown={() => {
+                      setSelectedCards(p => p?.filter(it => it !== mwt.characters.id))
+                    }}
+                  >
+                    {mwt.characters.name}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <CharacterFilters
+            className={`relative w-full`}
+            unselectAll={disableAllMods}
+            elements={elements}
+            selectedElements={selectedElements ?? []}
+            onlyCustom={onlyCustom ?? false}
+            available={available ?? false}
+            toggleElement={onElementSelected}
+            toggleAvailable={setAvailableOnly}
+            toggleCustom={() => setOnlyCustom(p => !p)}
+            addCharacter={() => setDialog({ type: "custom", name: "add_character" })}
+            importMod={() => navigate("/import", {
+              state: { game: props.game }
+            })}
+          />
+        )}
       </div>
       <OverlayOptions
         elements={elements}
@@ -235,8 +289,22 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
         {filteredCharacters.map((c) => (
           <div
             key={c.characters.id}
-            className="break-inside-avoid mb-4">
+            className={"break-inside-avoid mb-4"}>
             <CharacterInfoCard
+              className={cn(selectedCards?.includes(c.characters.id) ? "border-2 border-primary" : "")}
+              onLongPress={() => {
+                LogDebug(`${c.characters.id}`)
+                setMultiSelect(true)
+              }}
+              onClick={() => {
+                if (multiSelect) {
+                  if (selectedCards?.includes(c.characters.id)) {
+                    setSelectedCards(p => p?.filter(it => it !== c.characters.id))
+                  } else {
+                    setSelectedCards(p => [c.characters.id, ...(p ?? [])])
+                  }
+                }
+              }}
               enableMod={enableMod}
               cmt={c}
               modDropdownMenu={(mwt) => (
@@ -414,6 +482,8 @@ function OverlayOptions({
           }
         </DialogContent>
       </Dialog>
+
+
       <div className="fixed bottom-4 -translate-y-1 end-6 flex flex-row z-10">
         {!reloading ? (
           <Button
