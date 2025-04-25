@@ -1,4 +1,4 @@
-import { ReactElement, useMemo, useState } from "react";
+import { ReactElement, useEffect, useMemo, useState } from "react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { CheckIcon, XIcon } from "lucide-react";
@@ -9,13 +9,13 @@ export function ConfirmInput<T>({ className, value, Label, changeValue, getInput
     value: T,
     getInput: (value: T) => string | number | undefined,
     getValue: (value: string) => T;
-    changeValue: (value: T) => Promise<void>,
+    changeValue: (value: T) => void,
     Label?: ReactElement;
     type?: React.HTMLInputTypeAttribute | undefined
 }) {
 
     const [curr, setCurr] = useState(value);
-    const idChanged = useMemo(() => value != curr, [value, curr])
+    useEffect(() => { setCurr(value) }, [value])
 
     const handleIdChange = (event: any) => {
         try {
@@ -25,17 +25,17 @@ export function ConfirmInput<T>({ className, value, Label, changeValue, getInput
     const onChange = (changed: T, accepted: boolean) => {
         if (accepted) {
             changeValue(changed)
-                .then(() => setCurr(changed))
-                .catch(() => setCurr(value))
         } else {
-            setCurr(value)
+            setCurr(changed)
         }
     }
 
+    const idChanged = useMemo(() => value !== curr, [curr, value])
+
     return (
-        <div className={cn(className, "flex flex-row space-x-2 items-center")}>
+        <div className={cn(className, "flex flex-row space-x-2 items-center w-fit")}>
             {Label}
-            <Input type={type} value={getInput(curr)} onInput={handleIdChange} />
+            <Input type={type} className="min-w-fit" value={getInput(curr)} onInput={handleIdChange} />
             {idChanged ? (
                 <div className="space-x-2 flex flex-row" onPointerDown={() => onChange(value, false)}>
                     <Button size='icon'>

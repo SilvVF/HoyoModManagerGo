@@ -22,6 +22,8 @@ import { Switch } from "./ui/switch";
 import { cn } from "@/lib/utils";
 import { LongPressEvent, useLongPress } from "@/hooks/useLongPress";
 import { LogDebug } from "wailsjs/runtime/runtime";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
+import AsyncImage from "./AsyncImage";
 export interface CharacterInfoCardProps extends HTMLAttributes<HTMLDivElement> {
   cmt: types.CharacterWithModsAndTags;
   enableMod: (id: number, enabled: boolean) => void;
@@ -72,7 +74,8 @@ const ModRow = ({
   enabled,
   dropdownMenu,
   hasTextures = false,
-  isTexture = false
+  isTexture = false,
+  images = undefined
 }: {
   id: number,
   filename: string,
@@ -82,7 +85,8 @@ const ModRow = ({
   enabled: boolean,
   dropdownMenu: React.ReactNode,
   hasTextures?: boolean,
-  isTexture?: boolean
+  isTexture?: boolean,
+  images?: string[]
 }) => {
   const rowRef = useRef<HTMLDivElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
@@ -114,10 +118,25 @@ const ModRow = ({
   return (
     <div ref={rowRef} className="flex flex-row items-center w-full">
       <div className="flex-grow overflow-hidden mr-2">
-        <TextDisplay
-          text={filename}
-          availableSpace={availableWidth}
-        />
+        <HoverCard>
+          <HoverCardTrigger>
+            <TextDisplay
+              text={filename}
+              availableSpace={availableWidth}
+            />
+          </HoverCardTrigger>
+          {(images?.filter(it => !it.isBlank())?.length ?? 0) > 0 ? (
+            <HoverCardContent className="flex flex-col w-96 overflow-clip backdrop-blur-md bg-primary/20">
+              <text>{filename}</text>
+              <div className="flex flex-row space-x-2 overflow-x-auto">
+                {images?.map((uri) => (
+                  <AsyncImage key={uri} className="object-cover aspect-square w-70 h-70 m-2" uri={uri} />
+                ))}
+              </div>
+            </HoverCardContent>
+          ) : <HoverCardContent>No Images for {filename}</HoverCardContent>}
+
+        </HoverCard>
       </div>
 
       <div ref={controlRef} className="flex flex-row items-center space-x-1 flex-shrink-0">
@@ -138,7 +157,7 @@ const ModRow = ({
           </Button>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
@@ -188,6 +207,7 @@ export function CharacterInfoCard({
                   enableFn={enableMod}
                   enabled={mwt.mod.enabled}
                   dropdownMenu={modDropdownMenu(mwt)}
+                  images={mwt.mod.previewImages}
                   hasTextures={mwt.textures.length > 0}
                 />
                 {showT && mwt.textures.length > 0 && (
@@ -202,6 +222,7 @@ export function CharacterInfoCard({
                         filename={t.filename}
                         enableFn={enableTexture}
                         enabled={t.enabled}
+                        images={t.previewImages}
                         dropdownMenu={textureDropdownMenu(t)}
                         isTexture={true}
                       />

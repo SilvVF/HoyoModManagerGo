@@ -22,7 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { cn, useStateProducer } from "@/lib/utils";
 import { useKeyMapperStore } from "@/state/keymapperStore";
 import { EditIcon, SearchIcon, TrashIcon } from "lucide-react";
-import React, { useMemo, useRef } from "react";
+import React, { useMemo } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -39,11 +39,12 @@ import { NameDialogContent } from "@/components/NameDialog";
 import { ModActionsDropDown } from "@/components/CharacterInfoCard";
 import * as Downloader from "wailsjs/go/core/Downloader"
 import { Switch } from "@/components/ui/switch";
-import { OpenMultipleFilesDialog, ReadImageFile } from "wailsjs/go/main/App";
+import { OpenMultipleFilesDialog } from "wailsjs/go/main/App";
 import { ConfirmInput } from "@/components/ConfirmInput";
 import { SectionList } from "@/components/SectionList";
 import { Card } from "@/components/ui/card";
 import { imageFileExtensions, isValidUrl } from "@/lib/tsutils";
+import AsyncImage from "@/components/AsyncImage";
 
 
 type DialogType =
@@ -166,8 +167,6 @@ export function KeymappingScreen() {
     })
   }
 
-  const updateModGbId = (gbId: number) => UpdateModGbId(mod?.id ?? -1, gbId).then(refreshMod)
-
   const hoverImg = expandImgs ? hoveredImg : ""
 
   if (character === undefined || mod === undefined) {
@@ -191,14 +190,21 @@ export function KeymappingScreen() {
               <div className="flex flex-row items-center space-x-2">
                 <text className="text-3xl font-semibold me-4">{mod.filename}</text>
                 <ConfirmInput
+                  key={mod.gbId}
                   Label={
                     <text className="text-sm text-zinc-500">GB id</text>
                   }
                   className="w-32"
-                  value={Number(modId)}
-                  getValue={(value) => Number(value)}
-                  getInput={(value) => Math.max(0, Math.floor(Number(value)))}
-                  changeValue={updateModGbId}
+                  value={mod.gbId}
+                  getValue={(value) => {
+                    return Number(value)
+                  }}
+                  getInput={(value) => {
+                    return Math.max(0, Math.floor(Number(value)))
+                  }}
+                  changeValue={(v) => {
+                    UpdateModGbId(mod.id, v).finally(refreshMod)
+                  }}
                   type="number"
                 />
                 <div className="w-2" />
@@ -245,7 +251,7 @@ export function KeymappingScreen() {
           removeImage={(uri) => removeImageFile(uri, mod)}
         />
         <KeybindsUi
-          modId={modId}
+          modId={mod.id}
         />
       </Dialog>
     </div>
@@ -254,7 +260,7 @@ export function KeymappingScreen() {
 
 function KeybindsUi(
   { modId }: {
-    modId: string | undefined,
+    modId: number | undefined,
   }
 ) {
   const [loading, setLoading] = useState(false)
@@ -339,7 +345,7 @@ function KeybindsUi(
 
   if (keymappings?.isEmpty() && !loading) {
     return (
-      <div className="min-w-screen min-h-screen">
+      <div className="">
         <KeyMapLoadErrorPage
           err={"no keybinds are editable for this mod"}
           id={modId}
@@ -424,7 +430,7 @@ function KeybindsUi(
                       value={bind.key}
                       getValue={(value) => value}
                       getInput={(value) => value}
-                      changeValue={async () => { }}
+                      changeValue={async (v) => { return v }}
                     />}
                   </div>
                   <Separator />
@@ -640,26 +646,13 @@ function ModPreviewImages(props: { mod: types.Mod | undefined, hovered: string, 
 }
 
 const ImagePreviewItem = ({ url, hovered, onMouseEnter, onMouseLeave }: { url: string, hovered: string, onMouseEnter: () => void, onMouseLeave: () => void }) => {
-  const ref = useRef<HTMLImageElement>(null)
-
-  useEffect(() => {
-    if (url.startsWith("file://") && ref.current) {
-      ReadImageFile(url).then((base64) => {
-        const dotIdx = url.lastIndexOf(".")
-        if (ref.current) {
-          ref.current.src = `data:image/${url.slice(dotIdx, url.length)};base64,${base64}`
-        }
-      })
-    }
-  }, [url, ref])
-
   return (
     <CarouselItem key={url} className="basis-1/4">
       <div
         className={cn(hovered === url ? "border-4 border-primary" : "")}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}>
-        <img ref={ref} className="object-cover aspect-square" src={url} />
+        <AsyncImage className="object-cover aspect-square" uri={url} />
       </div>
     </CarouselItem>
   )
@@ -743,7 +736,7 @@ function ImageSelect({
 
 function KeyMapLoadErrorPage(props: {
   err: any;
-  id: string | undefined;
+  id: number | undefined;
   retry: () => void;
 }) {
   return (

@@ -136,8 +136,8 @@ export function ModIndexPage() {
             <div className="flex flex-row items-center">
               <div
                 className={cn(
-                  "flex flex-row justify-center items-center gap-x-2 overflow-x-clip",
-                  collapsed ? "fade-out" : "fade-in"
+                  "flex flex-row transition-opacity justify-center items-center gap-x-2 overflow-x-clip",
+                  collapsed ? "animate-out fade-out slide-out-to-right hidden" : "animate-in fade-in slide-in-from-right visible"
                 )}
               >
                 <SearchBar></SearchBar>
@@ -199,7 +199,7 @@ export function ModIndexPage() {
                 variant="ghost"
                 onPointerDown={() => setCollapased((c) => !c)}
                 className={cn(
-                  "backdrop-blur backdrop-brightness-50 bg-primary/30 m-2 font-semibold text-foreground rounded-full transition duration-150 ease-in-out",
+                  "backdrop-blur backdrop-brightness-50 bg-primary/30 m-2 font-semibold rounded-full",
                   !collapsed ? "rotate-0" : "rotate-180",
                 )}
               >

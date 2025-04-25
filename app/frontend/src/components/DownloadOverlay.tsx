@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import { Progress } from "./ui/progress";
+import { cn } from "@/lib/utils";
 
 export function DownloadOverlay() {
   const downloads = useDownloadStore<Download[]>(
@@ -14,12 +15,18 @@ export function DownloadOverlay() {
   const toggleExpanded = useDownloadStore((state) => state.toggleExpanded);
   const expanded = useDownloadStore((state) => state.expanded);
 
-  if (expanded && downloads.length > 0) {
-    return (
-      <Card className="bg-primary/20 backdrop-brightness-50 backdrop-blur-md flex flex-col fixed top-2 w-2/3 max-h-60 min-h-40 z-40 start-1/2 -translate-x-1/2 overflow-y-hidden overflow-x-hidden">
+  return (
+    <>
+      <Card className={
+        cn("bg-primary/20 backdrop-brightness-50 backdrop-blur-md flex flex-col fixed top-2 w-2/3 max-h-60 min-h-40 z-40 start-1/2 -translate-x-1/2 overflow-y-hidden overflow-x-hidden",
+          expanded && downloads.length > 0 ? "animate-in slide-in-from-top fade-in visible"
+            : "animate-out slide-out-to-top fade-out hidden"
+        )
+
+      }>
         <ChevronUpIcon
           className="w-full m-2"
-          onPointerDown={() => toggleExpanded()}
+          onPointerDown={toggleExpanded}
         />
         <ScrollArea className="h-60 w-full">
           {downloads.map((download) => (
@@ -27,13 +34,14 @@ export function DownloadOverlay() {
           ))}
         </ScrollArea>
       </Card>
-    );
-  }
 
-  if (!expanded && downloads.length > 0) {
-    return (
       <div
-        className="h-[30px] w-full bg-primary"
+        className={
+          cn("h-[30px] w-full bg-primary",
+            !expanded && downloads.length > 0 ? "animate-in fade-in opacity-100"
+              : "animate-out fade-out opacity-0 h-0"
+          )
+        }
         onPointerDown={toggleExpanded}
       >
         <div className="flex flex-col items-start justify-center h-full px-2">
@@ -44,10 +52,8 @@ export function DownloadOverlay() {
           </div>
         </div>
       </div>
-    );
-  }
-
-  return <></>;
+    </>
+  )
 }
 
 function DownloadItem({ download }: { download: Download }) {

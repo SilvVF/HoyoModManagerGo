@@ -41,7 +41,7 @@ import {
   TextureActionDropDown,
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, UndoIcon, XIcon } from "lucide-react";
 import { OpenFileDialog } from "wailsjs/go/main/App";
 import { imageFileExtensions } from "@/lib/tsutils";
 import { DialogTrigger } from "@radix-ui/react-dialog";
@@ -110,15 +110,13 @@ const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[], refreshChar
 
   const deleteCharacters = () => {
     const toDelete = selectedCards?.map(id => cwmt.find(c => c.characters.id === id)!)!
-    //.filter((c) => c?.characters.custom)!
-
     Promise.all(
       toDelete.map((c) => DeleteCharacter(c.characters.name, c.characters.id, c.characters.game))
     ).finally(refreshCharacters)
   }
 
   const multiSelectedCharacters = useMemo(() => {
-    return cwmt?.filter((it) => selectedCards?.includes(it.characters.id)) ?? []
+    return selectedCards?.map(id => cwmt.find(c => c.characters.id === id)!) ?? []
   }, [cwmt, selectedCards])
 
 
@@ -126,6 +124,7 @@ const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[], refreshChar
     mutliSelectedIds: selectedCards ?? [],
     multiSelectEnabled: multiSelect,
     multiSelectedCharacters: multiSelectedCharacters,
+    clearMultiSelected: () => setSelectedCards([]),
     setMultiSelectEnabled: (enabled: boolean) => {
       if (enabled) {
         setMultiSelect(enabled)
@@ -139,9 +138,9 @@ const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[], refreshChar
       if (!multiSelect) return
 
       if (selectedCardsUnfiltered?.includes(id)) {
-        setSelectedCards(p => [...p ?? [], id])
-      } else {
         setSelectedCards(p => p?.filter(cid => cid !== id))
+      } else {
+        setSelectedCards(p => [...p ?? [], id])
       }
     },
     deleteCharacters: deleteCharacters
@@ -240,7 +239,8 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     toggleMultiSelected,
     multiSelectedCharacters,
     mutliSelectedIds,
-    deleteCharacters
+    deleteCharacters,
+    clearMultiSelected
   } = useMultiSelectState(characters, refreshCharacters)
 
   const deleteMod = async (id: number) => {
@@ -299,16 +299,16 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
 
   return (
     <div className="flex flex-col w-full" key={props.game}>
-      <div className="sticky top-0 z-10 backdrop-blur-md">
+      <div className="sticky top-0 z-10 backdrop-blur-md p-2 me-2 w-full">
         {multiSelectEnabled ? (
           <MultiSelectTopBar
+            clearMultiSelected={clearMultiSelected}
             deleteCharacters={deleteCharacters}
             multiSelectedCharacters={multiSelectedCharacters}
             toggleMultiSelected={toggleMultiSelected}
             setMultiSelectEnabled={setMultiSelectEnabled} />
         ) : (
           <GameActionsTopBar
-            className="relative w-full"
             unselectAll={disableAllMods}
             elements={elements}
             selectedElements={selectedElements ?? []}
@@ -396,6 +396,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
 function MultiSelectTopBar(
   {
     deleteCharacters,
+    clearMultiSelected,
     setMultiSelectEnabled,
     multiSelectedCharacters,
     toggleMultiSelected
@@ -404,40 +405,53 @@ function MultiSelectTopBar(
     setMultiSelectEnabled: (enabled: boolean) => void,
     multiSelectedCharacters: types.CharacterWithModsAndTags[],
     toggleMultiSelected: (id: number) => void
+    clearMultiSelected: () => void
   }
 ) {
 
   return (
-    <div className="flex flex-row">
+    <div className="flex flex-row items-center justify-between h-full">
+      <div className="flex flex-row items-bottom justify-start w-3/4 space-x-2">
+        <Button
+          variant={"destructive"}
+          className="backdrop-blur-md"
+          onPointerDown={() => setMultiSelectEnabled(false)}
+        >
+          Cancel
+        </Button>
+        <Button
+          size={"icon"}
+          variant={"secondary"}
+          className="backdrop-blur-mde"
+          onClick={clearMultiSelected}
+        >
+          <XIcon />
+        </Button>
+        <div className="space-x-2 space-y-2  w-fit">
+          {multiSelectedCharacters.map((mwt) => {
+            return (
+              <Button
+                key={mwt.characters.id}
+                size={"sm"}
+                variant={"secondary"}
+                className={"break-inside-avoid bg-primary/50 rounded-full backdrop-blur-md"}
+                onPointerDown={() => {
+                  toggleMultiSelected(mwt.characters.id)
+                }}
+              >
+                {mwt.characters.name}
+              </Button>
+            );
+          })}
+        </div>
+      </div>
       <Button
-        className="mx-2 backdrop-blur-md border-0"
+        className="mx-2 backdrop-blur-md"
         onClick={deleteCharacters}
       >
         Delete
       </Button>
-      <Button
-        className="mx-2 backdrop-blur-md border-0"
-        onPointerDown={() => setMultiSelectEnabled(false)}
-      >
-        Cancel
-      </Button>
-      <div className="flex flex-row space-x-2 p-2">
-        {multiSelectedCharacters.map((mwt) => {
-          return (
-            <Button
-              key={mwt.characters.id}
-              size={"sm"}
-              variant={"secondary"}
-              className={"bg-primary/50 rounded-full backdrop-blur-md border-0"}
-              onPointerDown={() => {
-                toggleMultiSelected(mwt.characters.id)
-              }}
-            >
-              {mwt.characters.name}
-            </Button>
-          );
-        })}
-      </div>
+
     </div>
   )
 }
@@ -462,6 +476,10 @@ function GameScreenDialogHost({
   }
 
   const config = DialogConfig[dialog.type]
+
+  if (dialog.type === "rename") {
+    return undefined
+  }
 
   return (
     <Dialog open={dialog !== undefined} onOpenChange={() => setDialog(undefined)}>
@@ -741,7 +759,7 @@ function GameActionsTopBar({
     <div
       className={cn(
         className,
-        "flex flex-row items-center justify-between p-2 me-2 overflow-x-auto"
+        "flex flex-row items-center justify-between overflow-x-auto"
       )}
     >
       <div className="flex flex-row space-x-2 p-2">
