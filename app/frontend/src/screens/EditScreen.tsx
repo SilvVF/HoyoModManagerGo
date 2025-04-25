@@ -117,11 +117,6 @@ export function KeymappingScreen() {
   const [expandImgs, setExpandImgs] = useState(false);
   const [hoveredImg, setHoveredImg] = useState("");
 
-  const [dialogInput, setDialogInput] = useState("");
-  const handleDialogInputChange = (event: any) => {
-    setDialogInput(event.target.value);
-  };
-
   const deleteMod = async (id: number) => {
     Downloader.Delete(id).then(() => navigate(-1));
   };
@@ -137,15 +132,12 @@ export function KeymappingScreen() {
       <NameDialogContent
         title={curr.title}
         description={curr.description}
-        input={dialogInput}
-        onInputChange={handleDialogInputChange}
-        onSuccess={() => {
-          curr.onSuccess(mod.id, dialogInput)
-          setDialogInput("")
+        onSuccess={(input) => {
+          curr.onSuccess(mod.id, input)
         }}
       />
     );
-  }, [mod, dialog, dialogSettings, dialogInput, handleDialogInputChange]);
+  }, [mod, dialog, dialogSettings]);
 
 
   const removeImageFile = (uri: string, mod: types.Mod) => {

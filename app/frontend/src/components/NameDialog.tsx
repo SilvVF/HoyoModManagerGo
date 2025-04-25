@@ -55,10 +55,14 @@ export function NameDialog(props: {
 export function NameDialogContent(props: {
     title: string;
     description: string;
-    onSuccess: () => void;
-    input: string;
-    onInputChange: (v: any) => void;
+    onSuccess: (name: string) => void;
 }) {
+
+    const [inputValue, setInputValue] = useState("");
+    const handleChange = (event: any) => {
+        setInputValue(event.target.value);
+    };
+
     return (
         <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -68,8 +72,8 @@ export function NameDialogContent(props: {
             <div className="flex items-center space-x-2">
                 <div className="grid flex-1 gap-2">
                     <Input
-                        value={props.input}
-                        onChange={props.onInputChange}
+                        value={inputValue}
+                        onChange={handleChange}
                         defaultValue="Playlist"
                     />
                 </div>
@@ -82,7 +86,7 @@ export function NameDialogContent(props: {
                 </DialogClose>
                 <DialogClose asChild>
                     <Button
-                        onPointerDown={props.onSuccess}
+                        onPointerDown={() => props.onSuccess(inputValue)}
                         type="button"
                         variant="secondary"
                     >

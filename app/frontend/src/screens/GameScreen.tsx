@@ -41,7 +41,7 @@ import {
   TextureActionDropDown,
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
-import { ImageIcon, UndoIcon, XIcon } from "lucide-react";
+import { ImageIcon, XIcon } from "lucide-react";
 import { OpenFileDialog } from "wailsjs/go/main/App";
 import { imageFileExtensions } from "@/lib/tsutils";
 import { DialogTrigger } from "@radix-ui/react-dialog";
@@ -263,11 +263,6 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     DisableAllModsByGame(props.game).then(refreshCharacters);
   };
 
-  const [inputValue, setInputValue] = useState("");
-  const handleChange = (event: any) => {
-    setInputValue(event.target.value);
-  };
-
   const Settings = useMemo(() => {
     if (dialog?.type !== "rename") {
       return undefined
@@ -279,18 +274,17 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
       <NameDialogContent
         title={conf.title}
         description={conf.description}
-        input={inputValue}
-        onInputChange={handleChange}
-        onSuccess={() => {
+        onSuccess={(input) => {
           switch (dialog.rtype) {
             case "mod":
-              RenameMod(dialog.id, inputValue).then(refreshCharacters)
+              RenameMod(dialog.id, input).then(refreshCharacters)
+              setDialog(undefined)
               break;
             case "texture":
-              RenameTexture(dialog.id, inputValue).then(refreshCharacters)
+              RenameTexture(dialog.id, input).then(refreshCharacters)
+              setDialog(undefined)
               break;
           }
-          setInputValue("")
         }}
       />
     );
