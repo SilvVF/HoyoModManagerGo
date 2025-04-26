@@ -98,6 +98,9 @@ SELECT * FROM character WHERE LOWER(name) LIKE '%' || LOWER(:name) || '%' AND ga
 -- name: SelectModsByCharacterName :many
 SELECT * FROM mod WHERE mod.char_name = :name AND mod.game = :game;
 
+-- name: SelectModsByCharacterId :many
+SELECT * FROM mod WHERE mod.char_id = :name AND mod.game = :game;
+
 -- name: SelectTexturesByModId :many
 SELECT * FROM texture WHERE mod_id = :modId;
 
@@ -131,6 +134,9 @@ SELECT * FROM mod WHERE mod.fname = :fname AND mod.game = :game AND mod.char_nam
 UPDATE texture SET
     selected = :selected
 WHERE texture.id = :id;
+
+-- name: InsertTag :exec
+INSERT OR IGNORE INTO tag(tag_name, mod_id) VALUES(:tagName, :modId);
 
 -- name: UpdateModGbFilename :exec
 UPDATE mod SET
@@ -198,6 +204,8 @@ UPDATE mod SET
         ELSE FALSE
     END
 WHERE mod.game = ?;
+
+
 
 -- name: UpdatePlaylistName :exec
 UPDATE playlist SET

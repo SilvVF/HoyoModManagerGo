@@ -176,6 +176,20 @@ func (q *Queries) InsertPlaylist(ctx context.Context, arg InsertPlaylistParams) 
 	return id, err
 }
 
+const insertTag = `-- name: InsertTag :exec
+INSERT OR IGNORE INTO tag(tag_name, mod_id) VALUES(?1, ?2)
+`
+
+type InsertTagParams struct {
+	TagName string
+	ModId   int64
+}
+
+func (q *Queries) InsertTag(ctx context.Context, arg InsertTagParams) error {
+	_, err := q.db.ExecContext(ctx, insertTag, arg.TagName, arg.ModId)
+	return err
+}
+
 const insertTexture = `-- name: InsertTexture :one
 INSERT INTO texture (
     mod_id,
@@ -629,6 +643,50 @@ func (q *Queries) SelectModById(ctx context.Context, id int64) (Mod, error) {
 		&i.GbDownloadLink,
 	)
 	return i, err
+}
+
+const selectModsByCharacterId = `-- name: SelectModsByCharacterId :many
+SELECT id, fname, game, char_name, char_id, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM mod WHERE mod.char_id = ?1 AND mod.game = ?2
+`
+
+type SelectModsByCharacterIdParams struct {
+	Name int64
+	Game int64
+}
+
+func (q *Queries) SelectModsByCharacterId(ctx context.Context, arg SelectModsByCharacterIdParams) ([]Mod, error) {
+	rows, err := q.db.QueryContext(ctx, selectModsByCharacterId, arg.Name, arg.Game)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Mod
+	for rows.Next() {
+		var i Mod
+		if err := rows.Scan(
+			&i.ID,
+			&i.Fname,
+			&i.Game,
+			&i.CharName,
+			&i.CharID,
+			&i.Selected,
+			&i.PreviewImages,
+			&i.GbID,
+			&i.ModLink,
+			&i.GbFileName,
+			&i.GbDownloadLink,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const selectModsByCharacterName = `-- name: SelectModsByCharacterName :many

@@ -606,6 +606,30 @@ func (h *DbHelper) UpdateModsEnabledFromSlice(ids []int64, game types.Game) erro
 	})
 }
 
+func (h *DbHelper) InsertTagForAllModsByCharacterIds(ids []int64, tagname string, game types.Game) error {
+	return h.withTransaction(func(q *db.Queries) error {
+		for _, cid := range ids {
+			mods, err := q.SelectModsByCharacterId(h.ctx, db.SelectModsByCharacterIdParams{
+				Name: cid,
+				Game: game.Int64(),
+			})
+			if err != nil {
+				return err
+			}
+			for _, m := range mods {
+				err := q.InsertTag(h.ctx, db.InsertTagParams{
+					TagName: tagname,
+					ModId:   m.ID,
+				})
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+}
+
 func (h *DbHelper) DeletePlaylistById(id int64) error {
 	query := fmt.Sprintf("DELETE FROM playlist WHERE id = %d", id)
 	log.LogDebug(query)

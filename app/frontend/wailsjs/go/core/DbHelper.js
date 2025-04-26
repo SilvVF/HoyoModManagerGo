@@ -42,6 +42,10 @@ export function InsertMod(arg1) {
   return window['go']['core']['DbHelper']['InsertMod'](arg1);
 }
 
+export function InsertTagForAllModsByCharacterIds(arg1, arg2, arg3) {
+  return window['go']['core']['DbHelper']['InsertTagForAllModsByCharacterIds'](arg1, arg2, arg3);
+}
+
 export function InsertTexture(arg1) {
   return window['go']['core']['DbHelper']['InsertTexture'](arg1);
 }

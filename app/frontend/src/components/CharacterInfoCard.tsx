@@ -73,12 +73,14 @@ const ModRow = ({
   enableFn,
   enabled,
   dropdownMenu,
+  tags,
   hasTextures = false,
   isTexture = false,
   images = undefined
 }: {
   id: number,
   filename: string,
+  tags: string[],
   showT: boolean,
   setShowT: React.Dispatch<React.SetStateAction<boolean>>
   enableFn: (id: number, enabled: boolean) => void,
@@ -128,6 +130,7 @@ const ModRow = ({
           {(images?.filter(it => !it.isBlank())?.length ?? 0) > 0 ? (
             <HoverCardContent className="flex flex-col w-96 overflow-clip backdrop-blur-md bg-primary/20">
               <text>{filename}</text>
+              <text>Tags: {tags.join(", ")}</text>
               <div className="flex flex-row space-x-2 overflow-x-auto">
                 {images?.map((uri) => (
                   <AsyncImage key={uri} className="object-cover aspect-square w-70 h-70 m-2" uri={uri} />
@@ -207,6 +210,7 @@ export function CharacterInfoCard({
                   enableFn={enableMod}
                   enabled={mwt.mod.enabled}
                   dropdownMenu={modDropdownMenu(mwt)}
+                  tags={mwt.tags.map((t) => t.name)}
                   images={mwt.mod.previewImages}
                   hasTextures={mwt.textures.length > 0}
                 />
@@ -220,6 +224,7 @@ export function CharacterInfoCard({
                         showT={showT}
                         setShowT={setShowT}
                         filename={t.filename}
+                        tags={mwt.tags.map((t) => t.name)}
                         enableFn={enableTexture}
                         enabled={t.enabled}
                         images={t.previewImages}

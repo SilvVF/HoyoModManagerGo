@@ -11,6 +11,7 @@ import {
   DisableAllModsByGame,
   EnableModById,
   EnableTextureById,
+  InsertTagForAllModsByCharacterIds,
   RenameMod,
   RenameTexture,
 } from "../../wailsjs/go/core/DbHelper";
@@ -20,6 +21,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -41,10 +43,10 @@ import {
   TextureActionDropDown,
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
-import { ImageIcon, XIcon } from "lucide-react";
+import { ImageIcon, SearchIcon, XIcon } from "lucide-react";
 import { OpenFileDialog } from "wailsjs/go/main/App";
 import { imageFileExtensions } from "@/lib/tsutils";
-import { DialogTrigger } from "@radix-ui/react-dialog";
+import { DialogClose, DialogTrigger } from "@radix-ui/react-dialog";
 import { EventsOn } from "wailsjs/runtime/runtime";
 import { NameDialogContent } from "@/components/NameDialog";
 
@@ -69,6 +71,10 @@ const DialogConfig: { [key in GameScreenDialog["type"]]: { title: string, descri
   "add_character": {
     title: "Add a custom character",
     description: "Adds an additional character to the database with the selected name and image (can be a local file but path must not change)"
+  },
+  "add_tag_multi": {
+    title: "Add a tag to all mods",
+    description: "Adds a tags to all mods in multiselected characters"
   }
 }
 
@@ -80,6 +86,10 @@ type GameScreenDialog =
   }
   | {
     type: "add_character",
+  } |
+  {
+    type: "add_tag_multi"
+    selectedChars: types.CharacterWithModsAndTags[]
   }
 
 
@@ -147,11 +157,14 @@ const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[], refreshChar
   }
 }
 
-const useFilterState = (characters: types.CharacterWithModsAndTags[], game: number) => {
+const useFilterState = (characters: types.CharacterWithModsAndTags[], game: number): FilterState => {
 
   const [selectedElements, setSelectedElements] = usePrefrenceAsState(
     useMemo(() => getElementPref(game), [game])
   );
+
+  const [searchActive, setSearchActive] = useState(false)
+  const [query, setQuery] = useState("")
 
   const [available, setAvailableOnly] = usePrefrenceAsState(modsAvailablePref);
 
@@ -168,11 +181,16 @@ const useFilterState = (characters: types.CharacterWithModsAndTags[], game: numb
             selectedElements.isEmpty()
         )
         .filter((cwmt) => (available ? !cwmt.modWithTags.isEmpty() : true))
-        .filter((cwmt) => (onlyCustom ? cwmt.characters.custom : true));
+        .filter((cwmt) => (onlyCustom ? cwmt.characters.custom : true))
+        .filter((cwmt) => (
+          !query.isBlank() && cwmt.characters.name.includes(query)
+          || cwmt.modWithTags.any(mt => mt.mod.filename.includes(query)
+            || mt.tags.any(t => t.name.includes(query)))
+        ));
     } else {
       return [];
     }
-  }, [characters, selectedElements, available, onlyCustom]);
+  }, [characters, selectedElements, available, onlyCustom, query]);
 
   const onElementSelected = (element: string) => {
     setSelectedElements((prev) => {
@@ -188,12 +206,30 @@ const useFilterState = (characters: types.CharacterWithModsAndTags[], game: numb
   return {
     onlyCustom: onlyCustom ?? false,
     setOnlyCustom: setOnlyCustom,
+    setQuery: setQuery,
+    query: query,
     availableOnly: available ?? false,
     setAvailableOnly: setAvailableOnly,
     filteredCharacters: filteredCharacters,
-    selectedElements: selectedElements,
-    toggleElementFilter: onElementSelected
+    selectedElements: selectedElements ?? [],
+    toggleElementFilter: onElementSelected,
+    searchActive: searchActive,
+    setSearchActive: setSearchActive
   }
+}
+
+interface FilterState {
+  onlyCustom: boolean,
+  setOnlyCustom: (custom: boolean) => void,
+  setQuery: (query: string) => void,
+  query: string,
+  availableOnly: boolean,
+  setAvailableOnly: (available: boolean) => void,
+  filteredCharacters: types.CharacterWithModsAndTags[],
+  selectedElements: string[],
+  toggleElementFilter: (element: string) => void,
+  searchActive: boolean,
+  setSearchActive: (active: boolean) => void,
 }
 
 function GameScreen(props: { dataApi: DataApi; game: number }) {
@@ -202,7 +238,6 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
   const updates = usePlaylistStore(useShallow((state) => state.updates));
 
   const [dialog, setDialog] = useState<GameScreenDialog | undefined>(undefined);
-
 
   const running = useDownloadStore(useShallow((state) => state.running));
   const refreshCharacters = () => setRefreshTrigger((prev) => prev + 1);
@@ -223,15 +258,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     [props.dataApi, running, updates, refreshTrigger]
   );
 
-  const {
-    filteredCharacters,
-    availableOnly,
-    setAvailableOnly,
-    onlyCustom,
-    setOnlyCustom,
-    selectedElements,
-    toggleElementFilter
-  } = useFilterState(characters, props.game)
+  const filterState = useFilterState(characters, props.game)
 
   const {
     multiSelectEnabled,
@@ -296,6 +323,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
       <div className="sticky top-0 z-10 backdrop-blur-md p-2 me-2 w-full">
         {multiSelectEnabled ? (
           <MultiSelectTopBar
+            addTag={() => setDialog({ type: "add_tag_multi", selectedChars: multiSelectedCharacters })}
             clearMultiSelected={clearMultiSelected}
             deleteCharacters={deleteCharacters}
             multiSelectedCharacters={multiSelectedCharacters}
@@ -305,20 +333,16 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
           <GameActionsTopBar
             unselectAll={disableAllMods}
             elements={elements}
-            selectedElements={selectedElements ?? []}
-            onlyCustom={onlyCustom}
-            available={availableOnly}
-            toggleElement={toggleElementFilter}
-            toggleAvailable={setAvailableOnly}
-            toggleCustom={() => setOnlyCustom(p => !p)}
             addCharacter={() => setDialog({ type: "add_character" })}
             importMod={() => navigate("/import", {
               state: { game: props.game }
             })}
+            {...filterState}
           />
         )}
       </div>
       <GameScreenDialogHost
+        game={props.game}
         dataApi={props.dataApi}
         refreshCharacters={refreshCharacters}
         elements={elements}
@@ -333,7 +357,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
         refreshCharacters={refreshCharacters}
       />
       <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4 mb-16 mx-2">
-        {filteredCharacters.map((c) => (
+        {filterState.filteredCharacters.map((c) => (
           <div
             key={c.characters.id}
             className={"break-inside-avoid mb-4"}>
@@ -393,13 +417,15 @@ function MultiSelectTopBar(
     clearMultiSelected,
     setMultiSelectEnabled,
     multiSelectedCharacters,
-    toggleMultiSelected
+    toggleMultiSelected,
+    addTag,
   }: {
     deleteCharacters: () => void,
     setMultiSelectEnabled: (enabled: boolean) => void,
     multiSelectedCharacters: types.CharacterWithModsAndTags[],
     toggleMultiSelected: (id: number) => void
     clearMultiSelected: () => void
+    addTag: () => void,
   }
 ) {
 
@@ -439,21 +465,29 @@ function MultiSelectTopBar(
           })}
         </div>
       </div>
-      <Button
-        className="mx-2 backdrop-blur-md"
-        onClick={deleteCharacters}
-      >
-        Delete
-      </Button>
-
+      <div className="flex flex-row items-center h-full">
+        <Button
+          className="mx-2 backdrop-blur-md"
+          onClick={addTag}
+        >
+          Add tag
+        </Button>
+        <Button
+          className="mx-2 backdrop-blur-md"
+          onClick={deleteCharacters}
+        >
+          Delete
+        </Button>
+      </div>
     </div>
   )
 }
 
 function GameScreenDialogHost({
-  dataApi, dialog, refreshCharacters, setDialog, elements
+  dataApi, dialog, refreshCharacters, setDialog, elements, game
 }: {
   dataApi: DataApi,
+  game: number,
   dialog: GameScreenDialog | undefined,
   refreshCharacters: () => void,
   setDialog: (dialog: GameScreenDialog | undefined) => void,
@@ -486,6 +520,8 @@ function GameScreenDialogHost({
         </DialogDescription>
         <CustomDialogContent
           dialog={dialog}
+          game={game}
+          refreshCharacters={refreshCharacters}
           createCharacter={createCharacter}
           elements={elements}
         />
@@ -639,7 +675,9 @@ function FloatingActionButtons({
 
 interface DialogContentProps {
   dialog: GameScreenDialog,
+  game: number,
   elements: string[],
+  refreshCharacters: () => void;
   createCharacter: (name: string, image: string, element: string | undefined) => void
 }
 
@@ -651,7 +689,70 @@ function CustomDialogContent(
       return undefined
     case "add_character":
       return <AddCharacterDialog {...props} />
+    case "add_tag_multi":
+      return <AddTagMultiDialog {...props} />
   }
+}
+
+function AddTagMultiDialog(
+  {
+    dialog,
+    game,
+    refreshCharacters
+  }: DialogContentProps
+) {
+
+
+
+  const [inputValue, setInputValue] = useState("");
+  const handleChange = (event: any) => {
+    setInputValue(event.target.value);
+  };
+
+  if (dialog.type !== "add_tag_multi") {
+    return undefined
+  }
+
+  const onConfirmed = () => {
+    if (inputValue.isBlank()) {
+      return
+    }
+
+    InsertTagForAllModsByCharacterIds(
+      dialog.selectedChars.map(c => c.characters.id),
+      inputValue,
+      game
+    )
+      .then(refreshCharacters)
+  }
+
+  return (
+    <>
+      <text>{dialog.selectedChars.map(c => c.characters.name).join(", ")}</text>
+      <div className="grid flex-1 gap-2">
+        <Input
+          value={inputValue}
+          onChange={handleChange}
+        />
+      </div>
+      <DialogFooter className="sm:justify-start">
+        <DialogClose asChild>
+          <Button type="button" variant="secondary">
+            Cancel
+          </Button>
+        </DialogClose>
+        <DialogClose asChild>
+          <Button
+            onPointerDown={onConfirmed}
+            type="button"
+            variant="secondary"
+          >
+            Confirm
+          </Button>
+        </DialogClose>
+      </DialogFooter>
+    </>
+  )
 }
 
 function AddCharacterDialog({ createCharacter, elements }: DialogContentProps) {
@@ -723,32 +824,46 @@ function AddCharacterDialog({ createCharacter, elements }: DialogContentProps) {
   )
 }
 
-interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement> {
+interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement>, FilterState {
   elements: string[];
-  onlyCustom: boolean;
-  selectedElements: string[];
-  available: boolean;
-  toggleAvailable: (change: boolean) => void;
-  toggleElement: (element: string) => void;
-  toggleCustom: () => void;
   unselectAll: () => void;
   importMod: () => void;
   addCharacter: () => void;
 }
 
+var pw = 0
+
 function GameActionsTopBar({
   elements,
   unselectAll,
+  searchActive,
+  setSearchActive,
   onlyCustom,
+  query,
+  setQuery,
   selectedElements,
-  available,
-  toggleAvailable,
-  toggleElement,
-  toggleCustom,
+  availableOnly,
+  setAvailableOnly,
+  toggleElementFilter,
+  setOnlyCustom,
   importMod,
   addCharacter,
   className,
 }: CharacterFilterProps) {
+
+  const elemRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const inputWidth = elemRef.current?.clientWidth ?? 0
+    if (inputWidth > 0) {
+      pw = inputWidth
+    }
+    if (inputRef.current && pw > 0) {
+      inputRef.current.style.width = `${pw}px`;
+    }
+  }, [inputRef.current, elemRef.current, elements, searchActive])
+
   return (
     <div
       className={cn(
@@ -757,28 +872,60 @@ function GameActionsTopBar({
       )}
     >
       <div className="flex flex-row space-x-2 p-2">
-        {elements.map((element) => {
-          return (
-            <Button
-              key={element}
-              size={"sm"}
-              variant={
-                selectedElements.includes(element.toLowerCase())
-                  ? "secondary"
-                  : "outline"
-              }
-              className={cn(
-                selectedElements.includes(element.toLowerCase())
-                  ? "bg-primary/50"
-                  : "bg-secondary/40",
-                "rounded-full backdrop-blur-md border-0"
-              )}
-              onPointerDown={() => toggleElement(element)}
-            >
-              {element}
-            </Button>
-          );
-        })}
+        <div
+          ref={elemRef}
+          className={cn(
+            "flex flex-row space-x-2",
+            searchActive
+              ? "animate-out fade-out hidden"
+              : "animate-in fade-in visible")}>
+          {elements.map((element) => {
+            return (
+              <Button
+                key={element}
+                size={"sm"}
+                variant={
+                  selectedElements.includes(element.toLowerCase())
+                    ? "secondary"
+                    : "outline"
+                }
+                className={cn(
+                  selectedElements.includes(element.toLowerCase())
+                    ? "bg-primary/50"
+                    : "bg-secondary/40",
+                  "rounded-full backdrop-blur-md",
+                )}
+                onPointerDown={() => toggleElementFilter(element)}
+              >
+                {element}
+              </Button>
+            );
+          })}
+        </div>
+        <Input
+          ref={inputRef}
+          value={query}
+          onInput={(e: any) => {
+            setQuery(e.target.value as string)
+          }}
+          placeholder="Search..."
+          className={cn(
+            !searchActive
+              ? "animate-out fade-out hidden"
+              : "animate-in fade-in visible",
+          )}>
+        </Input>
+        <Button
+          size={"icon"}
+          variant={"outline"}
+          className={"bg-secondary/40 rounded-full backdrop-blur-md p-2"}
+          onPointerDown={() => {
+            setSearchActive(!searchActive)
+            setQuery("")
+          }}
+        >
+          {searchActive ? <XIcon /> : <SearchIcon />}
+        </Button>
       </div>
       <div className="flex flex-row pe-2">
         <Button
@@ -801,11 +948,11 @@ function GameActionsTopBar({
         </Button>
         <Button
           className={cn(
-            available ? "bg-primary/50" : "bg-secondary/20",
+            availableOnly ? "bg-primary/50" : "bg-secondary/20",
             "mx-2 rounded-full backdrop-blur-md border-0"
           )}
-          variant={available ? "secondary" : "outline"}
-          onPointerDown={() => toggleAvailable(!available)}
+          variant={availableOnly ? "secondary" : "outline"}
+          onPointerDown={() => setAvailableOnly(!availableOnly)}
         >
           Mods available
         </Button>
@@ -814,8 +961,8 @@ function GameActionsTopBar({
             onlyCustom ? "bg-primary/50" : "bg-secondary/20",
             "mx-2 rounded-full backdrop-blur-md border-0"
           )}
-          variant={available ? "secondary" : "outline"}
-          onPointerDown={toggleCustom}
+          variant={availableOnly ? "secondary" : "outline"}
+          onPointerDown={() => setOnlyCustom(!onlyCustom)}
         >
           Custom only
         </Button>
