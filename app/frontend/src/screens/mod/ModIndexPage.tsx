@@ -14,7 +14,7 @@ import {
 } from "@/data/dataapi";
 import { cn } from "@/lib/utils";
 import { getEnumValues } from "@/lib/tsutils";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { createContext, useMemo, useState } from "react";
 
 import {
@@ -38,6 +38,7 @@ import {
   useModSearchStateStore,
 } from "@/state/modSearchStore";
 import { Crumb, useModCrumbState } from "@/state/useModCrumbState";
+import useTransitionNavigate from "@/hooks/useCrossfadeNavigate";
 
 function getEnumName<T>(enumType: T, value: T[keyof T]): string | undefined {
   // @ts-ignore
@@ -92,7 +93,7 @@ const sortName = (s: Sort) => {
 export const DataApiContext = createContext<DataApi | undefined>(GenshinApi);
 
 export function ModIndexPage() {
-  const navigate = useNavigate();
+  const navigate = useTransitionNavigate();
 
   const updateState = useModSearchStateStore((state) => state.update);
   const state = useModSearchStateStore((state) => state);

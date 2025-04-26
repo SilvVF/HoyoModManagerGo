@@ -14,7 +14,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { useEffect, useMemo } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CrossfadeImage } from "@/components/crossfade-image";
@@ -22,11 +22,12 @@ import { useScrollContext } from "@/ScrollContext";
 import { useShallow } from "zustand/shallow";
 import { useModSearchStateStore } from "@/state/modSearchStore";
 import { CSSstring, range } from "@/lib/tsutils";
+import useTransitionNavigate from "@/hooks/useCrossfadeNavigate";
 
 export default function ModBrowseScreen() {
   const { id } = useParams();
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate = useTransitionNavigate();
 
   const { toTop } = useScrollContext();
 
@@ -140,7 +141,7 @@ function CategoryItemsList({
   loading: boolean;
   error: any;
 }) {
-  const navigate = useNavigate();
+  const navigate = useTransitionNavigate();
 
   if (error) {
     return (

@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import useTransitionNavigate from "@/hooks/useCrossfadeNavigate";
 
 export default function BrowserScreen({ src }: { src: string }) {
-  const navigate = useNavigate();
+  const navigate = useTransitionNavigate();
 
   return (
     <div className="flex flex-col h-screen">

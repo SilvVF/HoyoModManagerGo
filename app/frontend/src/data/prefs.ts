@@ -23,6 +23,7 @@ import * as ServerAuthTypePref from "../../wailsjs/go/core/ServerAuthTypePref";
 import * as CleanModDirPref from "../../wailsjs/go/core/CleanModExportDirPref";
 import * as EnabledPluginsPref from "../../wailsjs/go/core/EnabledPluginsPref";
 import * as RootModDirPref from "../../wailsjs/go/core/RootModDirPref"
+import * as UseViewTransitionsPref from "../../wailsjs/go/core/UseViewTransitions"
 import { LogDebug } from "wailsjs/runtime/runtime";
 
 export type GoPref<T extends any> = {
@@ -64,6 +65,8 @@ const serverAuthTypePref = ServerAuthTypePref as GoPref<number>;
 
 const cleanModDirPref = CleanModDirPref as GoPref<boolean>;
 const rootModDirPref = RootModDirPref as GoPref<string>;
+
+const useViewTransitionsPref = UseViewTransitionsPref as GoPref<boolean>
 
 //export type GoPref<T extends any> = {
 //   DefaultValue(): Promise<T>;
@@ -193,4 +196,5 @@ export {
   cleanModDirPref,
   pluginsPref,
   rootModDirPref,
+  useViewTransitionsPref,
 };

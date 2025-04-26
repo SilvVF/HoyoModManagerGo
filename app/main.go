@@ -220,6 +220,7 @@ func main() {
 			appPrefs.CleanModExportDirPref,
 			appPrefs.EnabledPluginsPref,
 			appPrefs.RootModDirPref,
+			appPrefs.UseViewTransitions,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

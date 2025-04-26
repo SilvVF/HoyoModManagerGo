@@ -24,7 +24,7 @@ import { useKeyMapperStore } from "@/state/keymapperStore";
 import { EditIcon, SearchIcon, TrashIcon } from "lucide-react";
 import React, { useMemo } from "react";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   EnableModById,
   RenameMod,
@@ -45,6 +45,7 @@ import { SectionList } from "@/components/SectionList";
 import { Card } from "@/components/ui/card";
 import { imageFileExtensions, isValidUrl } from "@/lib/tsutils";
 import AsyncImage from "@/components/AsyncImage";
+import useTransitionNavigate, { useTransitionNavigateDelta } from "@/hooks/useCrossfadeNavigate";
 
 
 type DialogType =
@@ -55,7 +56,8 @@ type DialogType =
 
 export function KeymappingScreen() {
   const { modId } = useParams();
-  const navigate = useNavigate();
+  const navigate = useTransitionNavigate();
+  const navigateDelta = useTransitionNavigateDelta();
 
   const [modRefreshTrigger, setModRefreshTrigger] = useState(0);
   const refreshMod = () => setModRefreshTrigger(p => p + 1)
@@ -118,7 +120,7 @@ export function KeymappingScreen() {
   const [hoveredImg, setHoveredImg] = useState("");
 
   const deleteMod = async (id: number) => {
-    Downloader.Delete(id).then(() => navigate(-1));
+    Downloader.Delete(id).then(() => navigateDelta(-1));
   };
 
   const enableMod = async (id: number, enabled: boolean) => {

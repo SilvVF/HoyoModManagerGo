@@ -34,6 +34,7 @@ type AppPrefs struct {
 	EnabledPluginsPref     *EnabledPluginsPref
 	RootModDirPref         *RootModDirPref
 	LastReleaseAckedDate   *LastReleaseAckedDate
+	UseViewTransitions     *UseViewTransitions
 }
 
 func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
@@ -115,6 +116,9 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 		&LastReleaseAckedDate{
 			Preference: store.GetString("last_release_acked", ""),
 		},
+		&UseViewTransitions{
+			Preference: store.GetBoolean("use_view_tranistions", false),
+		},
 	}
 }
 
@@ -156,3 +160,5 @@ type SpaceSaverPref struct{ pref.Preference[bool] }
 type EnabledPluginsPref struct{ pref.Preference[[]string] }
 
 type LastReleaseAckedDate struct{ pref.Preference[string] }
+
+type UseViewTransitions struct{ pref.Preference[bool] }

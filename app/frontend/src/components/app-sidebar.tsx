@@ -1,5 +1,5 @@
 import { Button } from "./ui/button";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { GenshinApi } from "@/data/dataapi";
 import { types } from "../../wailsjs/go/models";
 import {
@@ -40,6 +40,7 @@ import {
   useSidebar,
 } from "./ui/sidebar";
 import { cn } from "@/lib/utils";
+import useTransitionNavigate from "@/hooks/useCrossfadeNavigate";
 
 interface AppSidebarProps {
   refreshPlaylist: () => void;
@@ -111,7 +112,7 @@ export function AppSidebar({
   refreshPlaylist,
 }: AppSidebarProps) {
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate = useTransitionNavigate();
   const enablePlaylist = usePlaylistStore((state) => state.enable);
   const { open } = useSidebar();
 

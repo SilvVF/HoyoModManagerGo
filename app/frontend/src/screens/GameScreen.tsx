@@ -16,7 +16,6 @@ import {
   RenameTexture,
 } from "../../wailsjs/go/core/DbHelper";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +48,7 @@ import { imageFileExtensions } from "@/lib/tsutils";
 import { DialogClose, DialogTrigger } from "@radix-ui/react-dialog";
 import { EventsOn } from "wailsjs/runtime/runtime";
 import { NameDialogContent } from "@/components/NameDialog";
+import useCrossfadeNavigate from "@/hooks/useCrossfadeNavigate";
 
 type RenameType = "mod" | "texture"
 
@@ -183,12 +183,12 @@ const useFilterState = (characters: types.CharacterWithModsAndTags[], game: numb
         .filter((cwmt) => (available ? !cwmt.modWithTags.isEmpty() : true))
         .filter((cwmt) => (onlyCustom ? cwmt.characters.custom : true))
         .filter((cwmt) => (
-          !query.isBlank() && cwmt.characters.name.includes(query)
-          || cwmt.modWithTags.any(mt => mt.mod.filename.includes(query)
-            || mt.tags.any(t => t.name.includes(query)))
+          query.isBlank() ? true : (cwmt.characters.name.includes(query)
+            || cwmt.modWithTags.any(mt => mt.mod.filename.includes(query)
+              || mt.tags.any(t => t.name.includes(query))))
         ));
     } else {
-      return [];
+      return characters;
     }
   }, [characters, selectedElements, available, onlyCustom, query]);
 
@@ -233,7 +233,7 @@ interface FilterState {
 }
 
 function GameScreen(props: { dataApi: DataApi; game: number }) {
-  const navigate = useNavigate();
+  const navigate = useCrossfadeNavigate();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const updates = usePlaylistStore(useShallow((state) => state.updates));
 

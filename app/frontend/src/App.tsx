@@ -46,6 +46,7 @@ function App() {
               <AppUpdateDialog />
               <ScrollProvider provideRef={scrollAreaRef}>
                 <div
+                  id="main"
                   ref={scrollAreaRef}
                   className={cn(
                     !expanded && queued > 0

@@ -4,7 +4,7 @@ import App from './App.tsx'
 import './index.css'
 import GameScreen from './screens/GameScreen.tsx';
 import { Game, GenshinApi, StarRailApi, WutheringWavesApi, ZenlessApi } from './data/dataapi.ts';
-import { createHashRouter, Navigate, RouterProvider, useNavigate, useRouteError } from 'react-router-dom';
+import { createHashRouter, Navigate, RouterProvider, useRouteError } from 'react-router-dom';
 import ModBrowseScreen from './screens/mod/ModBrowseScreen.tsx';
 import { ModViewScreen } from './screens/mod/ModViewScreen.tsx';
 import { Button } from './components/ui/button.tsx';
@@ -16,6 +16,7 @@ import { KeymappingScreen } from './screens/EditScreen.tsx';
 import { syncCharacters, SyncType } from './data/sync.ts';
 import BrowserScreen from './screens/BrowserScreen.tsx';
 import ImportScreen from './screens/ImportScreen.tsx';
+import useTransitionNavigate from './hooks/useCrossfadeNavigate.ts';
 
 const router = createHashRouter([
   {
@@ -32,7 +33,7 @@ const router = createHashRouter([
           await syncCharacters(GenshinApi, SyncType.StartupRequest);
           return null
         },
-        element: <GameScreen dataApi={GenshinApi} game={Game.Genshin} />,
+        element: <GameScreen key={Game.Genshin} dataApi={GenshinApi} game={Game.Genshin} />,
       },
       // {
       //   path: "league",
@@ -48,7 +49,7 @@ const router = createHashRouter([
           await syncCharacters(StarRailApi, SyncType.StartupRequest);
           return null
         },
-        element: <GameScreen dataApi={StarRailApi} game={Game.StarRail} />,
+        element: <GameScreen key={Game.StarRail} dataApi={StarRailApi} game={Game.StarRail} />,
       },
       {
         path: "zenless",
@@ -56,7 +57,7 @@ const router = createHashRouter([
           await syncCharacters(ZenlessApi, SyncType.StartupRequest);
           return null
         },
-        element: <GameScreen dataApi={ZenlessApi} game={Game.ZZZ} />,
+        element: <GameScreen key={Game.ZZZ} dataApi={ZenlessApi} game={Game.ZZZ} />,
       },
       {
         path: "wuwa",
@@ -64,7 +65,7 @@ const router = createHashRouter([
           await syncCharacters(WutheringWavesApi, SyncType.StartupRequest);
           return null
         },
-        element: <GameScreen dataApi={WutheringWavesApi} game={Game.WuWa} />,
+        element: <GameScreen key={Game.WuWa} dataApi={WutheringWavesApi} game={Game.WuWa} />,
       },
       {
         path: "playlist",
@@ -119,7 +120,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 export default function ErrorPage() {
 
   const error: any = useRouteError();
-  const navigate = useNavigate();
+  const navigate = useTransitionNavigate();
 
   return (
     <div className="flex flex-col items-center justify-center w-full">

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { SearchIcon } from "lucide-react";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
 import { useShallow } from "zustand/shallow";
-import { useNavigate } from "react-router-dom";
 import {
   EnableModById,
   EnableTextureById,
@@ -25,6 +24,7 @@ import { type Pair } from "@/lib/tsutils";
 import { Delete, DeleteTexture } from "wailsjs/go/core/Downloader";
 import { Separator } from "@/components/ui/separator";
 import { Dialog } from "@/components/ui/dialog";
+import useTransitionNavigate from "@/hooks/useCrossfadeNavigate";
 
 interface SearchState {
   query: string;
@@ -225,7 +225,7 @@ const useSearchStore = create<SearchState>((set, get) => ({
 }));
 
 export function SearchScreen() {
-  const navigate = useNavigate();
+  const navigate = useTransitionNavigate();
   const results = useSearchStore(useShallow((state) => state.results));
 
   const [dialog, setDialog] = useState<SearchDialog | undefined>(undefined);

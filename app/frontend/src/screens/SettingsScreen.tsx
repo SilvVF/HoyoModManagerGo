@@ -14,6 +14,7 @@ import {
   serverPasswordPref,
   serverAuthTypePref,
   cleanModDirPref,
+  useViewTransitionsPref,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
@@ -84,6 +85,7 @@ export default function SettingsScreen() {
   const [username, setUsername] = usePrefrenceAsState(serverUsernamePref);
   const [password, setPassword] = usePrefrenceAsState(serverPasswordPref);
   const [authType, setAuthType] = usePrefrenceAsState(serverAuthTypePref);
+  const [viewTransitions, setViewTransitions] = usePrefrenceAsState(useViewTransitionsPref)
   const [maxDownloadWorkers, setMaxDownloadWorkers] = usePrefrenceAsState(
     maxDownloadWorkersPref
   );
@@ -376,6 +378,12 @@ export default function SettingsScreen() {
             <UndoIcon />
           </Button>
         }
+      />
+      <SettingsCheckBoxItem
+        title="use view transitions"
+        description="animate transition between different pages"
+        checked={viewTransitions ?? false}
+        onCheckedChange={setViewTransitions}
       />
       <FixCompressionButton />
     </div>
