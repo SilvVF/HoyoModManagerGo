@@ -5,6 +5,8 @@ import { useServerStore } from "./serverStore";
 import { usePlaylistStore } from "./playlistStore";
 import { useShallow } from "zustand/react/shallow";
 import { useModTransferStore } from "./modTransferStore";
+import { useOnekoStore } from "@/components/oneko";
+import { useViewTransitionsStore } from "@/hooks/useCrossfadeNavigate";
 
 export const useStoreInitializers = () => {
 
@@ -13,9 +15,13 @@ export const useStoreInitializers = () => {
     const listenForServerEvents = useServerStore((state) => state.listen);
     const refreshAllPlaylists = usePlaylistStore((state) => state.init);
     const listenForTransferEvents = useModTransferStore((state) => state.listen)
+    const setInitialCat = useOnekoStore(state => state.init)
+    const initTransitions = useViewTransitionsStore(state => state.init)
 
     useEffect(() => {
 
+        setInitialCat();
+        initTransitions().catch();
         refreshAllPlaylists().catch();
 
         const unregisterPluginEvents = listenToPluginEvents();

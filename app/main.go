@@ -179,7 +179,7 @@ func main() {
 		OnBeforeClose:    app.beforeClose,
 		OnShutdown:       app.shutdown,
 		WindowStartState: options.Normal,
-		Bind: []interface{}{
+		Bind: []any{
 			app,
 			// API
 			genshinApi,
@@ -221,6 +221,7 @@ func main() {
 			appPrefs.EnabledPluginsPref,
 			appPrefs.RootModDirPref,
 			appPrefs.UseViewTransitions,
+			appPrefs.Oneko,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

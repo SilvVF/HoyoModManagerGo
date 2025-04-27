@@ -24,6 +24,7 @@ import * as CleanModDirPref from "../../wailsjs/go/core/CleanModExportDirPref";
 import * as EnabledPluginsPref from "../../wailsjs/go/core/EnabledPluginsPref";
 import * as RootModDirPref from "../../wailsjs/go/core/RootModDirPref"
 import * as UseViewTransitionsPref from "../../wailsjs/go/core/UseViewTransitions"
+import * as Oneko from "../../wailsjs/go/core/Oneko"
 import { LogDebug } from "wailsjs/runtime/runtime";
 
 export type GoPref<T extends any> = {
@@ -67,6 +68,7 @@ const cleanModDirPref = CleanModDirPref as GoPref<boolean>;
 const rootModDirPref = RootModDirPref as GoPref<string>;
 
 const useViewTransitionsPref = UseViewTransitionsPref as GoPref<boolean>
+const onekoPref = Oneko as GoPref<boolean>
 
 //export type GoPref<T extends any> = {
 //   DefaultValue(): Promise<T>;
@@ -197,4 +199,5 @@ export {
   pluginsPref,
   rootModDirPref,
   useViewTransitionsPref,
+  onekoPref
 };

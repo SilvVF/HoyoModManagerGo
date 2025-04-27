@@ -35,6 +35,7 @@ type AppPrefs struct {
 	RootModDirPref         *RootModDirPref
 	LastReleaseAckedDate   *LastReleaseAckedDate
 	UseViewTransitions     *UseViewTransitions
+	Oneko                  *Oneko
 }
 
 func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
@@ -119,6 +120,9 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 		&UseViewTransitions{
 			Preference: store.GetBoolean("use_view_tranistions", false),
 		},
+		&Oneko{
+			Preference: store.GetBoolean("oneko", false),
+		},
 	}
 }
 
@@ -162,3 +166,4 @@ type EnabledPluginsPref struct{ pref.Preference[[]string] }
 type LastReleaseAckedDate struct{ pref.Preference[string] }
 
 type UseViewTransitions struct{ pref.Preference[bool] }
+type Oneko struct{ pref.Preference[bool] }

@@ -14,7 +14,6 @@ import {
   serverPasswordPref,
   serverAuthTypePref,
   cleanModDirPref,
-  useViewTransitionsPref,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
@@ -66,6 +65,8 @@ import { SectionList } from "@/components/SectionList";
 import { MigrateModsDirDialog } from "@/components/ModTransferFlow";
 import { SettingsDirItem } from "@/components/SettingsDirItem";
 import { useStateProducer } from "@/lib/utils";
+import { useViewTransitionsStore } from "@/hooks/useCrossfadeNavigate";
+import { useOnekoStore } from "@/components/oneko";
 
 type SettingsDialog = "edit_port" | "edit_password" | "edit_username" | "check_updates" | "migrate_mods_dir";
 const AuthType: { [keyof: number]: string } = {
@@ -85,7 +86,22 @@ export default function SettingsScreen() {
   const [username, setUsername] = usePrefrenceAsState(serverUsernamePref);
   const [password, setPassword] = usePrefrenceAsState(serverPasswordPref);
   const [authType, setAuthType] = usePrefrenceAsState(serverAuthTypePref);
-  const [viewTransitions, setViewTransitions] = usePrefrenceAsState(useViewTransitionsPref)
+  const { viewTransitions, setViewTransitions } = useViewTransitionsStore(
+    useShallow(state => {
+      return {
+        viewTransitions: state.useTransitions,
+        setViewTransitions: state.setTransition
+      }
+    })
+  )
+  const { oneko, setOneko } = useOnekoStore(
+    useShallow((state) => {
+      return {
+        oneko: state.alive,
+        setOneko: state.setOneko
+      }
+    })
+  )
   const [maxDownloadWorkers, setMaxDownloadWorkers] = usePrefrenceAsState(
     maxDownloadWorkersPref
   );
@@ -384,6 +400,12 @@ export default function SettingsScreen() {
         description="animate transition between different pages"
         checked={viewTransitions ?? false}
         onCheckedChange={setViewTransitions}
+      />
+      <SettingsCheckBoxItem
+        title="oneko"
+        description="have a cat follow the mouse cursor"
+        checked={oneko}
+        onCheckedChange={setOneko}
       />
       <FixCompressionButton />
     </div>
