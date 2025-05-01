@@ -252,8 +252,17 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
 
   const characters = useStateProducer<types.CharacterWithModsAndTags[]>(
     [],
-    async (update) => {
+    async (update, onDispose) => {
+
       update(await props.dataApi.charactersWithModsAndTags());
+
+      const cancel = EventsOn("sync", ({ game }) => {
+        if (game === props.game) {
+          props.dataApi.charactersWithModsAndTags().then(update)
+        }
+      })
+
+      onDispose(() => cancel())
     },
     [props.dataApi, running, updates, refreshTrigger]
   );

@@ -45,6 +45,55 @@ var prefs = flag.Int("prefs", 0, "set prefs mode 0 - DISK (DEFAULT) 1 - MEMORY")
 var logType = flag.Int("log", 0, "set the log type 0 - println, 1 - file")
 var logLevel = flag.String("log_level", "debub", "set level for logs")
 
+func initDbAndRunMigrations(ctx context.Context) (*db.Queries, *sql.DB) {
+	dbfile := util.GetDbFile()
+	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
+
+	util.CreateFileIfNotExists(dbfile)
+
+	dbSql, err := sql.Open("sqlite3", dbfile)
+	if err != nil {
+		panic(err)
+	}
+	// create tables
+	if _, err := dbSql.ExecContext(ctx, ddl); err != nil {
+		panic(err)
+	}
+
+	goose.SetBaseFS(embedMigrations)
+
+	if err := goose.SetDialect(string(goose.DialectSQLite3)); err != nil {
+		log.LogError(err.Error())
+	}
+
+	if err := goose.Up(dbSql, "db/migrations"); err != nil {
+		log.LogError(err.Error())
+	}
+
+	queries := db.New(dbSql)
+
+	return queries, dbSql
+}
+
+func getAppBackgroundColor(appPrefs *core.AppPrefs) *options.RGBA {
+	var bgColor *options.RGBA
+	theme := appPrefs.DarkTheme.Get()
+	if theme == "dark" || theme == "system" {
+		bgColor = options.NewRGB(4, 4, 4)
+	} else {
+		bgColor = options.NewRGB(240, 240, 240)
+	}
+	return bgColor
+}
+
+func getLogLevel() logger.LogLevel {
+	ll, err := logger.StringToLogLevel(*logLevel)
+	if err != nil {
+		ll = logger.DEBUG
+	}
+	return ll
+}
+
 func main() {
 	// Create an instance of the app structure
 	flag.Parse()
@@ -69,30 +118,7 @@ func main() {
 	}
 
 	go api.CleanCache()
-
-	dbfile := util.GetDbFile()
-	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
-	util.CreateFileIfNotExists(dbfile)
-	dbSql, err := sql.Open("sqlite3", dbfile)
-	if err != nil {
-		panic(err)
-	}
-	// create tables
-	if _, err := dbSql.ExecContext(ctx, ddl); err != nil {
-		panic(err)
-	}
-
-	goose.SetBaseFS(embedMigrations)
-
-	if err := goose.SetDialect(string(goose.DialectSQLite3)); err != nil {
-		log.LogError(err.Error())
-	}
-
-	if err := goose.Up(dbSql, "db/migrations"); err != nil {
-		log.LogError(err.Error())
-	}
-
-	queries := db.New(dbSql)
+	queries, dbSql := initDbAndRunMigrations(ctx)
 
 	// CORE
 	dbHelper := core.NewDbHelper(queries, dbSql)
@@ -119,9 +145,8 @@ func main() {
 		appPrefs.SpaceSaverPref.Preference,
 		defaultEmitter,
 	)
-	sync := core.NewSyncHelper(dbHelper)
-	go sync.RunAll(core.StartupRequest)
 
+	sync := core.NewSyncHelper(dbHelper, defaultEmitter)
 	keymapper := core.NewKeymapper(dbHelper)
 
 	generator := core.NewGenerator(
@@ -137,19 +162,7 @@ func main() {
 
 	app := NewApp(appPrefs, core.NewUpdator(gbApi, preferenceDirs), transfer)
 
-	var bgColor *options.RGBA
-	theme := appPrefs.DarkTheme.Get()
-	if theme == "dark" || theme == "system" {
-		bgColor = options.NewRGB(4, 4, 4)
-	} else {
-		bgColor = options.NewRGB(240, 240, 240)
-	}
-	ll, err := logger.StringToLogLevel(*logLevel)
-	if err != nil {
-		ll = logger.DEBUG
-	}
-
-	err = wails.Run(&options.App{
+	err := wails.Run(&options.App{
 		Title:             "hoyomodmanager",
 		Width:             1024,
 		Height:            768,
@@ -162,18 +175,19 @@ func main() {
 		Frameless:         false,
 		StartHidden:       false,
 		HideWindowOnClose: false,
-		BackgroundColour:  bgColor,
+		BackgroundColour:  getAppBackgroundColor(appPrefs),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
 		Menu:     nil,
 		Logger:   app.CreateLogger(),
-		LogLevel: ll,
+		LogLevel: getLogLevel(),
 		OnStartup: func(ctx context.Context) {
 			log.InitLogging(ctx)
 			defaultEmitter.Bind(ctx)
 			serverManager.Listen(ctx)
 			app.startup(ctx)
+			go sync.RunAll(core.StartupRequest)
 		},
 		OnDomReady:       app.domReady,
 		OnBeforeClose:    app.beforeClose,
