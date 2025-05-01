@@ -4,17 +4,19 @@ import { GenshinApi } from "@/data/dataapi";
 import { types } from "../../wailsjs/go/models";
 import {
   BananaIcon,
+  CheckCheckIcon,
   GlobeIcon,
   LibraryIcon,
   LucideIcon,
   Moon,
+  PencilIcon,
   RefreshCwIcon,
   SearchIcon,
   SettingsIcon,
   SparkleIcon,
   Sun,
   TrainIcon,
-  TrashIcon,
+  Trash,
   WavesIcon,
 } from "lucide-react";
 import { useTheme } from "./theme-provider";
@@ -22,6 +24,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Card } from "./ui/card";
@@ -41,12 +44,11 @@ import {
 } from "./ui/sidebar";
 import { cn } from "@/lib/utils";
 import useTransitionNavigate from "@/hooks/useCrossfadeNavigate";
-
-interface AppSidebarProps {
-  refreshPlaylist: () => void;
-  onDeletePlaylist: (id: number) => void;
-  playlists: types.PlaylistWithModsAndTags[];
-}
+import { DialogTrigger } from "@radix-ui/react-dialog";
+import { useState } from "react";
+import { Dialog } from "./ui/dialog";
+import { NameDialogContent } from "./NameDialog";
+import { useShallow } from "zustand/react/shallow";
 
 function SidebarItem(props: {
   name: string;
@@ -106,15 +108,91 @@ function ModeToggle() {
   );
 }
 
-export function AppSidebar({
-  playlists,
-  onDeletePlaylist,
-  refreshPlaylist,
-}: AppSidebarProps) {
+export function PlaylistOptionsDropDown(
+  { playlist }: {
+    playlist: types.Playlist
+  }
+) {
+
+  const [isOpen, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const enablePlaylist = usePlaylistStore((state) => state.enable);
+  const deletePlaylist = usePlaylistStore((state) => state.delete);
+  const renamePlaylist = usePlaylistStore((state) => state.renamePlaylist);
+
+
+  return (
+    <Dialog open={dialogOpen} onOpenChange={(open) => {
+      if (open) {
+        setOpen(false)
+      }
+      setDialogOpen(open)
+    }}>
+      <NameDialogContent
+        title="rename playlist"
+        description={`renames the playlist from ${playlist.name} to provided value`}
+        onSuccess={(name) => renamePlaylist(playlist, name)}
+      />
+      <DropdownMenu open={isOpen} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button className="col-span-1" variant={"ghost"} size="icon">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="12" cy="5" r="1" />
+              <circle cx="12" cy="19" r="1" />
+            </svg>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onClick={() => deletePlaylist(playlist.id)}>
+            <Trash className="mr-2 h-4 w-4" />
+            <span className="w-full">Delete</span>
+            <DropdownMenuShortcut>⇧d</DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DialogTrigger
+            onPointerDown={() => {
+              setOpen(false);
+              setDialogOpen(true);
+            }}
+          >
+            <DropdownMenuItem>
+              <PencilIcon className="mr-2 h-4 w-4" />
+              <span className="w-full">Rename</span>
+              <DropdownMenuShortcut>⇧r</DropdownMenuShortcut>
+            </DropdownMenuItem>
+          </DialogTrigger>
+          <DropdownMenuItem onClick={() => enablePlaylist(playlist.game, playlist.id)}>
+            <CheckCheckIcon className="mr-2 h-4 w-4" />
+            <span className="w-full">Toggle</span>
+            <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </Dialog>
+  );
+}
+
+export function AppSidebar() {
+
   const location = useLocation();
   const navigate = useTransitionNavigate();
-  const enablePlaylist = usePlaylistStore((state) => state.enable);
   const { open } = useSidebar();
+
+  const playlists = usePlaylistStore(
+    useShallow((state) => Object.values(state.playlists).flatMap((it) => it))
+  );
+  const refreshAllPlaylists = usePlaylistStore((state) => state.init);
+  const enablePlaylist = usePlaylistStore(state => state.enable)
 
   const navigateToLastDiscoverCat = async () => {
     try {
@@ -213,7 +291,7 @@ export function AppSidebar({
         <div className="flex flex-row justify-between items-baseline w-full">
           <SidebarGroupLabel>Playlists</SidebarGroupLabel>
           <Button
-            onPointerDown={refreshPlaylist}
+            onPointerDown={refreshAllPlaylists}
             size={"icon"}
             variant={"ghost"}
           >
@@ -250,13 +328,7 @@ export function AppSidebar({
                   </svg>
                   {playlist.playlist.name}
                 </Button>
-                <Button
-                  onPointerDown={() => onDeletePlaylist(playlist.playlist.id)}
-                  variant={"ghost"}
-                  size={"icon"}
-                >
-                  <TrashIcon></TrashIcon>
-                </Button>
+                <PlaylistOptionsDropDown playlist={playlist.playlist} />
               </div>
             ))}
           </div>

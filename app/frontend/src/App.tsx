@@ -3,8 +3,6 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ThemeProvider } from "./components/theme-provider";
 import { cn, useStateProducer } from "./lib/utils";
 import { AppSidebar } from "./components/app-sidebar";
-import { useShallow } from "zustand/shallow";
-import { usePlaylistStore } from "./state/playlistStore";
 import { ScrollProvider } from "./ScrollContext";
 import { DownloadOverlay } from "./components/DownloadOverlay";
 import { SidebarInset, SidebarProvider } from "./components/ui/sidebar";
@@ -21,12 +19,6 @@ function App() {
 
   useStoreInitializers();
 
-  const playlists = usePlaylistStore(
-    useShallow((state) => Object.values(state.playlists).flatMap((it) => it))
-  );
-  const refreshAllPlaylists = usePlaylistStore((state) => state.init);
-  const deletePlaylist = usePlaylistStore((state) => state.delete);
-
   const { expanded, queued } = useDownloadStoreListener();
 
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
@@ -36,11 +28,7 @@ function App() {
       <DevModeOverlay>
         <div className="bg-background max-h-screen overflow-hidden flex flex-col">
           <SidebarProvider>
-            <AppSidebar
-              refreshPlaylist={refreshAllPlaylists}
-              playlists={playlists}
-              onDeletePlaylist={deletePlaylist}
-            />
+            <AppSidebar />
             <SidebarInset className="overflow-hidden">
               <DownloadOverlay />
               <AppUpdateDialog />

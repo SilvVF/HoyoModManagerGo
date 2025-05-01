@@ -66,11 +66,11 @@ func NewSyncHelper(db *DbHelper) *SyncHelper {
 }
 
 func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
-
 	dataApi, ok := api.ApiList[game]
 	if !ok {
 		return fmt.Errorf("invalid data api %v", game)
 	}
+
 	if request == StartupRequest {
 		s.initialComplete[game].Do(func() {
 			s.Sync(game, SyncRequestForceNetwork)

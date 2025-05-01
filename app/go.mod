@@ -8,6 +8,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/mholt/archives v0.1.1
 	github.com/peterbourgon/diskv v2.0.1+incompatible
+	github.com/pressly/goose/v3 v3.24.2
 	github.com/wailsapp/wails/v2 v2.10.1
 	github.com/yuin/gopher-lua v1.1.1
 	gopkg.in/ini.v1 v1.67.0
@@ -59,7 +60,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pressly/goose/v3 v3.24.2
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rosedblabs/rosedb/v2 v2.3.9
 	github.com/samber/lo v1.49.1 // indirect

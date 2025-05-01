@@ -3,6 +3,7 @@ import {
   DeletePlaylistById,
   SelectPlaylistWithModsAndTags,
   UpdateModsEnabledFromSlice,
+  UpdatePlaylistName,
 } from "../../wailsjs/go/core/DbHelper";
 import { types } from "../../wailsjs/go/models";
 import { create } from "zustand";
@@ -16,6 +17,8 @@ export type PlaylistState = {
   enable: (game: number, id: number) => Promise<void>;
   delete: (id: number) => Promise<void>;
   refresh: (game: number) => Promise<void>;
+  rename: (id: number, game: number, name: string) => Promise<void>;
+  renamePlaylist: (playlist: types.Playlist, name: string) => Promise<void>;
 };
 
 type PlaylistMap = { [game: number]: types.PlaylistWithModsAndTags[] };
@@ -63,7 +66,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       playlists: data,
     });
   },
-  refresh: async (game) => {
+  refresh: async (game: number) => {
     SelectPlaylistWithModsAndTags(game).then((value) => {
       set((prev) => {
         const copy = prev.playlists
@@ -74,7 +77,18 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       });
     });
   },
-  delete: async (id) => {
+  delete: async (id: number) => {
     DeletePlaylistById(id).then(() => get().init());
   },
+  renamePlaylist: async (playlist: types.Playlist, name: string) => {
+    get().rename(playlist.id, playlist.game, name)
+  },
+  rename: async (id: number, game: number, name: string) => {
+
+    if (name.isBlank()) {
+      return
+    }
+
+    UpdatePlaylistName(id, name).then(() => get().refresh(game))
+  }
 }));

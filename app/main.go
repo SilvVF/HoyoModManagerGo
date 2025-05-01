@@ -85,11 +85,11 @@ func main() {
 	goose.SetBaseFS(embedMigrations)
 
 	if err := goose.SetDialect(string(goose.DialectSQLite3)); err != nil {
-		panic(err)
+		log.LogError(err.Error())
 	}
 
 	if err := goose.Up(dbSql, "db/migrations"); err != nil {
-		panic(err)
+		log.LogError(err.Error())
 	}
 
 	queries := db.New(dbSql)

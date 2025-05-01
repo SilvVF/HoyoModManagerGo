@@ -9,6 +9,15 @@ export type DownloadProgress = {
 
 export type State = "download" | "queued" | "finished" | "unzip" | "error" | "compress"
 
+export const dlSortPriority: Record<State, number> = {
+  error: 0,
+  download: 1,
+  unzip: 2,
+  compress: 3,
+  finished: 4,
+  queued: 5, // lowest priority, not listed in your desired order
+};
+
 export type Download = {
   filename: string;
   link: string;
