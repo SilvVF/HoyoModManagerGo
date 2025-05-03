@@ -379,7 +379,6 @@ function TextureDownloadButton({
 
                   </HoverCard>
                 </div>
-
               </DialogTrigger>
             );
           })}
