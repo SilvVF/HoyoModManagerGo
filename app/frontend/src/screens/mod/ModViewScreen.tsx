@@ -39,7 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { dlStates, State, useDownloadStore } from "@/state/downloadStore";
+import { dlStates, Download, State, useDownloadStore } from "@/state/downloadStore";
 import { useShallow } from "zustand/shallow";
 import {
   Dialog,
@@ -50,6 +50,8 @@ import {
 } from "@/components/ui/dialog";
 import { Game } from "@/data/dataapi";
 import { DownloadIcon, FileBoxIcon, TrashIcon } from "lucide-react";
+import AsyncImage from "@/components/AsyncImage";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 const inDownloadState = (state: State | undefined) => {
   if (state) {
@@ -68,7 +70,13 @@ export function ModViewScreen() {
   const [api, setApi] = useState<CarouselApi>();
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const downloads = useDownloadStore(useShallow((state) => state.downloads));
+  const downloadStates = useDownloadStore(
+    useShallow((state) =>
+      Object.fromEntries(
+        Object.entries(state.downloads)
+          .map(([link, download]) => [link, download.state])
+      )
+    ));
   const running = useDownloadStore(useShallow((state) => state.running));
 
   const downloaded = useStateProducer<types.Mod[]>(
@@ -194,82 +202,16 @@ export function ModViewScreen() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {content?._aFiles?.map((f) => {
-            return (
-              <TableRow>
-                <TableCell className="font-medium">{f._sFile}</TableCell>
-                <TableCell>
-                  {getRelativeTimeString(1000 * (f._tsDateAdded ?? 0))}
-                </TableCell>
-                <TableCell>
-                  {[
-                    f._sClamAvResult,
-                    f._sAvastAvResult,
-                    f._sAnalysisResult,
-                  ].map((result) => {
-                    if (result) {
-                      return (
-                        <Badge
-                          className={cn(
-                            result === "clean" ||
-                              result === "File passed analysis"
-                              ? "bg-green-800"
-                              : "bg-red-800",
-                            "mx-2 h-6"
-                          )}
-                          variant="secondary"
-                        >
-                          {result}
-                        </Badge>
-                      );
-                    }
-                  })}
-                </TableCell>
-                <TableCell className="text-right min-w-[64px] m-2 space-x-4">
-                  <div className="flex flex-row justify-end">
-                    <DownloadButton
-                      onDownloadAsTextureClick={(id) =>
-                        downloadTexture(
-                          f._sDownloadUrl ?? "",
-                          f._sFile ?? "",
-                          id
-                        )
-                      }
-                      downloaded={downloaded
-                        .map((it) => it.gbFileName.toLowerCase())
-                        .includes(f._sFile?.toLowerCase() ?? "")}
-                      onDeleteClick={() => {
-                        const mod = downloaded.find(
-                          (it) =>
-                            it.gbFileName.toLowerCase() ===
-                            (f._sFile?.toLowerCase() ?? "")
-                        );
-                        if (mod) {
-                          deleteMod(mod.id);
-                        }
-                      }}
-                      downloading={inDownloadState(
-                        downloads[f._sDownloadUrl ?? ""]?.state
-                      )}
-                      onDownloadClick={() =>
-                        download(f._sDownloadUrl ?? "", f._sFile ?? "")
-                      }
-                    />
-                    <TextureDownloadButton
-                      character={character}
-                      onDownloadAsTextureClick={(id) =>
-                        downloadTexture(
-                          f._sDownloadUrl ?? "",
-                          f._sFile ?? "",
-                          id
-                        )
-                      }
-                    />
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          }) ?? <></>}
+          {content?._aFiles?.map((f) => <FileListItem
+            f={f}
+            downloadStates={downloadStates}
+            download={download}
+            downloadTexture={downloadTexture}
+            downloaded={downloaded}
+            character={character}
+            deleteMod={deleteMod}
+          />
+          ) ?? <></>}
         </TableBody>
       </Table>
       <div
@@ -282,6 +224,103 @@ export function ModViewScreen() {
         }}
       ></div>
     </div>
+  );
+}
+
+function FileListItem(
+  {
+    f,
+    downloadStates,
+    downloadTexture,
+    download,
+    downloaded,
+    deleteMod,
+    character
+  }: {
+    f: api.AFile,
+    downloadStates: {
+      [link: string]: State
+    },
+    downloadTexture: (url: string, file: string, id: number) => void,
+    download: (url: string, file: string) => void,
+    downloaded: types.Mod[],
+    deleteMod: (id: number) => void,
+    character: types.Character | undefined,
+  }
+) {
+  const downloading = useMemo(() => f._sDownloadUrl ? inDownloadState(downloadStates[f._sDownloadUrl]) : false, [downloadStates, f])
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">{f._sFile}</TableCell>
+      <TableCell>
+        {getRelativeTimeString(1000 * (f._tsDateAdded ?? 0))}
+      </TableCell>
+      <TableCell>
+        {[
+          f._sClamAvResult,
+          f._sAvastAvResult,
+          f._sAnalysisResult,
+        ].map((result) => {
+          if (result) {
+            return (
+              <Badge
+                className={cn(
+                  result === "clean" ||
+                    result === "File passed analysis"
+                    ? "bg-green-800"
+                    : "bg-red-800",
+                  "mx-2 h-6"
+                )}
+                variant="secondary"
+              >
+                {result}
+              </Badge>
+            );
+          }
+        })}
+      </TableCell>
+      <TableCell className="text-right min-w-[64px] m-2 space-x-4">
+        <div className="flex flex-row justify-end">
+          <DownloadButton
+            onDownloadAsTextureClick={(id) =>
+              downloadTexture(
+                f._sDownloadUrl ?? "",
+                f._sFile ?? "",
+                id
+              )
+            }
+            downloaded={downloaded
+              .map((it) => it.gbFileName.toLowerCase())
+              .includes(f._sFile?.toLowerCase() ?? "")}
+            onDeleteClick={() => {
+              const mod = downloaded.find(
+                (it) =>
+                  it.gbFileName.toLowerCase() ===
+                  (f._sFile?.toLowerCase() ?? "")
+              );
+              if (mod) {
+                deleteMod(mod.id);
+              }
+            }}
+            downloading={downloading}
+            onDownloadClick={() =>
+              download(f._sDownloadUrl ?? "", f._sFile ?? "")
+            }
+          />
+          <TextureDownloadButton
+            character={character}
+            onDownloadAsTextureClick={(id) =>
+              downloadTexture(
+                f._sDownloadUrl ?? "",
+                f._sFile ?? "",
+                id
+              )
+            }
+          />
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -309,24 +348,42 @@ function TextureDownloadButton({
           <FileBoxIcon></FileBoxIcon>
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent >
         <DialogHeader>
           <DialogTitle>Select a mod to attach texture</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="h-300">
+        <div className="overflow-y-auto">
           {mods.map((m) => {
             return (
               <DialogTrigger>
-                <Button
-                  variant="ghost"
-                  onClick={() => onDownloadAsTextureClick(m.id)}
-                >
-                  {m.filename}
-                </Button>
+                <div className="flex-grow overflow-hidden mr-2">
+                  <HoverCard>
+                    <HoverCardTrigger>
+                      <Button
+                        variant="ghost"
+                        onClick={() => onDownloadAsTextureClick(m.id)}
+                      >
+                        {m.filename}
+                      </Button>
+                    </HoverCardTrigger>
+                    {(m.previewImages?.filter(it => !it.isBlank())?.length ?? 0) > 0 ? (
+                      <HoverCardContent className="flex flex-col w-96 overflow-clip backdrop-blur-md bg-primary/20">
+                        <text>{m.filename}</text>
+                        <div className="flex flex-row space-x-2 overflow-x-auto">
+                          {m.previewImages?.map((uri) => (
+                            <AsyncImage key={uri} className="object-cover aspect-square w-70 h-70 m-2" uri={uri} />
+                          ))}
+                        </div>
+                      </HoverCardContent>
+                    ) : <HoverCardContent>No Images for {m.filename}</HoverCardContent>}
+
+                  </HoverCard>
+                </div>
+
               </DialogTrigger>
             );
           })}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

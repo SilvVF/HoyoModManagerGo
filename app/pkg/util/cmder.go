@@ -10,7 +10,6 @@ import (
 	golog "log/slog"
 	"os"
 	"os/exec"
-	"syscall"
 )
 
 type writerFn = func(b []byte) (int, error)
@@ -139,10 +138,7 @@ func (c *Cmder) Run(env []string) error {
 	c.cmd = exec.Command(c.Name, c.Args...)
 
 	// hide cmd window from flashing https://wails.io/docs/next/guides/windows
-	c.cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: 0x08000000,
-	}
+	setSysProcAttr(c.cmd)
 
 	if len(env) > 0 {
 		c.cmd.Env = append(os.Environ(), env...)
