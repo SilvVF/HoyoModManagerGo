@@ -6,8 +6,10 @@ import (
 	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -96,6 +98,28 @@ func HashForName(name string) int {
 	h.Write([]byte(name))
 
 	return int(h.Sum32())
+}
+
+func GetModArchive(m types.Mod) (string, error) {
+	modDir := GetModDir(m)
+	f, err := os.Open(modDir)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	names, err := f.Readdirnames(-1)
+	if err != nil {
+		return "", err
+	}
+	names = slices.DeleteFunc(names, func(n string) bool {
+		return slices.Contains(MetaDataDirs, n)
+	})
+
+	if len(names) == 0 {
+		return "", fs.ErrNotExist
+	}
+
+	return filepath.Join(modDir, names[0]), nil
 }
 
 func FileExists(path string) (bool, error) {

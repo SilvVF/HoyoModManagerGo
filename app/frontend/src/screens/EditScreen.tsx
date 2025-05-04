@@ -734,9 +734,9 @@ function KeyMapLoadErrorPage(props: {
   retry: () => void;
 }) {
   return (
-    <div className="w-full flex flex-col items-center justify-center space-y-4">
+    <div className="flex flex-col items-center justify-center space-y-4 overflow-clip w-fit mx-12">
       <text className="text-3xl font-semibold tracking-tight">{`Failed to load keyconfig for mod ${props.id}`}</text>
-      <text className="text-2xl font-semibold tracking-tight text-muted-foreground">{`${props.err}`}</text>
+      <p className="text-2xl font-semibold tracking-tight text-muted-foreground max-w-3/4">{`${props.err}`}</p>
       <Button size={"lg"} onPointerDown={props.retry}>
         Retry
       </Button>

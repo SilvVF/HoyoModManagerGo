@@ -2,6 +2,7 @@ package core
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"hmm/pkg/log"
@@ -17,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/klauspost/compress/zip"
+	"github.com/mholt/archives"
 
 	"gopkg.in/ini.v1"
 )
@@ -45,11 +46,16 @@ type KeyMapper struct {
 	mutex *sync.Mutex
 
 	loaded bool
-
-	cfg    *ini.File
-	path   string
 	mod    types.Mod
-	keymap []KeyBind
+
+	fsys   fs.FS
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	currentPath string
+	iniPath     string
+	cfg         *ini.File
+	keymap      map[string][]KeyBind
 }
 
 func NewKeymapper(db *DbHelper) *KeyMapper {
@@ -57,17 +63,25 @@ func NewKeymapper(db *DbHelper) *KeyMapper {
 		db:     db,
 		mutex:  &sync.Mutex{},
 		cfg:    nil,
-		path:   "",
-		keymap: []KeyBind{},
+		fsys:   nil,
+		keymap: make(map[string][]KeyBind, 0),
 	}
 }
 
 func resetState(k *KeyMapper) {
+
+	if k.cancel != nil {
+		k.cancel()
+	}
+
 	k.loaded = false
 	k.cfg = nil
 	k.mod = types.Mod{}
-	k.keymap = []KeyBind{}
-	k.path = ""
+	k.keymap = make(map[string][]KeyBind, 0)
+	k.fsys = nil
+	k.ctx = nil
+	k.cancel = nil
+	k.iniPath = ""
 }
 
 // clears the keybind cache and resets state
@@ -95,7 +109,8 @@ func (k *KeyMapper) LoadDefault() error {
 	}
 
 	k.DisableAllExcept()
-	return k.loadIni(k.path)
+
+	return k.loadIni(k.iniPath)
 }
 
 func (k *KeyMapper) DeleteKeymap(file string) error {
@@ -115,10 +130,16 @@ func (k *KeyMapper) GetKeyMap() ([]KeyBind, error) {
 	defer k.mutex.Unlock()
 
 	if !k.loaded {
-		return k.keymap, ErrNotLoaded
+		return make([]KeyBind, 0), ErrNotLoaded
 	}
 
-	return k.keymap, nil
+	keymap, ok := k.keymap[k.currentPath]
+
+	if !ok {
+		return make([]KeyBind, 0), ErrNotLoaded
+	}
+
+	return keymap, nil
 }
 
 // load a keymap by filename from mods keymap dir
@@ -143,6 +164,8 @@ func (k *KeyMapper) LoadPrevious(file string) error {
 	if err := k.DisableAllExcept(newFile); err != nil {
 		return err
 	}
+
+	k.currentPath = new
 
 	return k.loadIni(new)
 }
@@ -215,7 +238,7 @@ func (k *KeyMapper) SaveConfig(name string) error {
 	}
 	defer output.Close()
 
-	f, err := os.Open(k.path)
+	f, err := k.fsys.Open(k.iniPath)
 	if err != nil {
 		return err
 	}
@@ -308,7 +331,7 @@ func (k *KeyMapper) Write(section string, sectionKey string, keys []string) erro
 	}
 
 	key.SetValue(strings.Join(binds, " "))
-	k.keymap = generateKeyBinds(k.cfg)
+	k.keymap[k.currentPath] = generateKeyBinds(k.cfg)
 
 	return nil
 }
@@ -337,41 +360,54 @@ func (k *KeyMapper) Load(modId int) error {
 		return ErrModNotFound
 	}
 
-	modDir := util.GetModDir(mod)
-	k.walkDirHandleZip(modDir)
+	modArchive, err := util.GetModArchive(mod)
 
-	if k.path == "" {
-		return ErrConfigNotFound
+	k.ctx, k.cancel = context.WithCancel(context.Background())
+
+	fsys, err := archives.FileSystem(k.ctx, modArchive, nil)
+	if err != nil {
+		return err
+	}
+	k.fsys = fsys
+
+	if found, err := findIniFilesForMod(k.fsys); err != nil || len(found) == 0 {
+		return errors.New("no ini files found for mod")
+	} else {
+		log.LogDebugf("found %v", found)
+		k.iniPath = found[0]
+		k.currentPath = found[0]
 	}
 
-	configPath := k.path
 	if enabled, ok := GetEnabledKeymapPath(mod); ok {
-		configPath = enabled
+		k.currentPath = enabled
 	}
 
 	k.mod = mod
-	k.loadIni(configPath)
 	k.loaded = true
+	k.loadIni(k.currentPath)
 
 	return nil
 }
 
 func (k *KeyMapper) loadIni(path string) error {
-	inputFile, err := os.Open(path)
+	inputFile, err := k.fsys.Open(path)
 	if err != nil {
+		log.LogErrorf("failed to load ini file %s %e", path, err)
 		return err
 	}
 	targetSection := getKeybindSection(inputFile)
 	inputFile.Close()
 
-	log.LogDebug(targetSection)
+	log.LogDebug("found target section \n" + targetSection)
+
 	cfg, err := ini.Load([]byte(targetSection))
 	if err != nil || cfg == nil {
 		return err
 	}
 
+	k.currentPath = path
 	k.cfg = cfg
-	k.keymap = generateKeyBinds(cfg)
+	k.keymap[path] = generateKeyBinds(cfg)
 
 	return nil
 }
@@ -402,74 +438,35 @@ func GetEnabledKeymapPath(mod types.Mod) (string, bool) {
 	return filepath.Join(keymapDir, paths[0]), true
 }
 
-func (k *KeyMapper) walkZip(path string) (string, error) {
-	if filepath.Ext(path) != ".zip" {
-		return "", errors.New("file is not a .zip")
-	}
-	r, err := zip.OpenReader(path)
-	if err != nil {
-		return "", err
-	}
-	defer r.Close()
+func findIniFilesForMod(fsys fs.FS) ([]string, error) {
+	found := []string{}
 
-	for _, f := range r.File {
-		info := f.FileInfo()
-		if info.IsDir() {
-			continue
-		} else {
-			if filepath.Ext(info.Name()) == ".ini" && !strings.HasPrefix(strings.ToUpper(filepath.Base(info.Name())), "DISABLED") {
-				rc, err := f.Open()
-				if err != nil {
-					return "", err
-				}
-				defer rc.Close()
-
-				tmp, err := os.CreateTemp(util.GetKeybindCache(), "")
-				if err != nil {
-					return "", err
-				}
-				defer tmp.Close()
-
-				_, err = io.Copy(tmp, rc)
-				if err != nil {
-					os.Remove(tmp.Name())
-					return "", err
-				}
-				log.LogDebug(tmp.Name())
-				return tmp.Name(), nil
-			}
-		}
-	}
-	return "", errors.New("file not found")
-}
-
-func (k *KeyMapper) walkDirHandleZip(modDir string) error {
-	return filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil
 		}
-		if filepath.Ext(path) == ".zip" {
-			tmp, err := k.walkZip(path)
-			if err != nil {
-				log.LogError(err.Error())
-				return err
-			}
-			k.path = tmp
-			return ErrFileFoundShortcircuit
+
+		log.LogDebugf("walking dir %s", d.Name())
+		basePath := filepath.Base(d.Name())
+		if d.IsDir() {
+			return nil
 		}
 
-		if filepath.Ext(d.Name()) == ".ini" && !strings.HasPrefix(d.Name(), "DISABLED") {
-			k.path = path
-			return ErrFileFoundShortcircuit
+		if filepath.Ext(basePath) == ".ini" && !strings.HasPrefix(strings.ToUpper(basePath), "DISABLED") {
+			found = append(found, path)
+			return nil
 		}
 		return nil
 	})
+
+	return found, err
 }
 
-var keySecRegex = regexp.MustCompile(`\[(Key\w*)\]`)
 var secRegex = regexp.MustCompile(`\[(.*?)\]`)
 
 func getKeybindSection(r io.Reader) string {
+
+	keySecRegex := regexp.MustCompile(`\[(Key\w*)\]`)
 
 	scanner := bufio.NewScanner(r)
 	sb := strings.Builder{}

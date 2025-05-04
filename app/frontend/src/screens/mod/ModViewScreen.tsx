@@ -39,7 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { dlStates, Download, State, useDownloadStore } from "@/state/downloadStore";
+import { dlStates, State, useDownloadStore } from "@/state/downloadStore";
 import { useShallow } from "zustand/shallow";
 import {
   Dialog,
