@@ -8,7 +8,7 @@ Welcome to the **HoyoModManager** documentation. This guide will help you get st
 
 ## Getting Started
 
-To begin, ensure you have the necessary setup and follow the instructions in the [Setup](/docs/tutorial-basics/setup) section.
+To begin, ensure you have the necessary setup and follow the instructions in the [Setup](/docs/tutorial/setup) section.
 
 ## Features
 
@@ -61,4 +61,4 @@ It will also fill any keymaps or textures that are selected for the mod.
 
 ## Development
 
-For development instructions, refer to the [Development](/docs/tutorial-basics/development) section. 
+For development instructions, refer to the [Overview](/HoyoModManagerGo/docs/overview) section. 
