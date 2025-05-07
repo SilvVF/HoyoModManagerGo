@@ -9,12 +9,12 @@ const config: Config = {
   tagline: 'Skin Mod Manager for Hoyo Games and Wuthering Waves',
   favicon: 'img/hmmlogo.png',
 
-  // Set the production url of your site here
   url: 'https://silvvf.github.io',
-  // Set the /<baseUrl>/ pathname under which your site is served
-  // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/HoyoModManagerGo/',
-  
+  organizationName: 'SilvVF',
+  projectName: 'HoyoModManagerGo',
+  // Set the production url of your site here
+
   plugins: [
     async function myPlugin(context, options) {
       return {
@@ -26,9 +26,6 @@ const config: Config = {
       };
     },
   ],
-  // GitHub pages deployment config.
-  organizationName: 'SilvVF', // Usually your GitHub org/user name.
-  projectName: 'HoyoModManagerGo', // Usually your repo name.
   trailingSlash: false,
   deploymentBranch: 'gh-pages',
 
