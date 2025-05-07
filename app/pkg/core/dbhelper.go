@@ -221,42 +221,33 @@ func (h *DbHelper) UpsertCharacter(c types.Character) error {
 	return errors.New("name was empty")
 }
 
-func (h *DbHelper) deleteUnusedTextures(textures []types.Pair[int, string]) error {
-	modIds := []int64{}
-
-	for _, v := range textures {
-		modIds = append(modIds, int64(v.X))
-	}
-
-	arr, err := h.queries.SelectAllTexturesByModIds(h.ctx, modIds)
-	if err != nil {
-		return err
-	}
-
-	for _, t := range arr {
-		keep := slices.ContainsFunc(textures, func(e types.Pair[int, string]) bool {
-			return e.X == int(t.ModID) && e.Y == t.Fname
-		})
-		if !keep {
-			h.queries.DeleteTextureById(h.ctx, t.ID)
+func (h *DbHelper) deleteUnusedTextures(modIdtoTexFiles map[int][]string) error {
+	return h.withTransaction(func(q *db.Queries) error {
+		for modId, files := range modIdtoTexFiles {
+			if err := q.DeleteUnusedTextures(h.ctx, db.DeleteUnusedTexturesParams{
+				Files: files,
+				ModId: int64(modId),
+			}); err != nil {
+				return err
+			}
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 func (h *DbHelper) deleteUnusedMods(fileNames []string, game types.Game) error {
 	deleteUnusedModsQuery := func(fnames []string, game types.Game) string {
 
+		if len(fileNames) == 0 {
+			backupDatabase()
+			return "DELETE FROM MOD"
+		}
+
 		for i, name := range fnames {
 			fnames[i] = fmt.Sprintf("'%s'", name)
 		}
 
-		var fileArg string
-		if len(fnames) == 0 {
-			fileArg = "NULL"
-		} else {
-			fileArg = "(" + strings.Join(fnames, ",") + ")"
-		}
+		fileArg := "(" + strings.Join(fnames, ",") + ")"
 
 		return fmt.Sprintf(
 			"DELETE FROM mod WHERE fname NOT IN %s AND game = %d",
@@ -398,7 +389,6 @@ func (h *DbHelper) SelectModsByCharacterName(name string, game types.Game) ([]ty
 }
 
 func (h *DbHelper) SelectCharacterWithModsTagsAndTextures(game types.Game, modFileName string, characterName string, tagName string) []types.CharacterWithModsAndTags {
-
 	res, err := h.queries.SelectCharactersWithModsAndTags(h.ctx, db.SelectCharactersWithModsAndTagsParams{
 		Game:          game.Int64(),
 		ModFileName:   sql.NullString{Valid: modFileName != "", String: modFileName},
@@ -408,12 +398,12 @@ func (h *DbHelper) SelectCharacterWithModsTagsAndTextures(game types.Game, modFi
 
 	if err != nil {
 		log.LogError(err.Error())
-		return make([]types.CharacterWithModsAndTags, 0)
+		return nil
 	}
 
-	var charMap = map[types.Character]map[int]*types.ModWithTags{}
-	for _, item := range res {
+	charMap := make(map[types.Character]map[int]*types.ModWithTags)
 
+	for _, item := range res {
 		char := types.Character{
 			Id:        int(item.ID),
 			Game:      types.Game(item.Game),
@@ -423,89 +413,91 @@ func (h *DbHelper) SelectCharacterWithModsTagsAndTextures(game types.Game, modFi
 			Custom:    item.Flags&CHAR_FLAG_IS_CUSTOM != 0,
 		}
 
-		if _, ok := charMap[char]; !ok {
-			charMap[char] = map[int]*types.ModWithTags{}
+		if _, exists := charMap[char]; !exists {
+			charMap[char] = make(map[int]*types.ModWithTags)
 		}
 
-		modId := item.ID_2
-		tagModId := item.ModID
-		textureModId := item.ModID_2
-		textureId := item.ID_3
-
-		if modId.Valid {
-			modWithTagsAndTextures := types.ModWithTags{
-				Mod: types.Mod{
-					Filename:       item.Fname.String,
-					Game:           types.Game(item.Game),
-					Character:      item.CharName.String,
-					CharacterId:    int(item.CharID.Int64),
-					Enabled:        item.Selected.Bool,
-					PreviewImages:  strings.Split(item.PreviewImages.String, "<seperator>"),
-					GbId:           int(item.GbID.Int64),
-					ModLink:        item.ModLink.String,
-					GbFileName:     item.GbFileName.String,
-					GbDownloadLink: item.GbDownloadLink.String,
-					Id:             int(item.ID_2.Int64),
-				},
-				Tags:     make([]types.Tag, 0),
-				Textures: make([]types.Texture, 0),
+		if item.ID_2.Valid {
+			modId := int(item.ID_2.Int64)
+			if _, exists := charMap[char][modId]; !exists {
+				charMap[char][modId] = &types.ModWithTags{
+					Mod: types.Mod{
+						Filename:       item.Fname.String,
+						Game:           types.Game(item.Game),
+						Character:      item.CharName.String,
+						CharacterId:    int(item.CharID.Int64),
+						Enabled:        item.Selected.Bool,
+						PreviewImages:  strings.Split(item.PreviewImages.String, "<seperator>"),
+						GbId:           int(item.GbID.Int64),
+						ModLink:        item.ModLink.String,
+						GbFileName:     item.GbFileName.String,
+						GbDownloadLink: item.GbDownloadLink.String,
+						Id:             modId,
+					},
+					Tags:     []types.Tag{},
+					Textures: []types.Texture{},
+				}
 			}
-			charMap[char][int(modId.Int64)] = &modWithTagsAndTextures
 		}
 
-		if item.TagName.Valid && tagModId.Valid {
-			charMap[char][int(modId.Int64)].Tags = append(charMap[char][int(modId.Int64)].Tags, types.Tag{ModId: int(tagModId.Int64), Name: item.TagName.String})
+		if item.TagName.Valid && item.ModID.Valid {
+			modId := int(item.ModID.Int64)
+			if modEntry, ok := charMap[char][modId]; ok {
+				modEntry.Tags = append(modEntry.Tags, types.Tag{
+					ModId: modId,
+					Name:  item.TagName.String,
+				})
+			}
 		}
 
-		if textureId.Valid {
-			charMap[char][int(modId.Int64)].Textures = append(charMap[char][int(modId.Int64)].Textures, types.Texture{
-				Filename:       item.Fname_2.String,
-				Enabled:        item.Selected_2.Bool,
-				PreviewImages:  strings.Split(item.PreviewImages_2.String, "<seperator>"),
-				GbId:           int(item.GbID_2.Int64),
-				ModLink:        item.ModLink_2.String,
-				GbFileName:     item.GbFileName_2.String,
-				GbDownloadLink: item.GbDownloadLink_2.String,
-				ModId:          int(textureModId.Int64),
-				Id:             int(textureId.Int64),
-			})
+		if item.ID_3.Valid && item.ModID_2.Valid {
+			modId := int(item.ModID_2.Int64)
+			if modEntry, ok := charMap[char][modId]; ok {
+				modEntry.Textures = append(modEntry.Textures, types.Texture{
+					Filename:       item.Fname_2.String,
+					Enabled:        item.Selected_2.Bool,
+					PreviewImages:  strings.Split(item.PreviewImages_2.String, "<seperator>"),
+					GbId:           int(item.GbID_2.Int64),
+					ModLink:        item.ModLink_2.String,
+					GbFileName:     item.GbFileName_2.String,
+					GbDownloadLink: item.GbDownloadLink_2.String,
+					ModId:          modId,
+					Id:             int(item.ID_3.Int64),
+				})
+			}
 		}
 	}
 
 	keys := make([]types.Character, 0, len(charMap))
-
 	for k := range charMap {
 		keys = append(keys, k)
 	}
-
 	sort.Slice(keys, func(i, j int) bool {
+
+		if keys[i].Name == keys[j].Name {
+			return keys[i].Id < keys[j].Id
+		}
+
 		return keys[i].Name < keys[j].Name
 	})
 
-	lst := make([]types.CharacterWithModsAndTags, 0, len(charMap))
-
-	for _, key := range keys {
-		v := charMap[key]
-
-		arr := []types.ModWithTags{}
-
-		for _, mwt := range v {
-			arr = append(arr, *mwt)
+	result := make([]types.CharacterWithModsAndTags, 0, len(charMap))
+	for _, char := range keys {
+		modMap := charMap[char]
+		mods := make([]types.ModWithTags, 0, len(modMap))
+		for _, mwt := range modMap {
+			mods = append(mods, *mwt)
 		}
-
-		slices.SortFunc(arr, func(a types.ModWithTags, b types.ModWithTags) int {
+		slices.SortFunc(mods, func(a, b types.ModWithTags) int {
 			return strings.Compare(a.Mod.Filename, b.Mod.Filename)
 		})
-
-		cwmt := types.CharacterWithModsAndTags{
-			Character:   key,
-			ModWithTags: arr,
-		}
-
-		lst = append(lst, cwmt)
+		result = append(result, types.CharacterWithModsAndTags{
+			Character:   char,
+			ModWithTags: mods,
+		})
 	}
 
-	return lst
+	return result
 }
 
 func (h *DbHelper) SelectPlaylistWithModsAndTags(game types.Game) ([]types.PlaylistWithModsAndTags, error) {

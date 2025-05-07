@@ -102,24 +102,19 @@ func HashForName(name string) int {
 
 func GetModArchive(m types.Mod) (string, error) {
 	modDir := GetModDir(m)
-	f, err := os.Open(modDir)
+	dirs, err := os.ReadDir(modDir)
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
-	names, err := f.Readdirnames(-1)
-	if err != nil {
-		return "", err
-	}
-	names = slices.DeleteFunc(names, func(n string) bool {
-		return slices.Contains(MetaDataDirs, n)
+	dirs = slices.DeleteFunc(dirs, func(d os.DirEntry) bool {
+		return slices.Contains(MetaDataDirs, d.Name())
 	})
 
-	if len(names) == 0 {
+	if len(dirs) == 0 {
 		return "", fs.ErrNotExist
 	}
 
-	return filepath.Join(modDir, names[0]), nil
+	return filepath.Join(modDir, dirs[0].Name()), nil
 }
 
 func FileExists(path string) (bool, error) {
@@ -273,6 +268,29 @@ func CopyRecursivley(src string, dst string, overwrite bool) error {
 	})
 
 	return err
+}
+
+func CopyFsFile(file fs.File, dst string, overwrite bool) error {
+	if _, err := os.Stat(dst); err == nil && !overwrite {
+		// File exists and overwrite is false, so skip copying
+		return nil
+	}
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("cannot create destination file: %w", err)
+	}
+	defer dstFile.Close()
+
+	_, err = io.Copy(dstFile, file)
+	if err != nil {
+		return fmt.Errorf("error copying file: %w", err)
+	}
+	srcInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("cannot stat source file: %w", err)
+	}
+	return os.Chmod(dst, srcInfo.Mode())
 }
 
 func CopyFile(src, dst string, overwrite bool) error {

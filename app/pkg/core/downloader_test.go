@@ -186,7 +186,6 @@ func TestExtractZip(t *testing.T) {
 
 	path := filepath.Join(testResources, zipFile)
 	out := filepath.Join(testResources, "output", "ZIP_test")
-	out2 := filepath.Join(testResources, "output", "ZIP_test2")
 
 	fmt.Println(path)
 
@@ -201,8 +200,6 @@ func TestExtractZip(t *testing.T) {
 		fp = progress
 		ft = total
 	})
-
-	copyAndUnzip(root, out2, false)
 
 	log.LogDebug(root)
 

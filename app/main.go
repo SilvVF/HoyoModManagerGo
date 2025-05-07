@@ -34,7 +34,7 @@ var assets embed.FS
 //go:embed db/migrations/*.sql
 var embedMigrations embed.FS
 
-//go:embed build/appicon.jpg
+//go:embed build/hmmlogo.png
 var icon []byte
 
 //go:embed db/sql/schema.sql

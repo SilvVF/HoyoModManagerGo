@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/alitto/pond/v2"
+	"github.com/mholt/archives"
 )
 
 const (
@@ -227,13 +228,8 @@ func runModFixExe(ctx context.Context, exported []string, outputDir string) erro
 
 	cancelled := false
 	cmder.WithOutFn(func(b []byte) (int, error) {
-		value := string(b)
-		log.LogDebug(fmt.Sprintf("%s len: %d", value, len(value)))
-		if strings.Contains(value, "Done!") || strings.Contains(value, "quit...") {
-			log.LogDebug("Cancelling")
-			cancelled = true
-			cancel()
-		}
+		go cmder.WriteLine([]byte("\r\n"))
+		cancelled = true
 		return len(b), nil
 	})
 
@@ -241,7 +237,6 @@ func runModFixExe(ctx context.Context, exported []string, outputDir string) erro
 	if cancelled {
 		return nil
 	}
-
 	return err
 }
 
@@ -252,36 +247,53 @@ func (g *Generator) copyToOutputDir(
 	pond pond.Pool,
 	ctx context.Context,
 ) pond.TaskGroup {
+
 	modPool := pond.NewGroup()
+	errCh := make(chan error)
+
+	go func() {
+		for {
+			select {
+			case err := <-errCh:
+				// TODO: send error to client
+				log.LogError(err.Error())
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	for _, mod := range selected {
 		modPool.Submit(func() {
 			if ctx.Err() != nil {
 				return
 			}
 
-			modDir := util.GetModDir(mod)
 			outputDir := filepath.Join(outputDir, fmt.Sprintf("%d_%s", mod.Id, mod.Filename))
 
+			// error ignored and reported empty texture slice wont stop copying
 			textures, err := g.db.SelectTexturesByModId(mod.Id)
+			textures = slices.DeleteFunc(textures, func(t types.Texture) bool { return !t.Enabled })
 			if err != nil {
+				errCh <- err
+			}
+
+			err = copyModWithTextures(
+				mod,
+				outputDir,
+				textures,
+				ctx,
+			)
+			// dont ignore error here nothing to overwrite if copying failed
+			if err != nil {
+				errCh <- err
 				return
 			}
 
-			enabledTextures := slices.DeleteFunc(textures, func(e types.Texture) bool { return !e.Enabled })
-
-			err = copyModWithTextures(
-				modDir,
-				outputDir,
-				enabledTextures,
-			)
-
-			if err != nil {
-				log.LogError(err.Error())
-			}
-
+			// error ignored and reported only affects keymap and config
 			err = overwriteMergedIniIfneeded(mod, outputDir)
 			if err != nil {
-				log.LogError(err.Error())
+				errCh <- err
 			}
 		})
 	}
@@ -347,15 +359,22 @@ func (g *Generator) cleanOutputDir(
 }
 
 func copyModWithTextures(
-	src string,
+	mod types.Mod,
 	dst string,
 	textures []types.Texture,
+	ctx context.Context,
 ) error {
 
 	os.MkdirAll(util.GetGeneratorCache(), os.ModePerm)
 	defer os.RemoveAll(util.GetGeneratorCache())
 
-	srcInfo, err := os.Stat(src)
+	modDir := util.GetModDir(mod)
+	modArchive, err := util.GetModArchive(mod)
+	if err != nil {
+		return err
+	}
+
+	srcInfo, err := os.Stat(modArchive)
 	if err != nil {
 		return fmt.Errorf("cannot stat source dir: %w", err)
 	}
@@ -364,45 +383,27 @@ func copyModWithTextures(
 		return fmt.Errorf("cannot create destination dir: %w", err)
 	}
 
-	err = copyAndUnzip(
-		src,
-		dst,
-		len(textures) > 0, // TODO check when textures where enabled
-	)
+	overwrite := len(textures) > 0
+
+	ext := filepath.Ext(modArchive)
+	if ext != "" {
+		_, err = archiveExtract(
+			modArchive,
+			strings.TrimSuffix(dst, ext),
+			false,
+			overwrite,
+			nil,
+		)
+	} else {
+		err = util.CopyRecursivley(modArchive, dst, overwrite)
+	}
 
 	if err != nil {
 		return err
 	}
 
-	return overwriteTextures(src, dst, textures)
-}
-
-func copyAndUnzip(src, dst string, overwrite bool) error {
-	return filepath.WalkDir(src, func(path string, info os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		dstPath := filepath.Join(dst, relPath)
-
-		if info.IsDir() {
-			if slices.Contains(util.MetaDataDirs, info.Name()) {
-				return fs.SkipDir
-			} else {
-				return os.MkdirAll(dstPath, info.Type().Perm())
-			}
-		} else {
-			if filepath.Ext(path) == ".zip" {
-				_, err := archiveExtract(path, strings.TrimSuffix(dstPath, ".zip"), false, overwrite, func(progress, total int64) {})
-				return err
-			} else {
-				return util.CopyFile(path, dstPath, overwrite)
-			}
-		}
-	})
+	err = overwriteTextures(modDir, dst, textures, ctx)
+	return err
 }
 
 func overwriteMergedIniIfneeded(m types.Mod, outputDir string) error {
@@ -486,83 +487,82 @@ func getModFixExe(exported []string) string {
 	return fixExe
 }
 
-func overwriteTextures(src, dst string, textures []types.Texture) error {
+func overwriteTextures(modDir, modOutputDir string, textures []types.Texture, parentContext context.Context) error {
 
-	texturePaths := map[string]types.Pair[string, string]{}
+	if len(textures) == 0 {
+		return nil
+	}
+
+	errs := []error{}
+	log.LogDebugf("OverwriteTextures: %v", textures)
 
 	for _, t := range textures {
-		log.LogDebug("reading dirs for " + t.Filename)
-		texturePath := filepath.Join(src, "textures", t.Filename)
-		dirs, err := os.ReadDir(texturePath)
-		if err != nil {
-			log.LogError(err.Error())
-			continue
-		}
+		textureDir := filepath.Join(modDir, "textures", t.Filename)
+		// wrapped in func to stop defers from stacking cancels when done
+		copyTextureToOutput := func() error {
+			ctx, cancel := context.WithCancel(parentContext)
+			defer cancel()
 
-		for _, d := range dirs {
-			log.LogDebug("dir " + d.Name())
-			if filepath.Ext(d.Name()) != ".zip" {
-				texturePaths[d.Name()] = types.PairOf(texturePath, d.Name())
-				continue
-			}
-			tmp, err := os.MkdirTemp(util.GetGeneratorCache(), "")
+			dirs, err := os.ReadDir(textureDir)
 			if err != nil {
-				log.LogError(err.Error())
-				continue
+				return err
 			}
 
-			log.LogDebug("extracting " + filepath.Join(texturePath, d.Name()) + "to " + tmp)
-			_, err = archiveExtract(filepath.Join(texturePath, d.Name()), tmp, false, true, func(progress, total int64) {})
+			textureArchive := filepath.Join(textureDir, dirs[0].Name())
+			fsys, err := archives.FileSystem(ctx, textureArchive, nil)
 			if err != nil {
-				log.LogError(err.Error())
-				continue
+				return err
 			}
-			tmpDirs, err := os.ReadDir(tmp)
-			if err != nil {
-				log.LogError(err.Error())
-				continue
-			}
-			for _, tmpDir := range tmpDirs {
-				texturePaths[tmpDir.Name()] = types.PairOf(tmp, tmpDir.Name())
-			}
+
+			filenameToPath := map[string]string{}
+			// index the files by full filename to full path
+			filepath.WalkDir(modOutputDir, func(path string, d fs.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+				if d.IsDir() {
+					return nil
+				}
+				filenameToPath[d.Name()] = path
+				return nil
+			})
+
+			log.LogDebugf("OverwriteTextures: Indexed %v", filenameToPath)
+
+			// walk the texture archive and overrwrite files with tex file
+			// last write wins
+			return fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+
+				if err != nil {
+					return err
+				}
+
+				if d.IsDir() {
+					return nil
+				}
+
+				log.LogDebugf("Looking for File %s", filepath.Base(d.Name()))
+				if outputPath, ok := filenameToPath[filepath.Base(d.Name())]; ok {
+					log.LogDebugf("Found file %s at path %s", filepath.Base(d.Name()), path)
+					file, err := fsys.Open(path)
+					if err != nil {
+						return err
+					}
+					defer file.Close()
+
+					err = util.CopyFsFile(file, outputPath, true)
+					if err != nil {
+						log.LogError(err.Error())
+					}
+					return err
+				}
+				return nil
+			})
+		}
+		if err := copyTextureToOutput(); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
-	if len(texturePaths) <= 0 {
-		return nil
-	}
-
-	log.LogDebugf("%v \nsearching in: %s", texturePaths, dst)
-
-	srcToDest := []types.Pair[string, string]{}
-
-	err := filepath.WalkDir(dst, func(path string, info os.DirEntry, err error) error {
-		if err != nil || !info.IsDir() {
-			return err
-		}
-
-		t, ok := texturePaths[info.Name()]
-
-		if !ok {
-			log.LogDebugf("couldnt find texture for path: %s, name: %s", path, info.Name())
-			return nil
-		}
-
-		log.LogDebugf("copying %s to %s", filepath.Join(t.X, t.Y), path)
-		srcToDest = append(srcToDest, types.PairOf(filepath.Join(t.X, t.Y), path))
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	for _, pair := range srcToDest {
-		src, dest := pair.Pair()
-		err := util.CopyRecursivley(src, dest, true)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return errors.Join(errs...)
 }

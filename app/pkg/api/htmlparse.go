@@ -58,15 +58,6 @@ func getTextContent(n *html.Node) string {
 	return text
 }
 
-func nodeToString(n *html.Node) (string, error) {
-	var sb strings.Builder
-	err := html.Render(&sb, n)
-	if err != nil {
-		return "", err
-	}
-	return sb.String(), nil
-}
-
 func findMatchingElemsWithClass(n *html.Node, elem string, requiredClasses ...string) []*html.Node {
 	result := []*html.Node{}
 

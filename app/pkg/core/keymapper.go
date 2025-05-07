@@ -361,6 +361,9 @@ func (k *KeyMapper) Load(modId int) error {
 	}
 
 	modArchive, err := util.GetModArchive(mod)
+	if err != nil {
+		return err
+	}
 
 	k.ctx, k.cancel = context.WithCancel(context.Background())
 

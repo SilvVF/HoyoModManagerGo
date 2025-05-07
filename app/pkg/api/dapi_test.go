@@ -26,3 +26,14 @@ func TestZZZApi(t *testing.T) {
 
 	t.Fail()
 }
+
+func TestZZZStarRailApi(t *testing.T) {
+
+	api := NewStarRailApi()
+
+	c := api.Characters()
+
+	log.LogDebugf("%v", c)
+
+	t.Fail()
+}

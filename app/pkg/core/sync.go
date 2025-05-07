@@ -91,7 +91,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 	task := pool.SubmitErr(func() error {
 
 		seenMods := []string{}
-		seenTextures := []types.Pair[int, string]{}
+		modIdToSeenTextures := map[int][]string{}
 		characters := s.db.SelectCharactersByGame(game)
 		log.LogPrint(fmt.Sprintf("characters size: %d synctype: %d game: %d", len(characters), request, game))
 
@@ -173,30 +173,33 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 
 				modDir := util.GetModDir(mod)
 				texturesDir := filepath.Join(modDir, "textures")
+				tDirs, err := os.ReadDir(texturesDir)
 
-				if exists, _ := util.FileExists(texturesDir); exists {
-					tDir, err := os.Open(texturesDir)
-					if err != nil {
-						continue
+				if err != nil {
+					continue
+				}
+
+				for _, tdir := range tDirs {
+
+					if entry, ok := modIdToSeenTextures[mod.Id]; ok {
+						modIdToSeenTextures[mod.Id] = append(entry, tdir.Name())
+					} else {
+						modIdToSeenTextures[mod.Id] = []string{tdir.Name()}
 					}
-					tDirs, err := tDir.Readdirnames(-1)
-					if err != nil {
-						continue
+					texture := types.Texture{
+						Filename: tdir.Name(),
+						ModId:    mod.Id,
 					}
-					for _, textureFilename := range tDirs {
-						seenTextures = append(seenTextures, types.Pair[int, string]{X: mod.Id, Y: textureFilename})
-						texture := types.Texture{
-							Filename: textureFilename,
-							ModId:    mod.Id,
-						}
-						s.db.InsertTexture(texture)
-					}
+					s.db.InsertTexture(texture)
 				}
 			}
 		}
+
 		log.LogPrint("Deleting mods not in: " + strings.Join(seenMods, "\n - "))
+		log.LogPrintf("Deleting textures not in: %v", modIdToSeenTextures)
+
 		s.db.deleteUnusedMods(seenMods, game)
-		s.db.deleteUnusedTextures(seenTextures)
+		s.db.deleteUnusedTextures(modIdToSeenTextures)
 
 		return nil
 	})

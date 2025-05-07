@@ -64,6 +64,31 @@ func (q *Queries) DeleteUnusedMods(ctx context.Context, arg DeleteUnusedModsPara
 	return err
 }
 
+const deleteUnusedTextures = `-- name: DeleteUnusedTextures :exec
+DELETE FROM texture WHERE fname NOT IN /*SLICE:files*/? AND mod_id = ?2
+`
+
+type DeleteUnusedTexturesParams struct {
+	Files []string
+	ModId int64
+}
+
+func (q *Queries) DeleteUnusedTextures(ctx context.Context, arg DeleteUnusedTexturesParams) error {
+	query := deleteUnusedTextures
+	var queryParams []interface{}
+	if len(arg.Files) > 0 {
+		for _, v := range arg.Files {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:files*/?", strings.Repeat(",?", len(arg.Files))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:files*/?", "NULL", 1)
+	}
+	queryParams = append(queryParams, arg.ModId)
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
 const disableAllModsByGame = `-- name: DisableAllModsByGame :exec
 UPDATE mod SET 
     selected = FALSE
@@ -557,7 +582,7 @@ func (q *Queries) SelectEnabledModsForGame(ctx context.Context, game int64) ([]M
 }
 
 const selectEnabledTexturesByModId = `-- name: SelectEnabledTexturesByModId :many
-SELECT id, mod_id, fname, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM texture WHERE mod_id = ?1 AND selected
+SELECT id, mod_id, fname, selected, preview_images, gb_id, mod_link, gb_file_name, gb_download_link FROM texture WHERE (mod_id = ?1 AND selected)
 `
 
 func (q *Queries) SelectEnabledTexturesByModId(ctx context.Context, modid int64) ([]Texture, error) {

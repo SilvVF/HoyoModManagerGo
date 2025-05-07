@@ -62,6 +62,9 @@ RETURNING id;
 -- name: DeleteUnusedMods :exec
 DELETE FROM mod WHERE fname NOT IN sqlc.slice('files') AND game = :game;
 
+-- name: DeleteUnusedTextures :exec
+DELETE FROM texture WHERE fname NOT IN sqlc.slice('files') AND mod_id = :modId;
+
 -- name: SelectCharactersWithModsAndTags :many
 SELECT 
     c.*,
@@ -105,7 +108,7 @@ SELECT * FROM mod WHERE mod.char_id = :name AND mod.game = :game;
 SELECT * FROM texture WHERE mod_id = :modId;
 
 -- name: SelectEnabledTexturesByModId :many
-SELECT * FROM texture WHERE mod_id = :modId AND selected;
+SELECT * FROM texture WHERE (mod_id = :modId AND selected);
 
 -- name: SelectModById :one
 SELECT * FROM mod WHERE mod.id = :id LIMIT 1;
