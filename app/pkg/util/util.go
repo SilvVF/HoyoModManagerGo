@@ -100,6 +100,41 @@ func HashForName(name string) int {
 	return int(h.Sum32())
 }
 
+func GetTextureArchiveFrom(mdir string, t types.Texture) (string, error) {
+	textureDir := filepath.Join(mdir, "textures", t.Filename)
+	dirs, err := os.ReadDir(textureDir)
+	if err != nil {
+		return "", err
+	}
+	dirs = slices.DeleteFunc(dirs, func(d os.DirEntry) bool {
+		return slices.Contains(MetaDataDirs, d.Name())
+	})
+
+	if len(dirs) == 0 {
+		return "", fs.ErrNotExist
+	}
+
+	return filepath.Join(textureDir, dirs[0].Name()), nil
+}
+
+func GetTextureArchive(m types.Mod, t types.Texture) (string, error) {
+	mdir := GetModDir(m)
+	textureDir := filepath.Join(mdir, "textures", t.Filename)
+	dirs, err := os.ReadDir(textureDir)
+	if err != nil {
+		return "", err
+	}
+	dirs = slices.DeleteFunc(dirs, func(d os.DirEntry) bool {
+		return slices.Contains(MetaDataDirs, d.Name())
+	})
+
+	if len(dirs) == 0 {
+		return "", fs.ErrNotExist
+	}
+
+	return filepath.Join(textureDir, dirs[0].Name()), nil
+}
+
 func GetModArchive(m types.Mod) (string, error) {
 	modDir := GetModDir(m)
 	dirs, err := os.ReadDir(modDir)
@@ -159,6 +194,46 @@ func DateSorter(ascending bool) func(a, b string) int {
 			return 0
 		}
 	}
+}
+
+const maxInt = int(^uint(0) >> 1)
+
+func StringJoinFunc[T any](elems []T, sep string, item func(e T) string) string {
+	switch len(elems) {
+	case 0:
+		return ""
+	case 1:
+		return item(elems[0])
+	}
+
+	var n int
+	if len(sep) > 0 {
+		if len(sep) >= maxInt/(len(elems)-1) {
+			panic("strings: Join output length overflow")
+		}
+		n += len(sep) * (len(elems) - 1)
+	}
+
+	strs := make([]string, len(elems))
+	for i, e := range elems {
+		strs[i] = item(e)
+	}
+
+	for _, elem := range strs {
+		if len(elem) > maxInt-n {
+			panic("strings: Join output length overflow")
+		}
+		n += len(elem)
+	}
+
+	var b strings.Builder
+	b.Grow(n)
+	b.WriteString(strs[0])
+	for _, s := range strs[1:] {
+		b.WriteString(sep)
+		b.WriteString(s)
+	}
+	return b.String()
 }
 
 func ExtractDateFromFilename(filename string) (time.Time, error) {

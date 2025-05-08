@@ -25,6 +25,7 @@ import { Delete, DeleteTexture } from "wailsjs/go/core/Downloader";
 import { Separator } from "@/components/ui/separator";
 import { Dialog } from "@/components/ui/dialog";
 import useTransitionNavigate from "@/hooks/useCrossfadeNavigate";
+import { SplitTexture } from "wailsjs/go/main/App";
 
 interface SearchState {
   query: string;
@@ -244,6 +245,11 @@ export function SearchScreen() {
     DeleteTexture(id).then(refreshCharacters);
   };
 
+
+  const splitTexture = async (id: number) => {
+    SplitTexture(id).then(refreshCharacters);
+  };
+
   const enableTexture = async (id: number, enabled: boolean) => {
     EnableTextureById(enabled, id).then(refreshCharacters);
   };
@@ -304,6 +310,7 @@ export function SearchScreen() {
                   )}
                   textureDropdownMenu={(t) => (
                     <TextureActionDropDown
+                      onSplit={() => splitTexture(t.id)}
                       onEnable={() => enableTexture(t.id, !t.enabled)}
                       onDelete={() => deleteTexture(t.id)}
                       onRename={() => setDialog({ x: "rename_texture", y: t.id })}

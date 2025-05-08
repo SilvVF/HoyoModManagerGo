@@ -43,7 +43,7 @@ import {
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
 import { ImageIcon, SearchIcon, XIcon } from "lucide-react";
-import { OpenFileDialog } from "wailsjs/go/main/App";
+import { OpenFileDialog, SplitTexture } from "wailsjs/go/main/App";
 import { imageFileExtensions } from "@/lib/tsutils";
 import { DialogClose, DialogTrigger } from "@radix-ui/react-dialog";
 import { EventsOn } from "wailsjs/runtime/runtime";
@@ -287,6 +287,10 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     EnableModById(enabled, id).then(refreshCharacters);
   };
 
+  const splitTexture = async (id: number) => {
+    SplitTexture(id).then(refreshCharacters);
+  };
+
   const deleteTexture = async (id: number) => {
     Downloader.DeleteTexture(id).then(refreshCharacters);
   };
@@ -401,6 +405,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
                   <TextureActionDropDown
                     onEnable={() => enableTexture(t.id, !t.enabled)}
                     onDelete={() => deleteTexture(t.id)}
+                    onSplit={() => splitTexture(t.id)}
                     onRename={() => setDialog({ type: "rename", rtype: "texture", id: t.id })}
                     onView={() => {
                       if (t.gbId !== 0) {

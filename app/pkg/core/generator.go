@@ -497,18 +497,17 @@ func overwriteTextures(modDir, modOutputDir string, textures []types.Texture, pa
 	log.LogDebugf("OverwriteTextures: %v", textures)
 
 	for _, t := range textures {
-		textureDir := filepath.Join(modDir, "textures", t.Filename)
 		// wrapped in func to stop defers from stacking cancels when done
 		copyTextureToOutput := func() error {
-			ctx, cancel := context.WithCancel(parentContext)
-			defer cancel()
 
-			dirs, err := os.ReadDir(textureDir)
+			textureArchive, err := util.GetTextureArchiveFrom(modDir, t)
 			if err != nil {
 				return err
 			}
 
-			textureArchive := filepath.Join(textureDir, dirs[0].Name())
+			ctx, cancel := context.WithCancel(parentContext)
+			defer cancel()
+
 			fsys, err := archives.FileSystem(ctx, textureArchive, nil)
 			if err != nil {
 				return err

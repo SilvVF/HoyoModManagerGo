@@ -160,7 +160,7 @@ func main() {
 	serverManager := server.NewServerManager(appPrefs, dbHelper, generator)
 	transfer := core.NewTransfer(sync, defaultEmitter, appPrefs.RootModDirPref.Preference)
 
-	app := NewApp(appPrefs, core.NewUpdator(gbApi, preferenceDirs), transfer)
+	app := NewApp(appPrefs, core.NewUpdator(gbApi, preferenceDirs), transfer, dbHelper)
 
 	err := wails.Run(&options.App{
 		Title:             "hoyomodmanager",

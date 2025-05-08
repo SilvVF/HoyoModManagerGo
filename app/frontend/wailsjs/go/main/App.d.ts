@@ -48,6 +48,8 @@ export function ReadImageFile(arg1:string):Promise<string>;
 
 export function RemoveOldModDir(arg1:string):Promise<void>;
 
+export function SplitTexture(arg1:number):Promise<void>;
+
 export function StartPlugins():Promise<void>;
 
 export function StopPlugins():Promise<void>;

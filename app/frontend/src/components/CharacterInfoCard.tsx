@@ -249,6 +249,7 @@ export function TextureActionDropDown(props: {
   onRename: () => void;
   onView: () => void;
   onEnable: () => void;
+  onSplit: () => void;
 }) {
   const [isOpen, setOpen] = useState(false);
 
@@ -299,6 +300,11 @@ export function TextureActionDropDown(props: {
           <CheckCheckIcon className="mr-2 h-4 w-4" />
           <span className="w-full">Toggle</span>
           <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onSplit}>
+          <CheckCheckIcon className="mr-2 h-4 w-4" />
+          <span className="w-full">Split</span>
+          <DropdownMenuShortcut>⇧s</DropdownMenuShortcut>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -49,6 +49,7 @@ type App struct {
 	plugins          *plugin.Plugins
 	appPrefs         *core.AppPrefs
 	updator          *core.Updator
+	db               *core.DbHelper
 	logType          int
 	transer          *core.Transfer
 	mutex            *sync.Mutex
@@ -65,7 +66,7 @@ type CompressProgress struct {
 }
 
 // NewApp creates a new App application struct
-func NewApp(appPrefs *core.AppPrefs, updator *core.Updator, transfer *core.Transfer) *App {
+func NewApp(appPrefs *core.AppPrefs, updator *core.Updator, transfer *core.Transfer, db *core.DbHelper) *App {
 	return &App{
 		appPrefs:         appPrefs,
 		dev:              *dev,
@@ -77,6 +78,7 @@ func NewApp(appPrefs *core.AppPrefs, updator *core.Updator, transfer *core.Trans
 		compressMutex:    &sync.Mutex{},
 		compressCancel:   func() {},
 		compressProgress: CompressProgress{},
+		db:               db,
 	}
 }
 
@@ -532,4 +534,18 @@ func (a *App) StopPlugins() error {
 	a.plugins = nil
 
 	return nil
+}
+
+func (a *App) SplitTexture(tid int) error {
+
+	t, err := a.db.SelecteTextureById(tid)
+	if err != nil {
+		return err
+	}
+	m, err := a.db.SelectModById(t.ModId)
+	if err != nil {
+		return err
+	}
+
+	return core.ParseTextureDir(a.ctx, a.db, m, t)
 }

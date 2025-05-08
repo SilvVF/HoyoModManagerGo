@@ -90,6 +90,10 @@ export function RemoveOldModDir(arg1) {
   return window['go']['main']['App']['RemoveOldModDir'](arg1);
 }
 
+export function SplitTexture(arg1) {
+  return window['go']['main']['App']['SplitTexture'](arg1);
+}
+
 export function StartPlugins() {
   return window['go']['main']['App']['StartPlugins']();
 }
