@@ -125,6 +125,11 @@ DELETE FROM texture WHERE texture.id = :id;
 -- name: SelectModsByGbId :many
 SELECT * FROM mod WHERE mod.gb_id = :gbId;
 
+-- name: UpdateTagName :exec
+UPDATE tag SET 
+    tag_name = :updatedName
+WHERE mod_id = :id AND tag_name = :oldName;
+
 -- name: UpdateModEnabledById :exec
 UPDATE mod SET
     selected = :selected

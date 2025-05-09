@@ -1041,6 +1041,23 @@ func (q *Queries) UpdatePlaylistName(ctx context.Context, arg UpdatePlaylistName
 	return err
 }
 
+const updateTagName = `-- name: UpdateTagName :exec
+UPDATE tag SET 
+    tag_name = ?1
+WHERE mod_id = ?2 AND tag_name = ?3
+`
+
+type UpdateTagNameParams struct {
+	UpdatedName string
+	ID          int64
+	OldName     string
+}
+
+func (q *Queries) UpdateTagName(ctx context.Context, arg UpdateTagNameParams) error {
+	_, err := q.db.ExecContext(ctx, updateTagName, arg.UpdatedName, arg.ID, arg.OldName)
+	return err
+}
+
 const updateTextureEnabledById = `-- name: UpdateTextureEnabledById :exec
 UPDATE texture SET
     selected = ?1

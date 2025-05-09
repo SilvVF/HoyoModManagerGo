@@ -7,8 +7,6 @@ import { useShallow } from "zustand/shallow";
 import {
   EnableModById,
   EnableTextureById,
-  RenameMod,
-  RenameTexture,
   SelectCharacterWithModsTagsAndTextures,
 } from "wailsjs/go/core/DbHelper";
 import { Game } from "@/data/dataapi";
@@ -18,14 +16,12 @@ import {
   ModActionsDropDown,
   TextureActionDropDown,
 } from "@/components/CharacterInfoCard";
-import { NameDialog } from "@/components/NameDialog";
-import { useMemo, useState } from "react";
-import { type Pair } from "@/lib/tsutils";
 import { Delete, DeleteTexture } from "wailsjs/go/core/Downloader";
 import { Separator } from "@/components/ui/separator";
 import { Dialog } from "@/components/ui/dialog";
 import useTransitionNavigate from "@/hooks/useCrossfadeNavigate";
 import { SplitTexture } from "wailsjs/go/main/App";
+import { useDialogStore } from "@/components/appdialog";
 
 interface SearchState {
   query: string;
@@ -36,13 +32,6 @@ interface SearchState {
   onQueryChange: (value: string) => void;
   onSearch: () => void;
 }
-
-export type SearchDialogType =
-  | "rename_mod"
-  | "create_tag"
-  | "rename_tag"
-  | "rename_texture";
-export type SearchDialog = Pair<SearchDialogType, number>;
 
 type Bang = "tag" | "mod" | "character" | "game" | "g" | "texture";
 
@@ -229,7 +218,7 @@ export function SearchScreen() {
   const navigate = useTransitionNavigate();
   const results = useSearchStore(useShallow((state) => state.results));
 
-  const [dialog, setDialog] = useState<SearchDialog | undefined>(undefined);
+  const setDialog = useDialogStore(useShallow(s => s.setDialog))
 
   const refreshCharacters = useSearchStore((state) => state.onSearch);
 
@@ -256,11 +245,6 @@ export function SearchScreen() {
 
   return (
     <div className="flex flex-col h-full w-full items-center justify-top">
-      <SearchOverlayOptions
-        dialog={dialog}
-        setDialog={setDialog}
-        refreshCharacters={() => { }}
-      />
       <SearchBar />
       <div className="w-full flex flex-col p-4">
         <h3>
@@ -297,23 +281,21 @@ export function SearchScreen() {
                     <ModActionsDropDown
                       onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
                       onDelete={() => deleteMod(mwt.mod.id)}
-                      onRename={() =>
-                        setDialog({ x: "rename_mod", y: mwt.mod.id })
-                      }
+                      onRename={() => setDialog({ type: "rename_mod", id: mwt.mod.id, refresh: refreshCharacters })}
                       onView={() => {
                         if (mwt.mod.gbId !== 0) {
                           navigate(`/mods/${mwt.mod.gbId}`);
                         }
                       }}
                       onKeymapEdit={() => navigate(`/keymap/${mwt.mod.id}`)}
-                    />
+                      addTag={() => setDialog({ type: "add_tag", mod: mwt.mod, refresh: refreshCharacters })} />
                   )}
                   textureDropdownMenu={(t) => (
                     <TextureActionDropDown
                       onSplit={() => splitTexture(t.id)}
                       onEnable={() => enableTexture(t.id, !t.enabled)}
                       onDelete={() => deleteTexture(t.id)}
-                      onRename={() => setDialog({ x: "rename_texture", y: t.id })}
+                      onRename={() => setDialog({ type: "rename_texture", id: t.id, refresh: refreshCharacters })}
                       onView={() => {
                         if (t.gbId !== 0) {
                           navigate(`/mods/${t.gbId}`);
@@ -328,61 +310,6 @@ export function SearchScreen() {
           })}
         </div>
       </Dialog>
-    </div>
-  );
-}
-
-function SearchOverlayOptions({
-  dialog,
-  setDialog,
-  refreshCharacters,
-}: {
-  dialog: SearchDialog | undefined;
-  setDialog: (dialog: SearchDialog | undefined) => void;
-  refreshCharacters: () => void;
-}) {
-  const dialogSettings = useMemo(() => {
-    return {
-      rename_mod: {
-        title: "Rename mod",
-        description:
-          "rename the current mod (this will change the folder name in files)",
-        onSuccess: (id: number, name: string) => {
-          RenameMod(id, name).then(refreshCharacters);
-        },
-      },
-      create_tag: {
-        title: "Create tag",
-        description: "create a tag for the mod",
-        onSuccess: () => { },
-      },
-      rename_tag: {
-        title: "Rename tag",
-        description: "Rename the current tag",
-        onSuccess: () => { },
-      },
-      rename_texture: {
-        title: "Rename Texture",
-        description:
-          "rename the current texture (this will change the folder name in files)",
-        onSuccess: (id: number, name: string) => {
-          RenameTexture(id, name).then(refreshCharacters);
-        },
-      },
-    };
-  }, []);
-
-  const settings = dialog !== undefined ? dialogSettings[dialog.x] : undefined;
-
-  return (
-    <div className="absolute bottom-4 -translate-y-1/2 end-12 flex flex-row z-10">
-      <NameDialog
-        title={settings?.title ?? ""}
-        description={settings?.description ?? ""}
-        open={dialog !== undefined}
-        onOpenChange={() => setDialog(undefined)}
-        onSuccess={(n) => settings!!.onSuccess(dialog!!.y, n)}
-      />
     </div>
   );
 }

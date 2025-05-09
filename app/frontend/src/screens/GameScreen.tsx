@@ -6,23 +6,12 @@ import { types } from "wailsjs/go/models";
 import * as Generator from "../../wailsjs/go/core/Generator";
 import * as Downloader from "../../wailsjs/go/core/Downloader";
 import {
-  CreateCustomCharacter,
   DeleteCharacter,
   DisableAllModsByGame,
   EnableModById,
   EnableTextureById,
-  InsertTagForAllModsByCharacterIds,
-  RenameMod,
-  RenameTexture,
 } from "../../wailsjs/go/core/DbHelper";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   genshinElementPref,
@@ -42,56 +31,11 @@ import {
   TextureActionDropDown,
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
-import { ImageIcon, SearchIcon, XIcon } from "lucide-react";
-import { OpenFileDialog, SplitTexture } from "wailsjs/go/main/App";
-import { imageFileExtensions } from "@/lib/tsutils";
-import { DialogClose, DialogTrigger } from "@radix-ui/react-dialog";
+import { SearchIcon, XIcon } from "lucide-react";
+import { SplitTexture } from "wailsjs/go/main/App";
 import { EventsOn } from "wailsjs/runtime/runtime";
-import { NameDialogContent } from "@/components/NameDialog";
 import useCrossfadeNavigate from "@/hooks/useCrossfadeNavigate";
-
-type RenameType = "mod" | "texture"
-
-const RenameConfig: { [key in RenameType]: { title: string, description: string } } = {
-  "mod": {
-    title: "Rename mod",
-    description: "rename the current mod (this will change the folder name in files)",
-  },
-  "texture": {
-    title: "Rename Texture",
-    description: "rename the current texture (this will change the folder name in files)",
-  }
-}
-
-const DialogConfig: { [key in GameScreenDialog["type"]]: { title: string, description: string } } = {
-  "rename": { // handled above
-    title: "",
-    description: ""
-  },
-  "add_character": {
-    title: "Add a custom character",
-    description: "Adds an additional character to the database with the selected name and image (can be a local file but path must not change)"
-  },
-  "add_tag_multi": {
-    title: "Add a tag to all mods",
-    description: "Adds a tags to all mods in multiselected characters"
-  }
-}
-
-type GameScreenDialog =
-  | {
-    type: "rename",
-    rtype: RenameType,
-    id: number
-  }
-  | {
-    type: "add_character",
-  } |
-  {
-    type: "add_tag_multi"
-    selectedChars: types.CharacterWithModsAndTags[]
-  }
-
+import { useDialogStore } from "@/components/appdialog";
 
 const getElementPref = (game: number): GoPref<string[]> => {
   switch (game) {
@@ -237,7 +181,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const updates = usePlaylistStore(useShallow((state) => state.updates));
 
-  const [dialog, setDialog] = useState<GameScreenDialog | undefined>(undefined);
+  const setDialog = useDialogStore(useShallow(s => s.setDialog))
 
   const running = useDownloadStore(useShallow((state) => state.running));
   const refreshCharacters = () => setRefreshTrigger((prev) => prev + 1);
@@ -283,6 +227,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     Downloader.Delete(id).then(refreshCharacters);
   };
 
+
   const enableMod = async (id: number, enabled: boolean) => {
     EnableModById(enabled, id).then(refreshCharacters);
   };
@@ -303,40 +248,17 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     DisableAllModsByGame(props.game).then(refreshCharacters);
   };
 
-  const Settings = useMemo(() => {
-    if (dialog?.type !== "rename") {
-      return undefined
-    }
-
-    const conf = RenameConfig[dialog.rtype]
-
-    return (
-      <NameDialogContent
-        title={conf.title}
-        description={conf.description}
-        onSuccess={(input) => {
-          switch (dialog.rtype) {
-            case "mod":
-              RenameMod(dialog.id, input).then(refreshCharacters)
-              setDialog(undefined)
-              break;
-            case "texture":
-              RenameTexture(dialog.id, input).then(refreshCharacters)
-              setDialog(undefined)
-              break;
-          }
-        }}
-      />
-    );
-  }, [dialog]);
-
-
   return (
     <div className="flex flex-col w-full" key={props.game}>
       <div className="sticky top-0 z-10 backdrop-blur-md p-2 me-2 w-full">
         {multiSelectEnabled ? (
           <MultiSelectTopBar
-            addTag={() => setDialog({ type: "add_tag_multi", selectedChars: multiSelectedCharacters })}
+            addTag={() => setDialog({
+              type: "add_tag_multi",
+              selectedChars: multiSelectedCharacters.map((it) => it.characters),
+              refresh: refreshCharacters,
+              game: props.game
+            })}
             clearMultiSelected={clearMultiSelected}
             deleteCharacters={deleteCharacters}
             multiSelectedCharacters={multiSelectedCharacters}
@@ -346,7 +268,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
           <GameActionsTopBar
             unselectAll={disableAllMods}
             elements={elements}
-            addCharacter={() => setDialog({ type: "add_character" })}
+            addCharacter={() => setDialog({ type: "add_character", game: props.game, elements: elements, refresh: refreshCharacters })}
             importMod={() => navigate("/import", {
               state: { game: props.game }
             })}
@@ -354,19 +276,8 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
           />
         )}
       </div>
-      <GameScreenDialogHost
-        game={props.game}
-        dataApi={props.dataApi}
-        refreshCharacters={refreshCharacters}
-        elements={elements}
-        dialog={dialog}
-        setDialog={setDialog}
-      />
       <FloatingActionButtons
-        elements={elements}
         dataApi={props.dataApi}
-        dialog={dialog}
-        setDialog={setDialog}
         refreshCharacters={refreshCharacters}
       />
       <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4 mb-16 mx-2">
@@ -381,47 +292,38 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
               enableMod={enableMod}
               cmt={c}
               modDropdownMenu={(mwt) => (
-                <Dialog>
-                  <ModActionsDropDown
-                    onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
-                    onDelete={() => deleteMod(mwt.mod.id)}
-                    onRename={() => setDialog({ type: "rename", rtype: "mod", id: mwt.mod.id })}
-                    onView={() => {
-                      if (mwt.mod.gbId !== 0) {
-                        navigate(`/mods/${mwt.mod.gbId}`);
-                      }
-                    }}
-                    onKeymapEdit={() => navigate(`/keymap/${mwt.mod.id}`)}
-                  />
-                  {Settings}
-                </Dialog>
+                <ModActionsDropDown
+                  addTag={() => setDialog({ type: "add_tag", mod: mwt.mod, refresh: refreshCharacters })}
+                  onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
+                  onDelete={() => deleteMod(mwt.mod.id)}
+                  onRename={() => setDialog({ type: "rename_mod", id: mwt.mod.id, refresh: refreshCharacters })}
+                  onView={() => {
+                    if (mwt.mod.gbId !== 0) {
+                      navigate(`/mods/${mwt.mod.gbId}`);
+                    }
+                  }}
+                  onKeymapEdit={() => navigate(`/keymap/${mwt.mod.id}`)}
+                />
               )}
               textureDropdownMenu={(t) => (
-                <Dialog
-                  modal={true}
-                  open={Settings !== undefined}
-                  onOpenChange={() => setDialog(undefined)}
-                >
-                  <TextureActionDropDown
-                    onEnable={() => enableTexture(t.id, !t.enabled)}
-                    onDelete={() => deleteTexture(t.id)}
-                    onSplit={() => splitTexture(t.id)}
-                    onRename={() => setDialog({ type: "rename", rtype: "texture", id: t.id })}
-                    onView={() => {
-                      if (t.gbId !== 0) {
-                        navigate(`/mods/${t.gbId}`);
-                      }
-                    }}
-                  />
-                  {Settings}
-                </Dialog>
+                <TextureActionDropDown
+                  onEnable={() => enableTexture(t.id, !t.enabled)}
+                  onDelete={() => deleteTexture(t.id)}
+                  onSplit={() => splitTexture(t.id)}
+                  onRename={() => setDialog({ type: "rename_texture", id: t.id, refresh: refreshCharacters })}
+                  onView={() => {
+                    if (t.gbId !== 0) {
+                      navigate(`/mods/${t.gbId}`);
+                    }
+                  }}
+                />
               )}
               enableTexture={enableTexture}
             />
           </div>
         ))}
       </div>
-    </div>
+    </div >
   );
 }
 
@@ -497,61 +399,11 @@ function MultiSelectTopBar(
   )
 }
 
-function GameScreenDialogHost({
-  dataApi, dialog, refreshCharacters, setDialog, elements, game
-}: {
-  dataApi: DataApi,
-  game: number,
-  dialog: GameScreenDialog | undefined,
-  refreshCharacters: () => void,
-  setDialog: (dialog: GameScreenDialog | undefined) => void,
-  elements: string[]
-}) {
-
-  const createCharacter = async (name: string, image: string, element: string | undefined) => {
-    CreateCustomCharacter(name, image, element ?? "", await dataApi.game()).then(refreshCharacters)
-  }
-
-
-  if (dialog === undefined) {
-    return undefined
-  }
-
-  const config = DialogConfig[dialog.type]
-
-  if (dialog.type === "rename") {
-    return undefined
-  }
-
-  return (
-    <Dialog open={dialog !== undefined} onOpenChange={() => setDialog(undefined)}>
-      <DialogContent>
-        <DialogTitle>
-          {config.title}
-        </DialogTitle>
-        <DialogDescription>
-          {config.description}
-        </DialogDescription>
-        <CustomDialogContent
-          dialog={dialog}
-          game={game}
-          refreshCharacters={refreshCharacters}
-          createCharacter={createCharacter}
-          elements={elements}
-        />
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 function FloatingActionButtons({
   dataApi,
   refreshCharacters,
 }: {
   dataApi: DataApi;
-  dialog: GameScreenDialog | undefined;
-  elements: string[];
-  setDialog: (dialog: GameScreenDialog | undefined) => void;
   refreshCharacters: () => void;
 }) {
 
@@ -685,157 +537,6 @@ function FloatingActionButtons({
       )}
     </div>
   );
-}
-
-interface DialogContentProps {
-  dialog: GameScreenDialog,
-  game: number,
-  elements: string[],
-  refreshCharacters: () => void;
-  createCharacter: (name: string, image: string, element: string | undefined) => void
-}
-
-function CustomDialogContent(
-  props: DialogContentProps
-) {
-  switch (props.dialog.type) {
-    case "rename":
-      return undefined
-    case "add_character":
-      return <AddCharacterDialog {...props} />
-    case "add_tag_multi":
-      return <AddTagMultiDialog {...props} />
-  }
-}
-
-function AddTagMultiDialog(
-  {
-    dialog,
-    game,
-    refreshCharacters
-  }: DialogContentProps
-) {
-
-
-
-  const [inputValue, setInputValue] = useState("");
-  const handleChange = (event: any) => {
-    setInputValue(event.target.value);
-  };
-
-  if (dialog.type !== "add_tag_multi") {
-    return undefined
-  }
-
-  const onConfirmed = () => {
-    if (inputValue.isBlank()) {
-      return
-    }
-
-    InsertTagForAllModsByCharacterIds(
-      dialog.selectedChars.map(c => c.characters.id),
-      inputValue,
-      game
-    )
-      .then(refreshCharacters)
-  }
-
-  return (
-    <>
-      <text>{dialog.selectedChars.map(c => c.characters.name).join(", ")}</text>
-      <div className="grid flex-1 gap-2">
-        <Input
-          value={inputValue}
-          onChange={handleChange}
-        />
-      </div>
-      <DialogFooter className="sm:justify-start">
-        <DialogClose asChild>
-          <Button type="button" variant="secondary">
-            Cancel
-          </Button>
-        </DialogClose>
-        <DialogClose asChild>
-          <Button
-            onPointerDown={onConfirmed}
-            type="button"
-            variant="secondary"
-          >
-            Confirm
-          </Button>
-        </DialogClose>
-      </DialogFooter>
-    </>
-  )
-}
-
-function AddCharacterDialog({ createCharacter, elements }: DialogContentProps) {
-  const imageInput = useRef<HTMLInputElement>(null)
-  const nameInput = useRef<HTMLInputElement>(null)
-  const [selectedElement, setSelectedElement] = useState<string | undefined>(undefined)
-
-
-  const onCreateCategory = () => {
-    const image = imageInput.current?.value
-    const name = nameInput.current?.value
-
-    if (image && name) {
-      createCharacter(name, image, selectedElement)
-    }
-  }
-
-  const openImageFilePicker = () => {
-    OpenFileDialog("select a category image", imageFileExtensions).then((file) => {
-      if (imageInput.current) {
-        imageInput.current.value = file
-      }
-    })
-  }
-
-  return (
-    <div className="flex flex-col space-y-1 w-full overflow-clip">
-      <text>Name</text>
-      <Input ref={nameInput} type="text" className="w-full" />
-      <text>Image</text>
-      <div className="flex flex-row space-x-2">
-        <Input ref={imageInput} type="text" className="w-full" />
-        <Button onPointerDown={openImageFilePicker} size={"icon"}>
-          <ImageIcon />
-        </Button>
-      </div>
-      <div className="grid grid-cols-4 space-x-2 space-y-2 p-2">
-        {elements.map((element) => {
-          return (
-            <Button
-              key={element}
-              size={"sm"}
-              variant={
-                selectedElement === element
-                  ? "secondary"
-                  : "outline"
-              }
-              className={cn(
-                selectedElement === element
-                  ? "bg-primary/50 hover:bg-primary/50"
-                  : "bg-secondary/40",
-                "rounded-full backdrNop-blur-md border-0"
-              )}
-              onPointerDown={() => setSelectedElement(e => element === e ? undefined : element)}
-            >
-              {element}
-            </Button>
-          );
-        })}
-      </div>
-      <DialogTrigger>
-        <Button
-          className="w-full"
-          onPointerDown={onCreateCategory}>
-          Create
-        </Button>
-      </DialogTrigger>
-    </div>
-  )
 }
 
 interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement>, FilterState {

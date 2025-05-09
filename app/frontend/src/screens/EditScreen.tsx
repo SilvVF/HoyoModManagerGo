@@ -27,7 +27,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   EnableModById,
-  RenameMod,
   SelectClosestCharacter,
   SelectModById,
   UpdateModGbId,
@@ -35,7 +34,6 @@ import {
 } from "wailsjs/go/core/DbHelper";
 import { types } from "wailsjs/go/models";
 import { useShallow } from "zustand/shallow";
-import { NameDialogContent } from "@/components/NameDialog";
 import { ModActionsDropDown } from "@/components/CharacterInfoCard";
 import * as Downloader from "wailsjs/go/core/Downloader"
 import { Switch } from "@/components/ui/switch";
@@ -43,16 +41,11 @@ import { OpenMultipleFilesDialog } from "wailsjs/go/main/App";
 import { ConfirmInput } from "@/components/ConfirmInput";
 import { SectionList } from "@/components/SectionList";
 import { Card } from "@/components/ui/card";
-import { imageFileExtensions, isValidUrl } from "@/lib/tsutils";
+import { imageFileExtensions } from "@/lib/tsutils";
 import AsyncImage from "@/components/AsyncImage";
 import useTransitionNavigate, { useTransitionNavigateDelta } from "@/hooks/useCrossfadeNavigate";
+import { useDialogStore } from "@/components/appdialog";
 
-
-type DialogType =
-  | "rename_mod"
-  | "create_tag"
-  | "rename_tag"
-  | "set_mod_image"
 
 export function KeymappingScreen() {
   const { modId } = useParams();
@@ -61,6 +54,8 @@ export function KeymappingScreen() {
 
   const [modRefreshTrigger, setModRefreshTrigger] = useState(0);
   const refreshMod = () => setModRefreshTrigger(p => p + 1)
+
+  const setDialog = useDialogStore(useShallow(s => s.setDialog))
 
   const mod = useStateProducer<types.Mod | undefined>(
     undefined,
@@ -80,42 +75,6 @@ export function KeymappingScreen() {
     [mod]
   );
 
-  const [dialog, setDialog] = useState<DialogType | undefined>(undefined);
-
-  const dialogSettings = useMemo(() => {
-    return {
-      rename_mod: {
-        title: "Rename mod",
-        description:
-          "rename the current mod (this will change the folder name in files)",
-        onSuccess: (id: number, name: string) => {
-          RenameMod(id, name).then(refreshMod);
-        },
-      },
-      create_tag: {
-        title: "Create tag",
-        description: "create a tag for the mod",
-        onSuccess: () => { },
-      },
-      rename_tag: {
-        title: "Rename tag",
-        description: "Rename the current tag",
-        onSuccess: () => { },
-      },
-      set_mod_image: {
-        title: "Add image url",
-        description: "input a url to add to the mod",
-        onSuccess: (id: number, url: string) => {
-          if (mod !== undefined && isValidUrl(url)) {
-            const set = new Set(mod.previewImages)
-            set.add(url)
-            UpdateModImages(id, Array.from(set)).then(refreshMod)
-          }
-        },
-      },
-    };
-  }, [mod]);
-
   const [expandImgs, setExpandImgs] = useState(false);
   const [hoveredImg, setHoveredImg] = useState("");
 
@@ -126,20 +85,6 @@ export function KeymappingScreen() {
   const enableMod = async (id: number, enabled: boolean) => {
     EnableModById(enabled, id).then(refreshMod);
   };
-
-  const Settings = useMemo(() => {
-    if (dialog === undefined || mod === undefined) return undefined;
-    const curr = dialogSettings[dialog];
-    return (
-      <NameDialogContent
-        title={curr.title}
-        description={curr.description}
-        onSuccess={(input) => {
-          curr.onSuccess(mod.id, input)
-        }}
-      />
-    );
-  }, [mod, dialog, dialogSettings]);
 
 
   const removeImageFile = (uri: string, mod: types.Mod) => {
@@ -167,87 +112,83 @@ export function KeymappingScreen() {
     return <></>
   }
 
-
   return (
     <div className="flex flex-col">
-      <Dialog open={dialog !== undefined} onOpenChange={(open) => setDialog((prev) => open ? prev : undefined)}>
-        <div className="flex flex-row items-end justify-start space-y-4">
-          <img
-            src={character.avatarUrl}
-            className="object-contain aspect-square h-32"
-          />
-          <div className="flex flex-row items-center w-full">
-            <div className="flex flex-col">
-              <text className="text-xl font-semibold text-muted-foreground">
-                Editing:
-              </text>
-              <div className="flex flex-row items-center space-x-2">
-                <text className="text-3xl font-semibold me-4">{mod.filename}</text>
-                <ConfirmInput
-                  key={mod.gbId}
-                  Label={
-                    <text className="text-sm text-zinc-500">GB id</text>
-                  }
-                  className="w-32"
-                  value={mod.gbId}
-                  getValue={(value) => {
-                    return Number(value)
-                  }}
-                  getInput={(value) => {
-                    return Math.max(0, Math.floor(Number(value)))
-                  }}
-                  changeValue={(v) => {
-                    UpdateModGbId(mod.id, v).finally(refreshMod)
-                  }}
-                  type="number"
-                />
-                <div className="w-2" />
-                <Switch
-                  checked={mod.enabled}
-                  onCheckedChange={() =>
-                    enableMod(mod.id, !mod.enabled)
-                  }
-                />
+      <div className="flex flex-row items-end justify-start space-y-4">
+        <img
+          src={character.avatarUrl}
+          className="object-contain aspect-square h-32"
+        />
+        <div className="flex flex-row items-center w-full">
+          <div className="flex flex-col">
+            <text className="text-xl font-semibold text-muted-foreground">
+              Editing:
+            </text>
+            <div className="flex flex-row items-center space-x-2">
+              <text className="text-3xl font-semibold me-4">{mod.filename}</text>
+              <ConfirmInput
+                key={mod.gbId}
+                Label={
+                  <text className="text-sm text-zinc-500">GB id</text>
+                }
+                className="w-32"
+                value={mod.gbId}
+                getValue={(value) => {
+                  return Number(value)
+                }}
+                getInput={(value) => {
+                  return Math.max(0, Math.floor(Number(value)))
+                }}
+                changeValue={(v) => {
+                  UpdateModGbId(mod.id, v).finally(refreshMod)
+                }}
+                type="number"
+              />
+              <div className="w-2" />
+              <Switch
+                checked={mod.enabled}
+                onCheckedChange={() =>
+                  enableMod(mod.id, !mod.enabled)
+                }
+              />
 
-                {mod ?
-                  <ModActionsDropDown
-                    onEnable={() => enableMod(mod.id, !mod.enabled)}
-                    onDelete={() => deleteMod(mod.id)}
-                    onRename={() =>
-                      setDialog("rename_mod")
+              {mod ?
+                <ModActionsDropDown
+                  addTag={() => setDialog({ type: "add_tag", mod: mod, refresh: refreshMod })}
+                  onEnable={() => enableMod(mod.id, !mod.enabled)}
+                  onDelete={() => deleteMod(mod.id)}
+                  onRename={() =>
+                    setDialog({ type: "rename_mod", id: mod.id, refresh: refreshMod })
+                  }
+                  onView={() => {
+                    if (mod.gbId !== 0) {
+                      navigate(`/mods/${mod.gbId}`);
                     }
-                    onView={() => {
-                      if (mod.gbId !== 0) {
-                        navigate(`/mods/${mod.gbId}`);
-                      }
-                    }}
-                  />
-                  : undefined}
-                {Settings}
-
-              </div>
+                  }}
+                />
+                : undefined}
             </div>
           </div>
         </div>
-        <ModPreviewImages
-          mod={mod}
-          hovered={hoverImg}
-          setHovered={(uri) => setHoveredImg(uri)}
-        />
-        <ImageSelect
-          images={mod.previewImages}
-          addImage={() => setDialog("set_mod_image")}
-          hovered={hoverImg}
-          expanded={expandImgs}
-          setExpanded={(exp) => setExpandImgs(exp)}
-          addImageFile={addImageFile}
-          onHovered={(uri) => setHoveredImg(uri)}
-          removeImage={(uri) => removeImageFile(uri, mod)}
-        />
-        <KeybindsUi
-          modId={mod.id}
-        />
-      </Dialog>
+      </div>
+      <ModPreviewImages
+        mod={mod}
+        hovered={hoverImg}
+        setHovered={(uri) => setHoveredImg(uri)}
+      />
+      <ImageSelect
+        images={mod.previewImages}
+        addImage={() => setDialog({ type: "set_mod_image", mod: mod, refresh: refreshMod })}
+        hovered={hoverImg}
+        expanded={expandImgs}
+        setExpanded={(exp) => setExpandImgs(exp)}
+        addImageFile={addImageFile}
+        onHovered={(uri) => setHoveredImg(uri)}
+        removeImage={(uri) => removeImageFile(uri, mod)}
+      />
+      <KeybindsUi
+        modId={mod.id}
+      />
     </div>
   );
 }

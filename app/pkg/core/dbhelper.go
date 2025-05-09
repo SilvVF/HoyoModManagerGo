@@ -598,6 +598,21 @@ func (h *DbHelper) UpdateModsEnabledFromSlice(ids []int64, game types.Game) erro
 	})
 }
 
+func (h *DbHelper) RenameTag(modId int64, oldName string, name string) error {
+	return h.queries.UpdateTagName(h.ctx, db.UpdateTagNameParams{
+		UpdatedName: name,
+		ID:          modId,
+		OldName:     oldName,
+	})
+}
+
+func (h *DbHelper) InsertTag(mid int64, tagname string) error {
+	return h.queries.InsertTag(h.ctx, db.InsertTagParams{
+		TagName: tagname,
+		ModId:   mid,
+	})
+}
+
 func (h *DbHelper) InsertTagForAllModsByCharacterIds(ids []int64, tagname string, game types.Game) error {
 	return h.withTransaction(func(q *db.Queries) error {
 		for _, cid := range ids {

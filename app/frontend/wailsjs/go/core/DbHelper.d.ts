@@ -22,11 +22,15 @@ export function EnableTextureById(arg1:boolean,arg2:number):Promise<void>;
 
 export function InsertMod(arg1:types.Mod):Promise<number>;
 
+export function InsertTag(arg1:number,arg2:string):Promise<void>;
+
 export function InsertTagForAllModsByCharacterIds(arg1:Array<number>,arg2:string,arg3:types.Game):Promise<void>;
 
 export function InsertTexture(arg1:types.Texture):Promise<number>;
 
 export function RenameMod(arg1:number,arg2:string):Promise<void>;
+
+export function RenameTag(arg1:number,arg2:string,arg3:string):Promise<void>;
 
 export function RenameTexture(arg1:number,arg2:string):Promise<void>;
 

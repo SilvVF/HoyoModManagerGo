@@ -42,6 +42,10 @@ export function InsertMod(arg1) {
   return window['go']['core']['DbHelper']['InsertMod'](arg1);
 }
 
+export function InsertTag(arg1, arg2) {
+  return window['go']['core']['DbHelper']['InsertTag'](arg1, arg2);
+}
+
 export function InsertTagForAllModsByCharacterIds(arg1, arg2, arg3) {
   return window['go']['core']['DbHelper']['InsertTagForAllModsByCharacterIds'](arg1, arg2, arg3);
 }
@@ -52,6 +56,10 @@ export function InsertTexture(arg1) {
 
 export function RenameMod(arg1, arg2) {
   return window['go']['core']['DbHelper']['RenameMod'](arg1, arg2);
+}
+
+export function RenameTag(arg1, arg2, arg3) {
+  return window['go']['core']['DbHelper']['RenameTag'](arg1, arg2, arg3);
 }
 
 export function RenameTexture(arg1, arg2) {

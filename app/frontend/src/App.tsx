@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { GetAppUpdate, DismissUpdate } from "wailsjs/go/main/App"
 import { types } from "wailsjs/go/models";
 import { BrowserOpenURL } from "wailsjs/runtime/runtime";
+import AppDialogHost from "./components/appdialog";
 
 function App() {
 
@@ -32,20 +33,22 @@ function App() {
             <SidebarInset className="overflow-hidden">
               <DownloadOverlay />
               <AppUpdateDialog />
-              <ScrollProvider provideRef={scrollAreaRef}>
-                <div
-                  id="main"
-                  ref={scrollAreaRef}
-                  className={cn(
-                    !expanded && queued > 0
-                      ? "max-h-[calc(100vh-30px)]"
-                      : "max-h-[calc(100vh)]",
-                    "overflow-y-auto overflow-x-hidden"
-                  )}
-                >
-                  <Outlet />
-                </div>
-              </ScrollProvider>
+              <AppDialogHost>
+                <ScrollProvider provideRef={scrollAreaRef}>
+                  <div
+                    id="main"
+                    ref={scrollAreaRef}
+                    className={cn(
+                      !expanded && queued > 0
+                        ? "max-h-[calc(100vh-30px)]"
+                        : "max-h-[calc(100vh)]",
+                      "overflow-y-auto overflow-x-hidden"
+                    )}
+                  >
+                    <Outlet />
+                  </div>
+                </ScrollProvider>
+              </AppDialogHost>
             </SidebarInset>
           </SidebarProvider>
         </div>

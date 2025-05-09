@@ -321,6 +321,7 @@ export function ModActionsDropDown(props: {
   onView: () => void;
   onEnable: () => void;
   onKeymapEdit?: () => void;
+  addTag: () => void;
 }) {
   const [isOpen, setOpen] = useState(false);
 
@@ -371,6 +372,11 @@ export function ModActionsDropDown(props: {
           <CheckCheckIcon className="mr-2 h-4 w-4" />
           <span className="w-full">Toggle</span>
           <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={props.addTag}>
+          <CheckCheckIcon className="mr-2 h-4 w-4" />
+          <span className="w-full">Add Tag</span>
+          <DropdownMenuShortcut>⇧a</DropdownMenuShortcut>
         </DropdownMenuItem>
         {props.onKeymapEdit ? (
           <DropdownMenuItem onClick={props.onKeymapEdit}>

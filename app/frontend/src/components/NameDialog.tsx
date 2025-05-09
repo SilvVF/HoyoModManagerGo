@@ -74,7 +74,7 @@ export function NameDialogContent(props: {
                     <Input
                         value={inputValue}
                         onChange={handleChange}
-                        defaultValue="Playlist"
+                        defaultValue=""
                     />
                 </div>
             </div>
