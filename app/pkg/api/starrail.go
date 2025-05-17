@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hmm/pkg/types"
 	"io"
+	"strings"
 )
 
 const (
@@ -86,7 +87,7 @@ func (s *starRailApi) Characters() []types.Character {
 		characters = append(characters, types.Character{
 			Id:        c.Id,
 			Element:   c.Element,
-			AvatarUrl: fmt.Sprintf(iconFmtString, c.Icon),
+			AvatarUrl: strings.TrimSpace(fmt.Sprintf(iconFmtString, c.Icon)),
 			Game:      types.StarRail,
 			Name:      c.Name,
 		})

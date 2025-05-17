@@ -1,16 +1,16 @@
 import { types } from "wailsjs/go/models"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from "./ui/dialog"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog"
 import { create } from "zustand"
 import { useShallow } from "zustand/shallow"
 import { ReactNode, useMemo, useRef, useState } from "react"
 import { Input } from "./ui/input"
 import { Button } from "./ui/button"
-import { CreateCustomCharacter, InsertTag, InsertTagForAllModsByCharacterIds, RenameMod, RenameTexture, UpdateModImages } from "wailsjs/go/core/DbHelper"
 import { imageFileExtensions, isValidUrl } from "@/lib/tsutils"
 import { OpenFileDialog } from "wailsjs/go/main/App"
 import { ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Game } from "@/data/dataapi"
+import { BrowserOpenURL } from "wailsjs/runtime/runtime"
+import DB from "@/data/database"
 
 
 const DialogConfig: { [key in AppDialogType["type"]]: { title: string, description: string } } = {
@@ -37,6 +37,10 @@ const DialogConfig: { [key in AppDialogType["type"]]: { title: string, descripti
     "set_mod_image": {
         title: "Add image url",
         description: "input a url to add to the mod",
+    },
+    "app_update": {
+        title: "",
+        description: ""
     }
 }
 
@@ -69,6 +73,11 @@ type AppDialogType =
         type: "set_mod_image",
         refresh: () => void,
         mod: types.Mod
+    } | {
+        type: "app_update",
+        update: types.AppUpdate,
+        date: string,
+        onDismiss: () => void
     }
 
 export interface DialogStore {
@@ -118,15 +127,15 @@ function AppDialogContent({ dialog }: { dialog: AppDialogType | undefined }) {
     switch (dialog.type) {
         case "rename_mod":
             return <RenameDialog onSuccess={(name) =>
-                RenameMod(dialog.id, name).then(dialog.refresh)
+                DB.renameMod(dialog.id, name).then(dialog.refresh)
             } />
         case "rename_texture":
             return <RenameDialog onSuccess={(name) =>
-                RenameTexture(dialog.id, name).then(dialog.refresh)
+                DB.renameTexture(dialog.id, name).then(dialog.refresh)
             } />
         case "add_character":
             return <AddCharacterDialog elements={dialog.elements} createCharacter={(name, image, selectedElement) => {
-                CreateCustomCharacter(name, image, selectedElement ?? "", Game).then(dialog.refresh)
+                DB.createCustomCharacter(name, image, selectedElement ?? "", dialog.game).then(dialog.refresh)
             }} />
         case "add_tag_multi":
             return <AddTagMultiDialog
@@ -135,19 +144,57 @@ function AppDialogContent({ dialog }: { dialog: AppDialogType | undefined }) {
                 refreshCharacters={dialog.refresh} />
         case "add_tag":
             return <RenameDialog onSuccess={(name) => {
-                InsertTag(dialog.mod.id, name)
+                DB.insertTag(dialog.mod.id, name)
             }} />
         case "set_mod_image":
             return <RenameDialog onSuccess={(url) => {
                 if (isValidUrl(url)) {
                     const set = new Set(dialog.mod.previewImages)
                     set.add(url)
-                    UpdateModImages(dialog.mod.id, Array.from(set)).then(dialog.refresh)
+                    DB.updateModImages(dialog.mod.id, Array.from(set)).then(dialog.refresh)
                 }
             }} />
-
+        case "app_update":
+            return <AppUpdateDialog {...dialog} />
     }
 }
+
+
+function AppUpdateDialog({ update, date, onDismiss }: {
+    update: types.AppUpdate,
+    date: string,
+    onDismiss: () => void,
+}) {
+    return (
+        <Dialog onOpenChange={onDismiss}>
+            <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>{update?.version}</DialogTitle>
+                    <DialogDescription className="">
+                        New version has been found <br />
+                        {date}
+                        <a
+                            onClick={(e) => {
+                                e.preventDefault();
+                                if (update?.dlLink) {
+                                    BrowserOpenURL(update.dlLink);
+                                }
+                            }}
+                            className="block break-all text-primary hover:underline cursor-pointer"
+                        >
+                            {update?.dlLink?.replace("https://api.github.com/repos/", "")}
+                        </a>
+                    </DialogDescription>
+                </DialogHeader>
+                <p className="break-words">
+                    <h1>Release Notes</h1> <br />
+                    <span className="block whitespace-pre-wrap">{update?.releaseNotes}</span>
+                </p>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 
 
 function AddTagMultiDialog(
@@ -171,7 +218,7 @@ function AddTagMultiDialog(
             return
         }
 
-        InsertTagForAllModsByCharacterIds(
+        DB.insertTagForAllModsByCharacterIds(
             selectedChars.map(c => c.id),
             inputValue,
             game

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"hmm/db"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
@@ -23,7 +24,7 @@ const (
 	uncompressedFile = "clorinde"
 )
 
-func _getDb() *DbHelper {
+func _getDb() *dbh.DbHelper {
 	dbfile := filepath.Join(util.GetCacheDir(), "hmm.db")
 
 	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
@@ -35,7 +36,7 @@ func _getDb() *DbHelper {
 		panic(err)
 	}
 
-	return NewDbHelper(db.New(dbSql), dbSql)
+	return dbh.NewDbHelper(db.New(dbSql), dbSql)
 }
 
 func TestZip(t *testing.T) {

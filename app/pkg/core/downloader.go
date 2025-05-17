@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
@@ -50,7 +51,7 @@ type DLItem struct {
 }
 
 type Downloader struct {
-	db         *DbHelper
+	db         *dbh.DbHelper
 	emitter    EventEmmiter
 	pool       pond.Pool
 	Queue      map[string]*DLItem
@@ -59,7 +60,7 @@ type Downloader struct {
 }
 
 func NewDownloader(
-	db *DbHelper,
+	db *dbh.DbHelper,
 	count pref.Preference[int],
 	spaceSaver pref.Preference[bool],
 	emmiter EventEmmiter,
@@ -120,39 +121,6 @@ func (d *Downloader) RemoveFromQueue(key string) {
 	defer d.mutex.Unlock()
 
 	delete(d.Queue, key)
-}
-
-func (d *Downloader) DeleteTexture(textureId int) error {
-	texture, err := d.db.SelecteTextureById(textureId)
-	if err != nil {
-		log.LogPrint(err.Error())
-		return err
-	}
-	mod, err := d.db.SelectModById(texture.ModId)
-	if err != nil {
-		log.LogPrint(err.Error())
-		return err
-	}
-	path := filepath.Join(util.GetModDir(mod), "textures", texture.Filename)
-	log.LogPrint(path)
-	if err = os.RemoveAll(path); err != nil {
-		return err
-	}
-	return d.db.DeleteTextureById(texture.Id)
-}
-
-func (d *Downloader) Delete(modId int) error {
-	mod, err := d.db.SelectModById(modId)
-	if err != nil {
-		log.LogPrint(err.Error())
-		return err
-	}
-	path := filepath.Join(util.GetCharacterDir(mod.Character, mod.Game), mod.Filename)
-	log.LogPrint(path)
-	if err = os.RemoveAll(path); err != nil {
-		return err
-	}
-	return d.db.DeleteModById(modId)
 }
 
 type DataProgress struct {

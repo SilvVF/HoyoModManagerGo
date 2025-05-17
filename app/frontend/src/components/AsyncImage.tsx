@@ -1,23 +1,23 @@
-import { HTMLAttributes, useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { ReadImageFile } from "wailsjs/go/main/App"
 
-interface AsyncImageProps extends HTMLAttributes<HTMLImageElement> {
-    uri: string
-}
+type AsyncImageProps = React.DetailedHTMLProps<React.ImgHTMLAttributes<HTMLImageElement>, HTMLImageElement>
 
-export default function AsyncImage({ uri, ...rest }: AsyncImageProps) {
+export default function AsyncImage(props: AsyncImageProps) {
+
     const ref = useRef<HTMLImageElement>(null)
+    const url = useMemo(() => props.src?.trim() ?? "", [props.src])
 
     useEffect(() => {
-        if (uri.startsWith("file://") && ref.current) {
-            ReadImageFile(uri).then((base64) => {
-                const dotIdx = uri.lastIndexOf(".")
+        if (url.startsWith("file://") && ref.current) {
+            ReadImageFile(url).then((base64) => {
+                const dotIdx = url.lastIndexOf(".")
                 if (ref.current) {
-                    ref.current.src = `data:image/${uri.slice(dotIdx, uri.length)};base64,${base64}`
+                    ref.current.src = `data:image/${url.slice(dotIdx, url.length)};base64,${base64}`
                 }
             })
         }
-    }, [uri, ref])
+    }, [url, ref])
 
-    return (<img ref={ref} src={uri} alt={uri} {...rest} />)
+    return <img {...props} />
 }

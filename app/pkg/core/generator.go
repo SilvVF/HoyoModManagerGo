@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
@@ -26,7 +27,7 @@ const (
 )
 
 type Generator struct {
-	db           *DbHelper
+	db           *dbh.DbHelper
 	poolSize     int
 	cancelFns    map[types.Game]types.Pair[context.Context, context.CancelFunc]
 	wgMap        map[types.Game]*sync.WaitGroup
@@ -39,7 +40,7 @@ type Generator struct {
 }
 
 func NewGenerator(
-	db *DbHelper,
+	db *dbh.DbHelper,
 	outputDirs map[types.Game]pref.Preference[string],
 	ignoredDirPref pref.Preference[[]string],
 	cleanExportDir pref.Preference[bool],

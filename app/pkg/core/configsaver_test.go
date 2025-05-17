@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"hmm/db"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
@@ -455,7 +456,7 @@ func TestReadConfig(t *testing.T) {
 	}
 
 	queries := db.New(dbSql)
-	dbHelper := NewDbHelper(queries, dbSql)
+	dbHelper := dbh.NewDbHelper(queries, dbSql)
 
 	dirs := map[types.Game]string{
 		types.Genshin:  genshinDir,

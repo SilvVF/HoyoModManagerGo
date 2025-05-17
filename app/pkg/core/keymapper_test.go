@@ -3,6 +3,7 @@ package core
 import (
 	"database/sql"
 	"hmm/db"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/util"
 	"os"
 	"path/filepath"
@@ -27,7 +28,7 @@ func TestConfigFileGeneration(t *testing.T) {
 	}
 
 	queries := db.New(dbSql)
-	dbHelper := NewDbHelper(queries, dbSql)
+	dbHelper := dbh.NewDbHelper(queries, dbSql)
 
 	keymapper := NewKeymapper(dbHelper)
 

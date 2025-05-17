@@ -88,6 +88,8 @@ func avatarIconUrl(name string) string {
 		return "https://keqingmains.com/wp-content/uploads/2023/11/Charlotte_Icon.webp"
 	case "lan yan":
 		return avatar("LanYan", "Lanyan")
+	case "ororon":
+		return avatar("Ororon", "Olorun")
 	default:
 		split := strings.Split(name, " ")
 		last := split[len(split)-1]
@@ -159,7 +161,7 @@ func (g *genshinApi) Characters() []types.Character {
 					Name:      characterJson.Name,
 					Element:   characterJson.Element,
 					Game:      types.Genshin,
-					AvatarUrl: avatarIconUrl(characterJson.Name),
+					AvatarUrl: strings.TrimSpace(avatarIconUrl(characterJson.Name)),
 				},
 			)
 		}

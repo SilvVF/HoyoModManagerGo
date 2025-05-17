@@ -4,12 +4,6 @@ import * as GbApi from "../../../wailsjs/go/api/GbApi";
 import { api, types } from "../../../wailsjs/go/models";
 import { useParams } from "react-router-dom";
 import { LogPrint } from "../../../wailsjs/runtime/runtime";
-import {
-  SelectClosestCharacter,
-  SelectCharactersByGame,
-  SelectModsByGbId,
-  SelectModsByCharacterName,
-} from "../../../wailsjs/go/core/DbHelper";
 import * as Downloader from "../../../wailsjs/go/core/Downloader";
 import {
   Table,
@@ -52,6 +46,7 @@ import { Game } from "@/data/dataapi";
 import { DownloadIcon, FileBoxIcon, TrashIcon } from "lucide-react";
 import AsyncImage from "@/components/AsyncImage";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import DB from "@/data/database";
 
 const inDownloadState = (state: State | undefined) => {
   if (state) {
@@ -82,7 +77,7 @@ export function ModViewScreen() {
   const downloaded = useStateProducer<types.Mod[]>(
     [],
     async (update) => {
-      SelectModsByGbId(Number(id)).then((mods) => update(mods));
+      DB.selectModsByGbId(Number(id)).then((mods) => update(mods));
     },
     [refreshTrigger, running, id]
   );
@@ -106,7 +101,7 @@ export function ModViewScreen() {
   }, [content]);
 
   const deleteMod = async (id: number) => {
-    Downloader.Delete(id).then(refresh);
+    DB.deleteMod(id).then(refresh);
   };
 
   const refresh = async () => {
@@ -155,7 +150,7 @@ export function ModViewScreen() {
         }
       })
         .then(({ name, game }) =>
-          SelectClosestCharacter(name, game).then(setCharacter)
+          DB.selectClosestCharacter(name, game).then(setCharacter)
         )
     }
   }, [content, dataApi]);
@@ -335,7 +330,7 @@ function TextureDownloadButton({
     [],
     async (update) => {
       if (character) {
-        SelectModsByCharacterName(character.name, character.game).then(update);
+        DB.selectModsByCharacterName(character.name, character.game).then(update);
       }
     },
     [character]
@@ -371,7 +366,7 @@ function TextureDownloadButton({
                         <text>{m.filename}</text>
                         <div className="flex flex-row space-x-2 overflow-x-auto">
                           {m.previewImages?.map((uri) => (
-                            <AsyncImage key={uri} className="object-cover aspect-square w-70 h-70 m-2" uri={uri} />
+                            <AsyncImage key={uri} className="object-cover aspect-square w-70 h-70 m-2" src={uri} />
                           ))}
                         </div>
                       </HoverCardContent>
@@ -451,7 +446,8 @@ export function CharacterSelectDropdown(props: {
     [],
     async (update) => {
       if (dataApi) {
-        SelectCharactersByGame(await dataApi.game()).then((v) => update(v));
+        const result = await dataApi.characters()
+        update(result)
       }
     },
     [dataApi]

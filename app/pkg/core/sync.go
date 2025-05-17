@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"hmm/pkg/api"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
@@ -26,7 +27,7 @@ const (
 type SyncRequest int
 
 type SyncHelper struct {
-	db              *DbHelper
+	db              *dbh.DbHelper
 	running         map[types.Game]pond.Pool
 	initialComplete map[types.Game]*sync.Once
 	emitter         EventEmmiter
@@ -49,7 +50,7 @@ func (s *SyncHelper) RunAll(request SyncRequest) {
 	wg.Wait()
 }
 
-func NewSyncHelper(db *DbHelper, emitter EventEmmiter) *SyncHelper {
+func NewSyncHelper(db *dbh.DbHelper, emitter EventEmmiter) *SyncHelper {
 	return &SyncHelper{
 		db:      db,
 		emitter: emitter,
@@ -92,7 +93,10 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 
 		seenMods := []string{}
 		modIdToSeenTextures := map[int][]string{}
-		characters := s.db.SelectCharactersByGame(game)
+		characters, err := s.db.SelectCharactersByGame(game)
+		if err != nil {
+			return err
+		}
 		log.LogPrint(fmt.Sprintf("characters size: %d synctype: %d game: %d", len(characters), request, game))
 
 		if len(characters) <= 0 || request == SyncRequestForceNetwork {
@@ -164,7 +168,7 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 				}
 
 				if err != nil {
-					m, err := s.db.SelectModByCNameAndGame(mod.Filename, mod.Character, mod.Game.Int64())
+					m, err := s.db.SelectModByFileCharacterGame(mod.Filename, mod.Character, mod.Game)
 					mod = m
 					if err != nil {
 						continue
@@ -198,8 +202,8 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 		log.LogPrint("Deleting mods not in: " + strings.Join(seenMods, "\n - "))
 		log.LogPrintf("Deleting textures not in: %v", modIdToSeenTextures)
 
-		s.db.deleteUnusedMods(seenMods, game)
-		s.db.deleteUnusedTextures(modIdToSeenTextures)
+		s.db.DeleteUnusedMods(seenMods, game)
+		s.db.DeleteUnusedTextureFromMap(modIdToSeenTextures)
 
 		return nil
 	})

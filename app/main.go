@@ -2,23 +2,20 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"embed"
 	"flag"
-	"hmm/db"
 	"hmm/pkg/api"
 	"hmm/pkg/core"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/server"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
 	golog "log"
-	"os"
 	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pressly/goose/v3"
 	"github.com/rosedblabs/rosedb/v2"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/logger"
@@ -44,36 +41,6 @@ var dev = flag.Bool("dev", false, "enable dev mode")
 var prefs = flag.Int("prefs", 0, "set prefs mode 0 - DISK (DEFAULT) 1 - MEMORY")
 var logType = flag.Int("log", 0, "set the log type 0 - println, 1 - file")
 var logLevel = flag.String("log_level", "debub", "set level for logs")
-
-func initDbAndRunMigrations(ctx context.Context) (*db.Queries, *sql.DB) {
-	dbfile := util.GetDbFile()
-	os.MkdirAll(filepath.Dir(dbfile), os.ModePerm)
-
-	util.CreateFileIfNotExists(dbfile)
-
-	dbSql, err := sql.Open("sqlite3", dbfile)
-	if err != nil {
-		panic(err)
-	}
-	// create tables
-	if _, err := dbSql.ExecContext(ctx, ddl); err != nil {
-		panic(err)
-	}
-
-	goose.SetBaseFS(embedMigrations)
-
-	if err := goose.SetDialect(string(goose.DialectSQLite3)); err != nil {
-		log.LogError(err.Error())
-	}
-
-	if err := goose.Up(dbSql, "db/migrations"); err != nil {
-		log.LogError(err.Error())
-	}
-
-	queries := db.New(dbSql)
-
-	return queries, dbSql
-}
 
 func getAppBackgroundColor(appPrefs *core.AppPrefs) *options.RGBA {
 	var bgColor *options.RGBA
@@ -118,10 +85,10 @@ func main() {
 	}
 
 	go api.CleanCache()
-	queries, dbSql := initDbAndRunMigrations(ctx)
+	queries, dbSql := dbh.InitDbAndRunMigrations(ctx, embedMigrations, ddl)
 
 	// CORE
-	dbHelper := core.NewDbHelper(queries, dbSql)
+	dbHelper := dbh.NewDbHelper(queries, dbSql)
 
 	appPrefs := core.NewAppPrefs(pref.NewPrefs(store))
 	util.SetRootModDirFn(appPrefs.RootModDirPref.Get)

@@ -95,7 +95,7 @@ func (w *wutheringWavesApi) Characters() []types.Character {
 			Id:        util.HashForName(name),
 			Game:      w.Game,
 			Name:      name,
-			AvatarUrl: PRYDWEN_URL + avatar[0],
+			AvatarUrl: strings.TrimSpace(PRYDWEN_URL + avatar[0]),
 			Element:   elem[0],
 		})
 	}

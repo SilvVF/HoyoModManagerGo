@@ -1,16 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DataApi, Game } from "../data/dataapi";
-import { syncCharacters, SyncType } from "../data/sync";
+import { SyncType, useSync } from "../data/sync";
 import { cn, useStateProducer } from "../lib/utils";
 import { types } from "wailsjs/go/models";
-import * as Generator from "../../wailsjs/go/core/Generator";
-import * as Downloader from "../../wailsjs/go/core/Downloader";
-import {
-  DeleteCharacter,
-  DisableAllModsByGame,
-  EnableModById,
-  EnableTextureById,
-} from "../../wailsjs/go/core/DbHelper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,10 +24,11 @@ import {
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
 import { SearchIcon, XIcon } from "lucide-react";
-import { SplitTexture } from "wailsjs/go/main/App";
 import { EventsOn } from "wailsjs/runtime/runtime";
 import useCrossfadeNavigate from "@/hooks/useCrossfadeNavigate";
 import { useDialogStore } from "@/components/appdialog";
+import DB from "@/data/database";
+import { useGenerator } from "@/data/generator";
 
 const getElementPref = (game: number): GoPref<string[]> => {
   switch (game) {
@@ -65,7 +58,12 @@ const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[], refreshChar
   const deleteCharacters = () => {
     const toDelete = selectedCards?.map(id => cwmt.find(c => c.characters.id === id)!)!
     Promise.all(
-      toDelete.map((c) => DeleteCharacter(c.characters.name, c.characters.id, c.characters.game))
+      toDelete.map((c) => DB.deleteCharacter(
+        c.characters.name,
+        c.characters.id,
+        c.characters.game
+      )
+      )
     ).finally(refreshCharacters)
   }
 
@@ -223,30 +221,27 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     clearMultiSelected
   } = useMultiSelectState(characters, refreshCharacters)
 
-  const deleteMod = async (id: number) => {
-    Downloader.Delete(id).then(refreshCharacters);
-  };
+  const handleUnselectAll = () => {
+    DB.disableAllMods(props.game).then(refreshCharacters)
+  }
 
+  const handleEnableMod = (id: number, enabled: boolean) => {
+    DB.enableMod(id, enabled).then(refreshCharacters)
+  }
 
-  const enableMod = async (id: number, enabled: boolean) => {
-    EnableModById(enabled, id).then(refreshCharacters);
-  };
+  const handleDeleteMod = (id: number) => {
+    DB.deleteMod(id).then(refreshCharacters)
+  }
 
-  const splitTexture = async (id: number) => {
-    SplitTexture(id).then(refreshCharacters);
-  };
-
-  const deleteTexture = async (id: number) => {
-    Downloader.DeleteTexture(id).then(refreshCharacters);
-  };
-
-  const enableTexture = async (id: number, enabled: boolean) => {
-    EnableTextureById(enabled, id).then(refreshCharacters);
-  };
-
-  const disableAllMods = async () => {
-    DisableAllModsByGame(props.game).then(refreshCharacters);
-  };
+  const handleEnableTexture = (id: number, enabled: boolean) => {
+    DB.enableTexture(id, enabled).then(refreshCharacters)
+  }
+  const handleDeleteTexture = (id: number) => {
+    DB.deleteTexture(id).then(refreshCharacters)
+  }
+  const handleSplitTexture = (id: number) => {
+    DB.splitTexture(id).then(refreshCharacters)
+  }
 
   return (
     <div className="flex flex-col w-full" key={props.game}>
@@ -266,7 +261,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
             setMultiSelectEnabled={setMultiSelectEnabled} />
         ) : (
           <GameActionsTopBar
-            unselectAll={disableAllMods}
+            unselectAll={handleUnselectAll}
             elements={elements}
             addCharacter={() => setDialog({ type: "add_character", game: props.game, elements: elements, refresh: refreshCharacters })}
             importMod={() => navigate("/import", {
@@ -289,13 +284,13 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
               className={cn(mutliSelectedIds.includes(c.characters.id) ? "border-2 border-primary" : "")}
               onLongPress={() => setMultiSelectEnabled(true)}
               onClick={() => toggleMultiSelected(c.characters.id)}
-              enableMod={enableMod}
+              enableMod={handleEnableMod}
               cmt={c}
               modDropdownMenu={(mwt) => (
                 <ModActionsDropDown
                   addTag={() => setDialog({ type: "add_tag", mod: mwt.mod, refresh: refreshCharacters })}
-                  onEnable={() => enableMod(mwt.mod.id, !mwt.mod.enabled)}
-                  onDelete={() => deleteMod(mwt.mod.id)}
+                  onEnable={() => handleEnableMod(mwt.mod.id, !mwt.mod.enabled)}
+                  onDelete={() => handleDeleteMod(mwt.mod.id)}
                   onRename={() => setDialog({ type: "rename_mod", id: mwt.mod.id, refresh: refreshCharacters })}
                   onView={() => {
                     if (mwt.mod.gbId !== 0) {
@@ -307,9 +302,9 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
               )}
               textureDropdownMenu={(t) => (
                 <TextureActionDropDown
-                  onEnable={() => enableTexture(t.id, !t.enabled)}
-                  onDelete={() => deleteTexture(t.id)}
-                  onSplit={() => splitTexture(t.id)}
+                  onEnable={() => handleEnableTexture(t.id, !t.enabled)}
+                  onDelete={() => handleDeleteTexture(t.id)}
+                  onSplit={() => handleSplitTexture(t.id)}
                   onRename={() => setDialog({ type: "rename_texture", id: t.id, refresh: refreshCharacters })}
                   onView={() => {
                     if (t.gbId !== 0) {
@@ -318,7 +313,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
                   }}
                 />
               )}
-              enableTexture={enableTexture}
+              enableTexture={handleEnableTexture}
             />
           </div>
         ))}
@@ -407,49 +402,15 @@ function FloatingActionButtons({
   refreshCharacters: () => void;
 }) {
 
-  const [reloading, setReloading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const {
+    reload,
+    reloading
+  } = useGenerator(dataApi)
 
-
-  // lazy way to restore the state of generating job TODO: maybe use events 
-  useEffect(() => {
-    const handleGenStarted = () => {
-      dataApi.game().then((game) => {
-        Generator.IsRunning(game)
-          .then((reloading) => {
-            setReloading(reloading)
-            if (reloading) {
-              Generator
-                .AwaitCurrentJob(game)
-                .finally(() => setReloading(false))
-            }
-          })
-      })
-    }
-
-    handleGenStarted()
-    const cancel = EventsOn("gen_started", () => {
-      handleGenStarted()
-    })
-
-    return () => {
-      cancel()
-    }
-  }, [])
-
-  const sync = (type: SyncType) => {
-    setSyncing(true);
-    syncCharacters(dataApi, type)
-      .then(refreshCharacters)
-      .finally(() => setSyncing(false));
-  };
-
-  const reload = async () => {
-    setReloading(true);
-    Generator.Reload(await dataApi.game())
-      .finally(() => setReloading(false))
-      .catch();
-  };
+  const {
+    syncing,
+    sync,
+  } = useSync(dataApi, refreshCharacters)
 
   return (
     <div className="fixed bottom-4 -translate-y-1 end-6 flex flex-row z-10">

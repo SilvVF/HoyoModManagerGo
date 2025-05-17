@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"hmm/pkg/core"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"net"
 
@@ -31,7 +32,7 @@ type ServerManager struct {
 	server    *CancelableServer
 	prefs     *core.AppPrefs
 	generator *core.Generator
-	db        *core.DbHelper
+	db        *dbh.DbHelper
 	err       chan error
 	events    chan ServCmd
 }
@@ -73,7 +74,7 @@ func (*ServerManager) GetLocalIp() (string, error) {
 	return "", errors.New("are you connected to the network?")
 }
 
-func NewServerManager(prefs *core.AppPrefs, db *core.DbHelper, g *core.Generator) *ServerManager {
+func NewServerManager(prefs *core.AppPrefs, db *dbh.DbHelper, g *core.Generator) *ServerManager {
 	return &ServerManager{
 		server:    nil,
 		prefs:     prefs,

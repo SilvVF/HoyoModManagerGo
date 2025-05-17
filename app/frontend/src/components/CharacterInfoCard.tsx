@@ -133,7 +133,7 @@ const ModRow = ({
               <text>Tags: {tags.join(", ")}</text>
               <div className="flex flex-row space-x-2 overflow-x-auto">
                 {images?.map((uri) => (
-                  <AsyncImage key={uri} className="object-cover aspect-square w-70 h-70 m-2" uri={uri} />
+                  <AsyncImage key={uri} className="object-cover aspect-square w-70 h-70 m-2" src={uri} />
                 ))}
               </div>
             </HoverCardContent>
@@ -191,7 +191,7 @@ export function CharacterInfoCard({
     >
       <div className="flex flex-row m-2 w-full">
         <div className="w-1/3 pr-2 flex flex-col items-center">
-          <img
+          <AsyncImage
             src={character.avatarUrl}
             alt={`${character.name} Avatar`}
             className="w-full aspect-square object-cover rounded-md"

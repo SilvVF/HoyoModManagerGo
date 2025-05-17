@@ -112,7 +112,7 @@ func (z *zenlessZoneZeroApi) Characters() []types.Character {
 			Id:        util.HashForName(name),
 			Game:      z.Game,
 			Name:      name,
-			AvatarUrl: PRYDWEN_URL + dataSrc[0],
+			AvatarUrl: strings.TrimSpace(PRYDWEN_URL + dataSrc[0]),
 			Element:   altText,
 		})
 	}

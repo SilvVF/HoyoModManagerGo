@@ -3,13 +3,11 @@ package core
 import (
 	"context"
 	"errors"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/util"
-	"io"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -37,30 +35,6 @@ func NewTransfer(sync *SyncHelper, emitter EventEmmiter, dirPref pref.Preference
 	}
 }
 
-func backupDatabase() error {
-	dbFile := util.GetDbFile()
-	currentTime := time.Now()
-	backupFileName := strings.ReplaceAll(currentTime.Format("2006-01-02 15:04:05"), " ", "_")
-	backupFileName = strings.ReplaceAll(backupFileName, ":", "-")
-
-	db, err := os.Open(dbFile)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	backupDir := filepath.Join(util.GetCacheDir(), "backup")
-	os.MkdirAll(backupDir, os.ModePerm)
-	backup, err := os.Create(filepath.Join(backupDir, backupFileName+".db"))
-	if err != nil {
-		return err
-	}
-	defer backup.Close()
-
-	_, err = io.Copy(db, backup)
-	return err
-}
-
 func (t *Transfer) ChangeRootModDir(dest string, copyOver bool) (err error) {
 
 	prevDir := t.dirPref.Get()
@@ -68,7 +42,7 @@ func (t *Transfer) ChangeRootModDir(dest string, copyOver bool) (err error) {
 	defer func() {
 		if err == nil {
 			t.canRemove[prevDir] = struct{}{}
-			err := backupDatabase()
+			err := dbh.BackupDatabase()
 			if err != nil {
 				log.LogError(err.Error())
 			}

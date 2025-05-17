@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hmm/pkg/core"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
@@ -40,7 +41,7 @@ func (j *Job) Status() string {
 
 type Server struct {
 	port      int
-	db        *core.DbHelper
+	db        *dbh.DbHelper
 	generator *core.Generator
 	authType  pref.Preference[int]
 	username  pref.Preference[string]
@@ -52,7 +53,7 @@ type Server struct {
 
 func newServer(
 	port int,
-	db *core.DbHelper,
+	db *dbh.DbHelper,
 	generator *core.Generator,
 	prefs *core.AppPrefs,
 ) *Server {
@@ -196,14 +197,19 @@ func validateGame(w http.ResponseWriter, r *http.Request) (types.Game, error) {
 	return types.Game(game), nil
 }
 
-func gameDataHandler(db *core.DbHelper) func(w http.ResponseWriter, r *http.Request) {
+func gameDataHandler(db *dbh.DbHelper) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		game, err := validateGame(w, r)
 		if err != nil {
 			return
 		}
 
-		cwmt := db.SelectCharacterWithModsTagsAndTextures(game, "", "", "")
+		cwmt, err := db.SelectCharacterWithModsTagsAndTextures(game, "", "", "")
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Server encountered an error"))
+			return
+		}
 
 		bytes, err := json.Marshal(cwmt)
 
@@ -218,16 +224,24 @@ func gameDataHandler(db *core.DbHelper) func(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func dataHandler(db *core.DbHelper) func(w http.ResponseWriter, r *http.Request) {
+func dataHandler(db *dbh.DbHelper) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		results := make([]DataResponse, 0, 4)
 
 		for _, game := range validGame {
 
+			d, err := db.SelectCharacterWithModsTagsAndTextures(types.Game(game), "", "", "")
+
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte("Server encountered an error"))
+				return
+			}
+
 			data := DataResponse{
 				Game: game,
-				Data: db.SelectCharacterWithModsTagsAndTextures(types.Game(game), "", "", ""),
+				Data: d,
 			}
 
 			results = append(results, data)
@@ -246,7 +260,7 @@ func dataHandler(db *core.DbHelper) func(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func updateModHandler(db *core.DbHelper) func(w http.ResponseWriter, r *http.Request) {
+func updateModHandler(db *dbh.DbHelper) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -262,7 +276,7 @@ func updateModHandler(db *core.DbHelper) func(w http.ResponseWriter, r *http.Req
 			return
 		}
 
-		err = db.EnableModById(t.Enabled, t.Id)
+		err = db.UpdateModEnabledById(t.Enabled, t.Id)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte("Bad Request: unable to update mod"))

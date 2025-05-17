@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
@@ -42,7 +43,7 @@ type KeyBind struct {
 }
 
 type KeyMapper struct {
-	db    *DbHelper
+	db    *dbh.DbHelper
 	mutex *sync.Mutex
 
 	loaded bool
@@ -58,7 +59,7 @@ type KeyMapper struct {
 	keymap      map[string][]KeyBind
 }
 
-func NewKeymapper(db *DbHelper) *KeyMapper {
+func NewKeymapper(db *dbh.DbHelper) *KeyMapper {
 	return &KeyMapper{
 		db:     db,
 		mutex:  &sync.Mutex{},

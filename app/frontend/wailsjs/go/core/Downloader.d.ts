@@ -3,10 +3,6 @@
 import {types} from '../models';
 import {core} from '../models';
 
-export function Delete(arg1:number):Promise<void>;
-
-export function DeleteTexture(arg1:number):Promise<void>;
-
 export function Download(arg1:string,arg2:string,arg3:string,arg4:number,arg5:types.Game,arg6:number,arg7:Array<string>):Promise<void>;
 
 export function DownloadTexture(arg1:string,arg2:string,arg3:number,arg4:number,arg5:Array<string>):Promise<void>;

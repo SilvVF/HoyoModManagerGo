@@ -1,7 +1,10 @@
 package api
 
 import (
+	"fmt"
 	"hmm/pkg/log"
+	"hmm/pkg/types"
+	"hmm/pkg/util"
 	"testing"
 )
 
@@ -23,6 +26,22 @@ func TestZZZApi(t *testing.T) {
 	c := api.Characters()
 
 	log.LogDebugf("%v", c)
+
+	t.Fail()
+}
+
+func TestGenshinApi(t *testing.T) {
+
+	api := NewGenshinApi()
+
+	c := api.Characters()
+
+	log.LogDebugf("%v",
+		util.StringJoinFunc(c,
+			"\n\t - ",
+			func(e types.Character) string {
+				return fmt.Sprintf("%v", e)
+			}))
 
 	t.Fail()
 }

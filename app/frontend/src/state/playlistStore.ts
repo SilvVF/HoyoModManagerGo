@@ -1,13 +1,7 @@
-import {
-  CreatePlaylist,
-  DeletePlaylistById,
-  SelectPlaylistWithModsAndTags,
-  UpdateModsEnabledFromSlice,
-  UpdatePlaylistName,
-} from "../../wailsjs/go/core/DbHelper";
 import { types } from "../../wailsjs/go/models";
 import { create } from "zustand";
 import { Game } from "@/data/dataapi";
+import DB from "@/data/database";
 
 export type PlaylistState = {
   playlists: PlaylistMap;
@@ -37,13 +31,13 @@ const games = [Game.Genshin, Game.StarRail, Game.ZZZ, Game.WuWa];
 export const usePlaylistStore = create<PlaylistState>((set, get) => ({
   playlists: initailPlaylists(),
   create: async (game, name) => {
-    CreatePlaylist(game, name).then(() => get().refresh(game));
+    DB.createPlaylist(game, name).then(() => get().refresh(game));
   },
   updates: 0,
   enable: async (game, id) => {
     const playlist = get().playlists[game].find((p) => p.playlist.id === id);
     if (playlist === undefined) return;
-    UpdateModsEnabledFromSlice(
+    DB.enableMods(
       playlist.modsWithTags.map(({ mod }) => mod.id),
       game
     ).then(() => {
@@ -53,7 +47,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
   init: async () => {
     const lists = await Promise.all(
       games.flatMap((i) =>
-        SelectPlaylistWithModsAndTags(i).then((v) => {
+        DB.selectPlaylistWithModsAndTags(i).then((v) => {
           return { k: i, v: v };
         })
       )
@@ -67,7 +61,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     });
   },
   refresh: async (game: number) => {
-    SelectPlaylistWithModsAndTags(game).then((value) => {
+    DB.selectPlaylistWithModsAndTags(game).then((value) => {
       set((prev) => {
         const copy = prev.playlists
         copy[game] = value
@@ -78,7 +72,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     });
   },
   delete: async (id: number) => {
-    DeletePlaylistById(id).then(() => get().init());
+    DB.deletePlaylistById(id).then(() => get().init());
   },
   renamePlaylist: async (playlist: types.Playlist, name: string) => {
     get().rename(playlist.id, playlist.game, name)
@@ -89,6 +83,6 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       return
     }
 
-    UpdatePlaylistName(id, name).then(() => get().refresh(game))
+    DB.updatePlaylistName(id, name).then(() => get().refresh(game))
   }
 }));

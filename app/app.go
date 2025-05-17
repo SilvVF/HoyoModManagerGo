@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"hmm/pkg/core"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/plugin"
 	"hmm/pkg/types"
@@ -49,7 +50,7 @@ type App struct {
 	plugins          *plugin.Plugins
 	appPrefs         *core.AppPrefs
 	updator          *core.Updator
-	db               *core.DbHelper
+	db               *dbh.DbHelper
 	logType          int
 	transer          *core.Transfer
 	mutex            *sync.Mutex
@@ -66,7 +67,7 @@ type CompressProgress struct {
 }
 
 // NewApp creates a new App application struct
-func NewApp(appPrefs *core.AppPrefs, updator *core.Updator, transfer *core.Transfer, db *core.DbHelper) *App {
+func NewApp(appPrefs *core.AppPrefs, updator *core.Updator, transfer *core.Transfer, db *dbh.DbHelper) *App {
 	return &App{
 		appPrefs:         appPrefs,
 		dev:              *dev,
@@ -538,7 +539,7 @@ func (a *App) StopPlugins() error {
 
 func (a *App) SplitTexture(tid int) error {
 
-	t, err := a.db.SelecteTextureById(tid)
+	t, err := a.db.SelectTextureById(tid)
 	if err != nil {
 		return err
 	}

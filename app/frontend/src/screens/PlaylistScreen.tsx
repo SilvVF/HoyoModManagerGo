@@ -1,9 +1,4 @@
 import { useState } from "react";
-import {
-  SelectCharacterWithModsTagsAndTextures,
-  EnableModById,
-  DisableAllModsByGame,
-} from "../../wailsjs/go/core/DbHelper";
 import { cn, useStateProducer } from "@/lib/utils";
 import { types } from "wailsjs/go/models";
 import { Switch } from "@/components/ui/switch";
@@ -23,6 +18,7 @@ import { usePlaylistStore } from "@/state/playlistStore";
 import { useShallow } from "zustand/shallow";
 import { playlistGamePref, usePrefrenceAsState } from "@/data/prefs";
 import { Game } from "@/data/dataapi";
+import DB from "@/data/database";
 
 const gameNameFromId = (n: number) => {
   switch (n) {
@@ -73,24 +69,24 @@ function PlaylistScreenContent({ game, setGame }: {
   const mods = useStateProducer<types.CharacterWithModsAndTags[]>(
     [],
     async (update) => {
-      SelectCharacterWithModsTagsAndTextures(game, "", "", "").then((it) => update(it));
+      DB.selectCharacterWithModsTagsAndTextures(game, "", "", "").then((it) => update(it));
     },
     [modRefreshTrigger, game, updates]
   );
 
-  const toggleModEnabled = async (enabled: boolean, id: number) => {
-    EnableModById(enabled, id).then(() =>
+  const toggleModEnabled = (enabled: boolean, id: number) => {
+    DB.enableMod(id, enabled).then(() =>
       setModRefreshTrigger((prev) => prev + 1)
     );
   };
 
-  const unselectAllMods = async () => {
-    DisableAllModsByGame(game).then(() =>
+  const unselectAllMods = () => {
+    DB.disableAllMods(game).then(() =>
       setModRefreshTrigger((prev) => prev + 1)
     );
   };
 
-  const togglePlaylistEnabled = async (pwmt: types.PlaylistWithModsAndTags) => {
+  const togglePlaylistEnabled = (pwmt: types.PlaylistWithModsAndTags) => {
     enablePlaylist(pwmt.playlist.game, pwmt.playlist.id).then(() => setModRefreshTrigger((prev) => prev + 1));
   };
 

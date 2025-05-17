@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/types"
 	"hmm/pkg/util"
@@ -26,7 +27,7 @@ func getRootDir(path string) string {
 	return segments[0]
 }
 
-func ParseTextureDir(ctx context.Context, db *DbHelper, mod types.Mod, texture types.Texture) error {
+func ParseTextureDir(ctx context.Context, db *dbh.DbHelper, mod types.Mod, texture types.Texture) error {
 
 	modArchive, err := util.GetModArchive(mod)
 	if err != nil {

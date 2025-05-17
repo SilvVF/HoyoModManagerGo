@@ -25,17 +25,9 @@ import { EditIcon, SearchIcon, TrashIcon } from "lucide-react";
 import React, { useMemo } from "react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import {
-  EnableModById,
-  SelectClosestCharacter,
-  SelectModById,
-  UpdateModGbId,
-  UpdateModImages,
-} from "wailsjs/go/core/DbHelper";
 import { types } from "wailsjs/go/models";
 import { useShallow } from "zustand/shallow";
 import { ModActionsDropDown } from "@/components/CharacterInfoCard";
-import * as Downloader from "wailsjs/go/core/Downloader"
 import { Switch } from "@/components/ui/switch";
 import { OpenMultipleFilesDialog } from "wailsjs/go/main/App";
 import { ConfirmInput } from "@/components/ConfirmInput";
@@ -45,6 +37,7 @@ import { imageFileExtensions } from "@/lib/tsutils";
 import AsyncImage from "@/components/AsyncImage";
 import useTransitionNavigate, { useTransitionNavigateDelta } from "@/hooks/useCrossfadeNavigate";
 import { useDialogStore } from "@/components/appdialog";
+import DB from "@/data/database";
 
 
 export function KeymappingScreen() {
@@ -60,7 +53,7 @@ export function KeymappingScreen() {
   const mod = useStateProducer<types.Mod | undefined>(
     undefined,
     async (update) => {
-      SelectModById(Number(modId)).then((m) => update(m));
+      DB.selectModById(Number(modId)).then((m) => update(m));
     },
     [modId, modRefreshTrigger]
   );
@@ -69,7 +62,7 @@ export function KeymappingScreen() {
     undefined,
     async (update) => {
       if (mod) {
-        SelectClosestCharacter(mod.character, mod.game).then((c) => update(c));
+        DB.selectClosestCharacter(mod.character, mod.game).then((c) => update(c));
       }
     },
     [mod]
@@ -79,18 +72,18 @@ export function KeymappingScreen() {
   const [hoveredImg, setHoveredImg] = useState("");
 
   const deleteMod = async (id: number) => {
-    Downloader.Delete(id).then(() => navigateDelta(-1));
+    DB.deleteMod(id).then(() => navigateDelta(-1));
   };
 
   const enableMod = async (id: number, enabled: boolean) => {
-    EnableModById(enabled, id).then(refreshMod);
+    DB.enableMod(id, enabled).then(refreshMod);
   };
 
 
   const removeImageFile = (uri: string, mod: types.Mod) => {
     const set = new Set(mod.previewImages)
     set.delete(uri)
-    UpdateModImages(mod.id, Array.from(set)).then(refreshMod)
+    DB.updateModImages(mod.id, Array.from(set)).then(refreshMod)
   }
 
   const addImageFile = () => {
@@ -102,7 +95,7 @@ export function KeymappingScreen() {
       for (const file of files) {
         set.add("file://" + file)
       }
-      UpdateModImages(mod?.id ?? -1, Array.from(set)).then(refreshMod)
+      DB.updateModImages(mod?.id ?? -1, Array.from(set)).then(refreshMod)
     })
   }
 
@@ -140,7 +133,7 @@ export function KeymappingScreen() {
                   return Math.max(0, Math.floor(Number(value)))
                 }}
                 changeValue={(v) => {
-                  UpdateModGbId(mod.id, v).finally(refreshMod)
+                  DB.updateModGbId(mod.id, v).finally(refreshMod)
                 }}
                 type="number"
               />
@@ -587,7 +580,7 @@ const ImagePreviewItem = ({ url, hovered, onMouseEnter, onMouseLeave }: { url: s
         className={cn(hovered === url ? "border-4 border-primary" : "")}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}>
-        <AsyncImage className="object-cover aspect-square" uri={url} />
+        <AsyncImage className="object-cover aspect-square" src={url} />
       </div>
     </CarouselItem>
   )

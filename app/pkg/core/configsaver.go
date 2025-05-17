@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"hmm/pkg/core/dbh"
 	"hmm/pkg/log"
 	"hmm/pkg/pref"
 	"hmm/pkg/types"
@@ -24,7 +25,7 @@ const d3dxUserFile = "d3dx_user.ini"
 
 type ConfigSaver struct {
 	exportDirs map[types.Game]pref.Preference[string]
-	db         *DbHelper
+	db         *dbh.DbHelper
 }
 
 type ConfVar struct {
@@ -34,7 +35,7 @@ type ConfVar struct {
 
 func NewConfigSaver(
 	exportDirs map[types.Game]pref.Preference[string],
-	dbHelper *DbHelper,
+	dbHelper *dbh.DbHelper,
 ) *ConfigSaver {
 	return &ConfigSaver{
 		exportDirs: exportDirs,
