@@ -24,7 +24,7 @@ import {
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
 import { SearchIcon, XIcon } from "lucide-react";
-import { EventsOn } from "wailsjs/runtime/runtime";
+import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";
 import useCrossfadeNavigate from "@/hooks/useCrossfadeNavigate";
 import { useDialogStore } from "@/components/appdialog";
 import DB from "@/data/database";
@@ -45,7 +45,7 @@ const getElementPref = (game: number): GoPref<string[]> => {
   }
 };
 
-const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[], refreshCharacters: () => void) => {
+const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[]) => {
 
   const [multiSelect, setMultiSelect] = useState(false)
   const [selectedCardsUnfiltered, setSelectedCards] = useState<number[] | undefined>(undefined)
@@ -64,7 +64,7 @@ const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[], refreshChar
         c.characters.game
       )
       )
-    ).finally(refreshCharacters)
+    )
   }
 
   const multiSelectedCharacters = useMemo(() => {
@@ -175,14 +175,13 @@ interface FilterState {
 }
 
 function GameScreen(props: { dataApi: DataApi; game: number }) {
+
   const navigate = useCrossfadeNavigate();
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const updates = usePlaylistStore(useShallow((state) => state.updates));
 
   const setDialog = useDialogStore(useShallow(s => s.setDialog))
 
   const running = useDownloadStore(useShallow((state) => state.running));
-  const refreshCharacters = () => setRefreshTrigger((prev) => prev + 1);
 
   const elements = useStateProducer<string[]>(
     [],
@@ -195,8 +194,9 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
   const characters = useStateProducer<types.CharacterWithModsAndTags[]>(
     [],
     async (update, onDispose) => {
-
-      update(await props.dataApi.charactersWithModsAndTags());
+      const unsubscribe = DB.onValueChangedListener(['characters', 'mods', 'tags'], () => {
+        props.dataApi.charactersWithModsAndTags().then(update)
+      }, true)
 
       const cancel = EventsOn("sync", ({ game }) => {
         if (game === props.game) {
@@ -204,9 +204,13 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
         }
       })
 
-      onDispose(() => cancel())
+      onDispose(() => {
+        LogDebug("disposing character state producer")
+        cancel()
+        unsubscribe()
+      })
     },
-    [props.dataApi, running, updates, refreshTrigger]
+    [props.dataApi, running, updates]
   );
 
   const filterState = useFilterState(characters, props.game)
@@ -219,28 +223,28 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     mutliSelectedIds,
     deleteCharacters,
     clearMultiSelected
-  } = useMultiSelectState(characters, refreshCharacters)
+  } = useMultiSelectState(characters)
 
   const handleUnselectAll = () => {
-    DB.disableAllMods(props.game).then(refreshCharacters)
+    DB.disableAllMods(props.game)
   }
 
   const handleEnableMod = (id: number, enabled: boolean) => {
-    DB.enableMod(id, enabled).then(refreshCharacters)
+    DB.enableMod(id, enabled)
   }
 
   const handleDeleteMod = (id: number) => {
-    DB.deleteMod(id).then(refreshCharacters)
+    DB.deleteMod(id)
   }
 
   const handleEnableTexture = (id: number, enabled: boolean) => {
-    DB.enableTexture(id, enabled).then(refreshCharacters)
+    DB.enableTexture(id, enabled)
   }
   const handleDeleteTexture = (id: number) => {
-    DB.deleteTexture(id).then(refreshCharacters)
+    DB.deleteTexture(id)
   }
   const handleSplitTexture = (id: number) => {
-    DB.splitTexture(id).then(refreshCharacters)
+    DB.splitTexture(id)
   }
 
   return (
@@ -251,7 +255,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
             addTag={() => setDialog({
               type: "add_tag_multi",
               selectedChars: multiSelectedCharacters.map((it) => it.characters),
-              refresh: refreshCharacters,
+              refresh: () => { },
               game: props.game
             })}
             clearMultiSelected={clearMultiSelected}
@@ -263,7 +267,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
           <GameActionsTopBar
             unselectAll={handleUnselectAll}
             elements={elements}
-            addCharacter={() => setDialog({ type: "add_character", game: props.game, elements: elements, refresh: refreshCharacters })}
+            addCharacter={() => setDialog({ type: "add_character", game: props.game, elements: elements, refresh: () => { } })}
             importMod={() => navigate("/import", {
               state: { game: props.game }
             })}
@@ -273,7 +277,6 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
       </div>
       <FloatingActionButtons
         dataApi={props.dataApi}
-        refreshCharacters={refreshCharacters}
       />
       <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4 mb-16 mx-2">
         {filterState.filteredCharacters.map((c) => (
@@ -288,10 +291,10 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
               cmt={c}
               modDropdownMenu={(mwt) => (
                 <ModActionsDropDown
-                  addTag={() => setDialog({ type: "add_tag", mod: mwt.mod, refresh: refreshCharacters })}
+                  addTag={() => setDialog({ type: "add_tag", mod: mwt.mod, refresh: () => { } })}
                   onEnable={() => handleEnableMod(mwt.mod.id, !mwt.mod.enabled)}
                   onDelete={() => handleDeleteMod(mwt.mod.id)}
-                  onRename={() => setDialog({ type: "rename_mod", id: mwt.mod.id, refresh: refreshCharacters })}
+                  onRename={() => setDialog({ type: "rename_mod", id: mwt.mod.id, refresh: () => { } })}
                   onView={() => {
                     if (mwt.mod.gbId !== 0) {
                       navigate(`/mods/${mwt.mod.gbId}`);
@@ -305,7 +308,7 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
                   onEnable={() => handleEnableTexture(t.id, !t.enabled)}
                   onDelete={() => handleDeleteTexture(t.id)}
                   onSplit={() => handleSplitTexture(t.id)}
-                  onRename={() => setDialog({ type: "rename_texture", id: t.id, refresh: refreshCharacters })}
+                  onRename={() => setDialog({ type: "rename_texture", id: t.id, refresh: () => { } })}
                   onView={() => {
                     if (t.gbId !== 0) {
                       navigate(`/mods/${t.gbId}`);
@@ -395,11 +398,9 @@ function MultiSelectTopBar(
 }
 
 function FloatingActionButtons({
-  dataApi,
-  refreshCharacters,
+  dataApi
 }: {
-  dataApi: DataApi;
-  refreshCharacters: () => void;
+  dataApi: DataApi
 }) {
 
   const {
@@ -410,7 +411,7 @@ function FloatingActionButtons({
   const {
     syncing,
     sync,
-  } = useSync(dataApi, refreshCharacters)
+  } = useSync(dataApi)
 
   return (
     <div className="fixed bottom-4 -translate-y-1 end-6 flex flex-row z-10">

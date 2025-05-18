@@ -59,8 +59,6 @@ function PlaylistScreenContent({ game, setGame }: {
   setGame: (game: number) => void
 }) {
 
-  const [modRefreshTrigger, setModRefreshTrigger] = useState(0);
-
   const playlists = usePlaylistStore(useShallow((state) => state.playlists[game]))
   const createPlaylist = usePlaylistStore((state) => state.create)
   const enablePlaylist = usePlaylistStore((state) => state.enable)
@@ -69,25 +67,23 @@ function PlaylistScreenContent({ game, setGame }: {
   const mods = useStateProducer<types.CharacterWithModsAndTags[]>(
     [],
     async (update) => {
-      DB.selectCharacterWithModsTagsAndTextures(game, "", "", "").then((it) => update(it));
+      DB.onValueChangedListener('all', () => {
+        DB.selectCharacterWithModsTagsAndTextures(game, "", "", "").then((it) => update(it));
+      }, true)
     },
-    [modRefreshTrigger, game, updates]
+    [game, updates]
   );
 
   const toggleModEnabled = (enabled: boolean, id: number) => {
-    DB.enableMod(id, enabled).then(() =>
-      setModRefreshTrigger((prev) => prev + 1)
-    );
+    DB.enableMod(id, enabled)
   };
 
   const unselectAllMods = () => {
-    DB.disableAllMods(game).then(() =>
-      setModRefreshTrigger((prev) => prev + 1)
-    );
+    DB.disableAllMods(game)
   };
 
   const togglePlaylistEnabled = (pwmt: types.PlaylistWithModsAndTags) => {
-    enablePlaylist(pwmt.playlist.game, pwmt.playlist.id).then(() => setModRefreshTrigger((prev) => prev + 1));
+    enablePlaylist(pwmt.playlist.game, pwmt.playlist.id)
   };
 
   return (

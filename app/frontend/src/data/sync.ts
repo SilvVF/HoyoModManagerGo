@@ -12,14 +12,13 @@ export async function syncCharacters(dataApi: DataApi, type: SyncType) {
     SyncHelper.Sync(await dataApi.game(), type)
 }
 
-export const useSync = (dataApi: DataApi, onComplete: () => void) => {
+export const useSync = (dataApi: DataApi) => {
     const [syncing, setSyncing] = useState(false);
 
 
     const sync = (type: SyncType) => {
         setSyncing(true);
         syncCharacters(dataApi, type)
-            .then(onComplete)
             .finally(() => setSyncing(false));
     };
 

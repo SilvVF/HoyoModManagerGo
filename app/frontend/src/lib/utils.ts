@@ -113,7 +113,7 @@ export function useStateProducer<T extends any>(
       LogError(e);
     }
 
-    () => {
+    return () => {
       aborted = true
       disposeIfAborted()
     }
