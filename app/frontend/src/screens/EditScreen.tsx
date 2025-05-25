@@ -21,11 +21,11 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn, useStateProducer } from "@/lib/utils";
 import { useKeyMapperStore } from "@/state/keymapperStore";
-import { EditIcon, SearchIcon, TrashIcon } from "lucide-react";
+import { EditIcon, SearchIcon, TrashIcon, XIcon } from "lucide-react";
 import React, { useMemo } from "react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { types } from "wailsjs/go/models";
+import { core, types } from "wailsjs/go/models";
 import { useShallow } from "zustand/shallow";
 import { ModActionsDropDown } from "@/components/CharacterInfoCard";
 import { Switch } from "@/components/ui/switch";
@@ -44,28 +44,43 @@ export function KeymappingScreen() {
   const { modId } = useParams();
   const navigate = useTransitionNavigate();
   const navigateDelta = useTransitionNavigateDelta();
-
-  const [modRefreshTrigger, setModRefreshTrigger] = useState(0);
-  const refreshMod = () => setModRefreshTrigger(p => p + 1)
-
   const setDialog = useDialogStore(useShallow(s => s.setDialog))
 
   const mod = useStateProducer<types.Mod | undefined>(
     undefined,
-    async (update) => {
-      DB.selectModById(Number(modId)).then((m) => update(m));
+    async (update, onDispose) => {
+      const cancel = DB.onValueChangedListener(['mods'], async () => {
+        const mod = await DB.selectModById(Number(modId));
+        update(mod)
+      }, true)
+
+      onDispose(() => cancel())
     },
-    [modId, modRefreshTrigger]
+    [modId]
   );
+
+  const tags = useStateProducer<types.Tag[]>([], async (update, onDispose) => {
+    if (!mod) return
+    const cancel = DB.onValueChangedListener(['tags'], async () => {
+      const tags = await DB.selectTagsByModId(mod.id)
+      update(tags)
+    }, true)
+
+    onDispose(() => cancel())
+  }, [mod?.id])
 
   const character = useStateProducer<types.Character | undefined>(
     undefined,
-    async (update) => {
-      if (mod) {
+    async (update, onDispose) => {
+      if (!mod) return
+
+      const cancel = DB.onValueChangedListener(['characters'], async () => {
         DB.selectClosestCharacter(mod.character, mod.game).then((c) => update(c));
-      }
+      }, true)
+
+      onDispose(() => cancel())
     },
-    [mod]
+    [mod?.character, mod?.game]
   );
 
   const [expandImgs, setExpandImgs] = useState(false);
@@ -76,14 +91,18 @@ export function KeymappingScreen() {
   };
 
   const enableMod = async (id: number, enabled: boolean) => {
-    DB.enableMod(id, enabled).then(refreshMod);
+    DB.enableMod(id, enabled);
   };
 
 
   const removeImageFile = (uri: string, mod: types.Mod) => {
     const set = new Set(mod.previewImages)
     set.delete(uri)
-    DB.updateModImages(mod.id, Array.from(set)).then(refreshMod)
+    DB.updateModImages(mod.id, Array.from(set))
+  }
+
+  const handleDeleteTag = (name: string, modId: number) => {
+    DB.deleteTag(modId, name)
   }
 
   const addImageFile = () => {
@@ -95,7 +114,7 @@ export function KeymappingScreen() {
       for (const file of files) {
         set.add("file://" + file)
       }
-      DB.updateModImages(mod?.id ?? -1, Array.from(set)).then(refreshMod)
+      DB.updateModImages(mod?.id ?? -1, Array.from(set))
     })
   }
 
@@ -110,59 +129,70 @@ export function KeymappingScreen() {
       <div className="flex flex-row items-end justify-start space-y-4">
         <img
           src={character.avatarUrl}
-          className="object-contain aspect-square h-32"
+          className="object-contain aspect-square h-42 mt-6 mx-6"
         />
         <div className="flex flex-row items-center w-full">
           <div className="flex flex-col">
             <text className="text-xl font-semibold text-muted-foreground">
               Editing:
             </text>
-            <div className="flex flex-row items-center space-x-2">
-              <text className="text-3xl font-semibold me-4">{mod.filename}</text>
-              <ConfirmInput
-                key={mod.gbId}
-                Label={
-                  <text className="text-sm text-zinc-500">GB id</text>
-                }
-                className="w-32"
-                value={mod.gbId}
-                getValue={(value) => {
-                  return Number(value)
-                }}
-                getInput={(value) => {
-                  return Math.max(0, Math.floor(Number(value)))
-                }}
-                changeValue={(v) => {
-                  DB.updateModGbId(mod.id, v).finally(refreshMod)
-                }}
-                type="number"
-              />
-              <div className="w-2" />
-              <Switch
-                checked={mod.enabled}
-                onCheckedChange={() =>
-                  enableMod(mod.id, !mod.enabled)
-                }
-              />
-
-              {mod ?
-                <ModActionsDropDown
-                  addTag={() => setDialog({ type: "add_tag", mod: mod, refresh: refreshMod })}
-                  onEnable={() => enableMod(mod.id, !mod.enabled)}
-                  onDelete={() => deleteMod(mod.id)}
-                  onRename={() =>
-                    setDialog({ type: "rename_mod", id: mod.id, refresh: refreshMod })
+            <div className="flex flex-col space-y-2">
+              <text className="text-3xl w-fit font-semibold me-4">{mod.filename}</text>
+              <div className="flex flex-row items-center space-x-2">
+                <ConfirmInput
+                  key={mod.gbId}
+                  Label={
+                    <text className="text-sm text-muted-foreground">GB id</text>
                   }
-                  onView={() => {
-                    if (mod.gbId !== 0) {
-                      navigate(`/mods/${mod.gbId}`);
-                    }
+                  className="w-32"
+                  value={mod.gbId}
+                  getValue={(value) => {
+                    return Number(value)
                   }}
+                  getInput={(value) => {
+                    return Math.max(0, Math.floor(Number(value)))
+                  }}
+                  changeValue={(v) => {
+                    DB.updateModGbId(mod.id, v)
+                  }}
+                  type="number"
                 />
-                : undefined}
+                <Switch
+                  checked={mod.enabled}
+                  onCheckedChange={() =>
+                    enableMod(mod.id, !mod.enabled)
+                  }
+                />
+
+                {mod ?
+                  <ModActionsDropDown
+                    addTag={() => setDialog({ type: "add_tag", mod: mod, refresh: () => { } })}
+                    onEnable={() => enableMod(mod.id, !mod.enabled)}
+                    onDelete={() => deleteMod(mod.id)}
+                    onRename={() =>
+                      setDialog({ type: "rename_mod", id: mod.id, refresh: () => { } })
+                    }
+                    onView={() => {
+                      if (mod.gbId !== 0) {
+                        navigate(`/mods/${mod.gbId}`);
+                      }
+                    }}
+                  />
+                  : undefined}
+              </div>
             </div>
           </div>
         </div>
+      </div>
+      <div className="flex flex-row m-4 overflow-x-auto">
+        {tags.map((tag) => {
+          return (
+            <Button className="rounded-full" onClick={() => handleDeleteTag(tag.name, tag.modId)}>
+              {tag.name}
+              <XIcon />
+            </Button>
+          )
+        })}
       </div>
       <ModPreviewImages
         mod={mod}
@@ -171,7 +201,7 @@ export function KeymappingScreen() {
       />
       <ImageSelect
         images={mod.previewImages}
-        addImage={() => setDialog({ type: "set_mod_image", mod: mod, refresh: refreshMod })}
+        addImage={() => setDialog({ type: "set_mod_image", mod: mod, refresh: () => { } })}
         hovered={hoverImg}
         expanded={expandImgs}
         setExpanded={(exp) => setExpandImgs(exp)}
@@ -198,11 +228,10 @@ function KeybindsUi(
   const unload = useKeyMapperStore((state) => state.unload);
   const save = useKeyMapperStore((state) => state.save);
   const deleteKeymap = useKeyMapperStore((state) => state.deleteKeymap);
-  const write = useKeyMapperStore((state) => state.write);
+  const loadDefault = useKeyMapperStore((state) => state.loadDefault);
 
   const saved = useKeyMapperStore(useShallow((state) => state.backups ?? []));
   const keymappings = useKeyMapperStore((state) => state.keymappings);
-  const [held, setHeld] = useState<string[]>([]);
   const [err, setErr] = useState<any | undefined>(undefined);
 
   const [search, setSearch] = useState("");
@@ -243,16 +272,9 @@ function KeybindsUi(
     return () => unload();
   }, [modId]);
 
-  const writeKeyMap = (section: string, sectionKey: string, keys: string[]) => {
-    if (keys.isEmpty()) {
-      return;
-    }
-    write(section, sectionKey, keys).finally(() => setHeld([]));
-  };
-
   if (err !== undefined) {
     return (
-      <div className="min-w-screen min-h-screen">
+      <div className="flex-col w-full h-full items-center">
         <KeyMapLoadErrorPage
           err={err}
           id={modId}
@@ -273,7 +295,7 @@ function KeybindsUi(
 
   if (keymappings?.isEmpty() && !loading) {
     return (
-      <div className="">
+      <div className="flex flex-col w-full h-full items-center">
         <KeyMapLoadErrorPage
           err={"no keybinds are editable for this mod"}
           id={modId}
@@ -292,7 +314,9 @@ function KeybindsUi(
           onSuccess={(text) => save(Number(modId), text)}
         />
         <Button
-          onClick={() => load(Number(modId))}
+          onClick={() => {
+            loadDefault()
+          }}
           className="rounded-full backdrop-blur-md bg-primary/30"
           size={"lg"}
           variant={"ghost"}
@@ -324,50 +348,70 @@ function KeybindsUi(
 
       <div className="grid grid-cols-2 w-full items-center justify-center">
         {keymap.map((entry) => {
-
           const [group, arr] = entry
-
           return (
             <Card className="flex flex-col p-4 m-2 space-y-1  overflow-hidden">
               <div className="text-left text-xl">
                 {group}
               </div>
               {arr?.map((bind) => (
-                <div key={bind.name + bind.sectionKey}>
-                  <div className="flex flex-row space-x-4 items-center p-2 justify-between">
-                    <div className="text-lg text-muted-foreground">
-                      {bind.sectionKey}
-                    </div>
-                    {bind.sectionKey === "key" ? (
-                      <Input
-                        value={bind.key.replaceAll(" ", " + ")}
-                        className="w-9/12 max-w-96"
-                        tabIndex={-1}
-                        onKeyDown={(event) => {
-                          if (!held.includes(event.key)) {
-                            setHeld((p) => [...p, event.key]);
-                          }
-                        }}
-                        onKeyUp={() =>
-                          writeKeyMap(bind.name, bind.sectionKey, held)
-                        }
-                        readOnly
-                      />
-                    ) : <ConfirmInput
-                      className="w-9/12 max-w-96"
-                      value={bind.key}
-                      getValue={(value) => value}
-                      getInput={(value) => value}
-                      changeValue={async (v) => { return v }}
-                    />}
-                  </div>
-                  <Separator />
-                </div>
+                <KeyBindEditText bind={bind} />
               ))}
             </Card>
           );
         })}
       </div>
+    </div>
+  )
+}
+
+function KeyBindEditText({
+  bind
+}: {
+  bind: core.KeyBind
+}) {
+
+  const [held, setHeld] = useState<string[]>([]);
+  const write = useKeyMapperStore((state) => state.write);
+
+  const writeKeyMap = (section: string, sectionKey: string, keys: string[]) => {
+    if (keys.isEmpty()) {
+      return;
+    }
+    write(section, sectionKey, keys).finally(() => setHeld([]));
+  };
+
+
+  return (
+    <div key={bind.name + bind.sectionKey}>
+      <div className="flex flex-row space-x-4 items-center p-2 justify-between">
+        <div className="text-lg text-muted-foreground">
+          {bind.sectionKey}
+        </div>
+        {bind.sectionKey === "key" ? (
+          <Input
+            value={held.isEmpty() ? bind.key.replaceAll(" ", " + ") : held.join(" + ")}
+            className="w-9/12 max-w-96"
+            tabIndex={-1}
+            onKeyDown={(event) => {
+              if (!held.includes(event.key)) {
+                setHeld((p) => [...p, event.key]);
+              }
+            }}
+            onKeyUp={() =>
+              writeKeyMap(bind.name, bind.sectionKey, held)
+            }
+            readOnly
+          />
+        ) : <ConfirmInput
+          className="w-9/12 max-w-96"
+          value={bind.key}
+          getValue={(value) => value}
+          getInput={(value) => value}
+          changeValue={async (v) => { return v }}
+        />}
+      </div>
+      <Separator />
     </div>
   )
 }

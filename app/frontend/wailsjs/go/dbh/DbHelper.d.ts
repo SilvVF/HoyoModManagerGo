@@ -52,6 +52,8 @@ export function SelectModsByGbId(arg1:number):Promise<Array<types.Mod>>;
 
 export function SelectPlaylistWithModsAndTags(arg1:types.Game):Promise<Array<types.PlaylistWithModsAndTags>>;
 
+export function SelectTagsByModId(arg1:number):Promise<Array<types.Tag>>;
+
 export function SelectTextureById(arg1:number):Promise<types.Texture>;
 
 export function SelectTexturesByModId(arg1:number):Promise<Array<types.Texture>>;

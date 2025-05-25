@@ -102,6 +102,10 @@ export function SelectPlaylistWithModsAndTags(arg1) {
   return window['go']['dbh']['DbHelper']['SelectPlaylistWithModsAndTags'](arg1);
 }
 
+export function SelectTagsByModId(arg1) {
+  return window['go']['dbh']['DbHelper']['SelectTagsByModId'](arg1);
+}
+
 export function SelectTextureById(arg1) {
   return window['go']['dbh']['DbHelper']['SelectTextureById'](arg1);
 }

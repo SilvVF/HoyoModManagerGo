@@ -77,7 +77,7 @@ export function useStateProducer<T extends any>(
   producer: (
     update: (value: T) => void,
     onDispose: (dipose: () => void) => void,
-  ) => Promise<void>,
+  ) => void,
   keys: ReadonlyArray<unknown> = []
 ): T {
   const [value, setValue] = useState(defaultValue);
@@ -107,8 +107,7 @@ export function useStateProducer<T extends any>(
           disposeFn = dispose
           disposeIfAborted()
         }
-      )
-        .catch((e) => LogError(e));
+      );
     } catch (e: any) {
       LogError(e);
     }

@@ -1,8 +1,8 @@
 import { CancelFn } from "@/lib/tsutils";
 import { useEffect } from "react";
-import { CreateCustomCharacter, CreatePlaylist, DeleteCharacter, DeleteModById, DeletePlaylistById, DeleteTextureById, InsertTag, InsertTagForAllModsByCharacterIds, RenameMod, RenameTexture, SelectCharactersByGame, SelectCharacterWithModsTagsAndTextures, SelectClosestCharacter, SelectModById, SelectModsByCharacterName, SelectModsByGbId, SelectPlaylistWithModsAndTags, UpdateDisableAllModsByGame, UpdateModEnabledById, UpdateModGbId, UpdateModImages, UpdateModsEnabledFromSlice, UpdatePlaylistName, UpdateTextureEnabledById } from "wailsjs/go/dbh/DbHelper";
+import { CreateCustomCharacter, CreatePlaylist, DeleteCharacter, DeleteModById, DeletePlaylistById, DeleteTag, DeleteTextureById, InsertTag, InsertTagForAllModsByCharacterIds, RenameMod, RenameTexture, SelectCharactersByGame, SelectCharacterWithModsTagsAndTextures, SelectClosestCharacter, SelectModById, SelectModsByCharacterName, SelectModsByGbId, SelectPlaylistWithModsAndTags, SelectTagsByModId, UpdateDisableAllModsByGame, UpdateModEnabledById, UpdateModGbId, UpdateModImages, UpdateModsEnabledFromSlice, UpdatePlaylistName, UpdateTextureEnabledById } from "wailsjs/go/dbh/DbHelper";
 import { SplitTexture } from "wailsjs/go/main/App";
-import { EventsEmit, EventsOn, LogDebug } from "wailsjs/runtime/runtime";
+import { EventsEmit, EventsOn, LogDebug, LogError } from "wailsjs/runtime/runtime";
 
 
 type DBKey = "characters" | "mods" | "tags" | "playlist" | "all"
@@ -11,20 +11,31 @@ const DBEvent = "DB_EVENT"
 type DBEventData = DBKey[]
 
 const subscribeToDbUpdates = (key: DBKey[] | DBKey, callback: () => void, runOnStart: boolean = false): CancelFn => {
+    const runCallbackCatching = () => {
+        try {
+            callback()
+        } catch (e: any) {
+            if (e instanceof Error) {
+                LogError("subscribe listener failed with unhandled Error: " + e.message);
+            } else {
+                LogError("subscribe listener failed with unknown error" + e);
+            }
+        }
+    }
 
     if (runOnStart) {
-        callback()
+        runCallbackCatching()
     }
 
     return EventsOn(DBEvent, (keys: DBEventData) => {
         LogDebug("received DBEVENT event keys=" + keys)
         if (typeof key === 'string') {
             if (key === "all" || keys.includes(key)) {
-                callback()
+                runCallbackCatching()
             }
         } else {
             if (key.any((k) => k === "all" || keys.includes(k))) {
-                callback()
+                runCallbackCatching()
             }
         }
     })
@@ -43,8 +54,8 @@ const broadcastCharacterUpdate = () => EventsEmit(DBEvent, ["characters"])
 const broadcastModsUpdate = () => EventsEmit(DBEvent, ["mods"])
 const broadcastTagsUpdate = () => EventsEmit(DBEvent, ["tags"])
 const broadcastPlaylistUpdate = () => EventsEmit(DBEvent, ["playlist"])
-//const broadcastMultiUpdate = (keys: DBKey[]) => EventsEmit(DBEvent, keys)
 
+//const broadcastMultiUpdate = (keys: DBKey[]) => EventsEmit(DBEvent, keys)
 const DB = {
     onValueChangedListener: subscribeToDbUpdates,
     deleteMod: async (id: number) => {
@@ -121,6 +132,12 @@ const DB = {
     },
     updatePlaylistName: (id: number, name: string) => {
         return UpdatePlaylistName(id, name).then(broadcastPlaylistUpdate)
+    },
+    selectTagsByModId: (modId: number) => {
+        return SelectTagsByModId(modId)
+    },
+    deleteTag: (modId: number, name: string) => {
+        return DeleteTag(name, modId).then(broadcastTagsUpdate)
     }
 }
 

@@ -194,8 +194,9 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
   const characters = useStateProducer<types.CharacterWithModsAndTags[]>(
     [],
     async (update, onDispose) => {
-      const unsubscribe = DB.onValueChangedListener(['characters', 'mods', 'tags'], () => {
-        props.dataApi.charactersWithModsAndTags().then(update)
+      const unsubscribe = DB.onValueChangedListener(['characters', 'mods', 'tags'], async () => {
+        const value = await props.dataApi.charactersWithModsAndTags()
+        update(value)
       }, true)
 
       const cancel = EventsOn("sync", ({ game }) => {

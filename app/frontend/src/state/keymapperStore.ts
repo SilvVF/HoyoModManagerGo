@@ -10,8 +10,9 @@ export interface KeymapperState {
   loadPrevious: (modId: number, file: string) => Promise<void>;
   unload: () => void;
   deleteKeymap: (file: string) => Promise<void>;
-  write: (section: string, sectionKey: string,  keys: string[]) => Promise<void>;
+  write: (section: string, sectionKey: string, keys: string[]) => Promise<void>;
   save: (modId: number, name: string) => Promise<void>;
+  loadDefault: () => Promise<void>;
 }
 
 export const useKeyMapperStore = create<KeymapperState>((set, get) => ({
@@ -19,9 +20,14 @@ export const useKeyMapperStore = create<KeymapperState>((set, get) => ({
   backups: [],
   load: async (modId) => {
     return KeyMapper.Load(modId).then(() => {
-      KeyMapper.GetKeymaps().then((keymaps) => set({backups: keymaps}));
-      KeyMapper.GetKeyMap().then((keymap) => set({keymappings: keymap}));
+      KeyMapper.GetKeymaps().then((keymaps) => set({ backups: keymaps }));
+      KeyMapper.GetKeyMap().then((keymap) => set({ keymappings: keymap }));
     });
+  },
+  loadDefault: async () => {
+    KeyMapper.LoadDefault().then(() => {
+      KeyMapper.GetKeyMap().then((keymap) => set({ keymappings: keymap }));
+    })
   },
   unload: async () => {
     KeyMapper.Unload().then(() => {
@@ -33,7 +39,7 @@ export const useKeyMapperStore = create<KeymapperState>((set, get) => ({
   },
   deleteKeymap: async (file: string) => {
     KeyMapper.DeleteKeymap(file).then(() => {
-      KeyMapper.GetKeymaps().then((keymaps) => set({backups: keymaps}));
+      KeyMapper.GetKeymaps().then((keymaps) => set({ backups: keymaps }));
     })
   },
   loadPrevious: async (modId: number, file: string) => {
@@ -41,15 +47,15 @@ export const useKeyMapperStore = create<KeymapperState>((set, get) => ({
   },
   write: async (section: string, sectionKey: string, keys: string[]) => {
     LogDebug(`section: ${section}, sectionKey: ${sectionKey}, keys: ${keys}`)
-    return KeyMapper.Write(section, sectionKey,  keys).then(() => {
-        KeyMapper.GetKeyMap().then((mappings) => {
-            set({
-                keymappings: mappings
-            })
+    return KeyMapper.Write(section, sectionKey, keys).then(() => {
+      KeyMapper.GetKeyMap().then((mappings) => {
+        set({
+          keymappings: mappings
         })
+      })
     });
   },
-  save: async ( modId: number, name: string) => KeyMapper.SaveConfig(name).then(() => get().load(modId))
+  save: async (modId: number, name: string) => KeyMapper.SaveConfig(name).then(() => get().load(modId))
 }));
 
 

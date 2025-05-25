@@ -9,6 +9,7 @@ type TagDao interface {
 	InsertTag(name string, modId int) error
 	UpdateTagName(old, new string, modId int) error
 	DeleteTag(name string, modId int) error
+	SelectTagsByModId(modId int64) ([]types.Tag, error)
 	InsertTagForAllModsByCharacterIds(ids []int64, tagname string, game types.Game) error
 }
 
@@ -26,6 +27,23 @@ func (h *DbHelper) DeleteTag(name string, modId int) error {
 		Name:  name,
 		ModId: int64(modId),
 	})
+}
+
+func (h *DbHelper) SelectTagsByModId(modId int64) ([]types.Tag, error) {
+	dbTags, err := h.queries.SelectTagsByModId(h.ctx, modId)
+	if err != nil {
+		return make([]types.Tag, 0), err
+	}
+	tags := make([]types.Tag, len(dbTags))
+
+	for i, dbTag := range dbTags {
+		tags[i] = types.Tag{
+			ModId: int(dbTag.ModID),
+			Name:  dbTag.TagName,
+		}
+	}
+
+	return tags, err
 }
 
 func (h *DbHelper) UpdateTagName(old, new string, modId int) error {

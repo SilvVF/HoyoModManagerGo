@@ -16,3 +16,6 @@ INSERT OR IGNORE INTO tag(tag_name, mod_id) VALUES(:tagName, :modId);
 
 -- name: DeleteTag :exec
 DELETE FROM tag WHERE tag_name = :name AND mod_id = :modId;
+
+-- name: SelectTagsByModId :many
+SELECT * FROM tag WHERE mod_id = :modId;

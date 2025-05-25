@@ -8,7 +8,7 @@ export default function AsyncImage(props: AsyncImageProps) {
     const ref = useRef<HTMLImageElement>(null)
 
     useLayoutEffect(() => {
-        const uri = ref?.current?.src
+        const uri = props.src
         if (!uri) return
         if (uri.startsWith("file://")) {
             ReadImageFile(uri).then((base64) => {
@@ -20,5 +20,5 @@ export default function AsyncImage(props: AsyncImageProps) {
         }
     }, [props.src, ref])
 
-    return <img {...props} />
+    return <img ref={ref} {...props} />
 }

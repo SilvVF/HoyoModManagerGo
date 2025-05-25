@@ -67,8 +67,9 @@ function PlaylistScreenContent({ game, setGame }: {
   const mods = useStateProducer<types.CharacterWithModsAndTags[]>(
     [],
     async (update) => {
-      DB.onValueChangedListener('all', () => {
-        DB.selectCharacterWithModsTagsAndTextures(game, "", "", "").then((it) => update(it));
+      DB.onValueChangedListener('all', async () => {
+        const value = await DB.selectCharacterWithModsTagsAndTextures(game, "", "", "")
+        update(value)
       }, true)
     },
     [game, updates]

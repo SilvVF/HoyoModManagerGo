@@ -37,6 +37,33 @@ func (q *Queries) InsertTag(ctx context.Context, arg InsertTagParams) error {
 	return err
 }
 
+const selectTagsByModId = `-- name: SelectTagsByModId :many
+SELECT mod_id, tag_name FROM tag WHERE mod_id = ?1
+`
+
+func (q *Queries) SelectTagsByModId(ctx context.Context, modid int64) ([]Tag, error) {
+	rows, err := q.db.QueryContext(ctx, selectTagsByModId, modid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Tag
+	for rows.Next() {
+		var i Tag
+		if err := rows.Scan(&i.ModID, &i.TagName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateTagName = `-- name: UpdateTagName :exec
 
 UPDATE tag SET 
