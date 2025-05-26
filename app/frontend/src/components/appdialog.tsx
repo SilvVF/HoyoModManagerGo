@@ -1,8 +1,8 @@
 import { types } from "wailsjs/go/models"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogTitle, DialogTrigger } from "./ui/dialog"
 import { create } from "zustand"
 import { useShallow } from "zustand/shallow"
-import { ReactNode, useMemo, useRef, useState } from "react"
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react"
 import { Input } from "./ui/input"
 import { Button } from "./ui/button"
 import { imageFileExtensions, isValidUrl } from "@/lib/tsutils"
@@ -163,35 +163,35 @@ function AppDialogContent({ dialog }: { dialog: AppDialogType | undefined }) {
 function AppUpdateDialog({ update, date, onDismiss }: {
     update: types.AppUpdate,
     date: string,
-    onDismiss: () => void,
+    onDismiss: () => void
 }) {
+    useEffect(() => {
+        return () => onDismiss()
+    })
+
     return (
-        <Dialog onOpenChange={onDismiss}>
-            <DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>{update?.version}</DialogTitle>
-                    <DialogDescription className="">
-                        New version has been found <br />
-                        {date}
-                        <a
-                            onClick={(e) => {
-                                e.preventDefault();
-                                if (update?.dlLink) {
-                                    BrowserOpenURL(update.dlLink);
-                                }
-                            }}
-                            className="block break-all text-primary hover:underline cursor-pointer"
-                        >
-                            {update?.dlLink?.replace("https://api.github.com/repos/", "")}
-                        </a>
-                    </DialogDescription>
-                </DialogHeader>
-                <p className="break-words">
-                    <h1>Release Notes</h1> <br />
-                    <span className="block whitespace-pre-wrap">{update?.releaseNotes}</span>
-                </p>
-            </DialogContent>
-        </Dialog>
+        <div>
+            <h1>{update?.version}</h1>
+            <p className="">
+                New version has been found <br />
+                {date}
+                <a
+                    onClick={(e) => {
+                        e.preventDefault();
+                        if (update?.dlLink) {
+                            BrowserOpenURL(update.dlLink);
+                        }
+                    }}
+                    className="block break-all text-primary hover:underline cursor-pointer"
+                >
+                    {update?.dlLink?.replace("https://api.github.com/repos/", "")}
+                </a>
+            </p>
+            <p className="break-words">
+                <h1>Release Notes</h1> <br />
+                <span className="block whitespace-pre-wrap">{update?.releaseNotes}</span>
+            </p>
+        </div>
     )
 }
 
