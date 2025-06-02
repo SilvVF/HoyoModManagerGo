@@ -33,7 +33,7 @@ func WalkAndRezip(root string, ctx context.Context, onProgress func(total int, c
 
 	rezipWithNewCompression := func(path string) error {
 		t, _ := os.MkdirTemp(os.TempDir(), "")
-		_, err := archiveExtract(path, t, false, true, func(progress int64, total int64) {})
+		_, err := ArchiveExtract(path, t, false, true, func(progress int64, total int64) {})
 		if err != nil {
 			return nil
 		}
@@ -244,7 +244,7 @@ func getUncompressedSize(ctx context.Context, archivePath string) (int64, []stri
 	return total, contents, err
 }
 
-func archiveExtract(
+func ArchiveExtract(
 	archivePath, path string,
 	unifyRoot, overwrite bool,
 	onProgress func(progress int64, total int64),

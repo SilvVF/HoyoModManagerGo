@@ -9,6 +9,7 @@ import {
   LibraryIcon,
   LucideIcon,
   Moon,
+  PaletteIcon,
   PencilIcon,
   RefreshCwIcon,
   SearchIcon,
@@ -19,7 +20,7 @@ import {
   Trash,
   WavesIcon,
 } from "lucide-react";
-import { useTheme } from "./theme-provider";
+import { ThemeKeys, useTheme } from "./theme-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,6 +86,27 @@ const games = [
   { game: "Wuthering Waves", path: "wuwa", icon: WavesIcon },
   //  { game: "League of Legends", path: "league", icon: SwordIcon },
 ];
+
+function ThemeKeyToggle() {
+  const { setThemeKey, themeKey } = useTheme();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="w-full h-full justify-start">
+        <SidebarItem name="Change Color Scheme" icon={PaletteIcon} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {ThemeKeys.map((key) => {
+          return (
+            <DropdownMenuItem className={cn(key === themeKey ? "bg-primary" : "")} onClick={() => setThemeKey(key)}>
+              {key}
+            </DropdownMenuItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 
 function ModeToggle() {
   const { setTheme, isDark } = useTheme();
@@ -223,6 +245,9 @@ export function AppSidebar() {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <ModeToggle />
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <ThemeKeyToggle />
             </SidebarMenuItem>
             <SidebarItem
               onClick={() => navigate("settings")}

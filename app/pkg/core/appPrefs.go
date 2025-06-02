@@ -36,6 +36,7 @@ type AppPrefs struct {
 	LastReleaseAckedDate   *LastReleaseAckedDate
 	UseViewTransitions     *UseViewTransitions
 	Oneko                  *Oneko
+	EllenFix               *EllenFix
 }
 
 func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
@@ -123,9 +124,13 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 		&Oneko{
 			Preference: store.GetBoolean("oneko", false),
 		},
+		&EllenFix{
+			Preference: store.GetString("ellen_fix", ""),
+		},
 	}
 }
 
+type EllenFix struct{ pref.Preference[string] }
 type DarkThemePref struct{ pref.Preference[string] }
 
 type StartScreenPref struct{ pref.Preference[string] }

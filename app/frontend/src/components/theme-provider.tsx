@@ -12,31 +12,52 @@ type ThemeProviderProps = {
 type ThemeProviderState = {
   theme: Theme
   isDark: boolean
+  themeKey: ThemeKey
   setTheme: (theme: Theme) => void
+  setThemeKey: (themeKey: ThemeKey) => void
+}
+
+const sKey = "THEME_KEY"
+
+type ThemeKey = "catapuccin" | "mono" | "doom" | "bubblegum" | "kodama"
+
+export const ThemeKeys: ThemeKey[] = ["catapuccin", "mono", "doom", "bubblegum", "kodama"]
+
+const initialTheme = (): ThemeKey => {
+  const item = localStorage.getItem(sKey)
+  if (item && ThemeKeys.map(it => String(it)).includes(item)) {
+    return item as ThemeKey
+  } else {
+    return "catapuccin"
+  }
 }
 
 const initialState: ThemeProviderState = {
   theme: (localStorage.getItem("last_theme") ?? "system") as Theme,
   isDark: localStorage.getItem("last_dark") === "true",
+  themeKey: initialTheme(),
   setTheme: () => null,
+  setThemeKey: () => null,
 }
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
   children,
-  defaultTheme = "system",
-  storageKey = "vite-ui-theme",
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = usePrefrenceAsState(darkThemePref)
   const [isDark, setIsDark] = useState(false)
+  const [themeKey, setThemeKey] = useState<ThemeKey>(initialTheme())
 
   useEffect(() => {
     if (theme === undefined) return
     const root = window.document.documentElement
-    localStorage.setItem("last_theme", theme)
-    root.classList.remove("light", "dark")
+    localStorage.setItem(sKey, themeKey)
+
+    for (const key of ThemeKeys) {
+      root.classList.remove(key + "-" + "dark", key + "-" + "light")
+    }
 
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
@@ -44,25 +65,28 @@ export function ThemeProvider({
         ? "dark"
         : "light"
 
-      localStorage.setItem("last_dark", systemTheme === "dark" ? "true" : "false")
       setIsDark(systemTheme === "dark")
-      root.classList.add(systemTheme)
-      return
+      root.classList.add(themeKey + "-" + systemTheme)
+    } else {
+      setIsDark(theme === "dark")
+      root.classList.add(themeKey + "-" + theme)
     }
-    setIsDark(theme === "dark")
-    root.classList.add(theme)
-  }, [theme])
+  }, [theme, themeKey])
 
   const value = {
-    theme: (theme ?? defaultTheme) as Theme,
+    theme: (theme ?? "system") as Theme,
     setTheme: (theme: Theme) => setTheme(theme),
-    isDark: isDark
+    themeKey: themeKey,
+    isDark: isDark,
+    setThemeKey: setThemeKey
   }
 
   return (
-    <ThemeProviderContext.Provider {...props} value={value}>
-      {children}
-    </ThemeProviderContext.Provider>
+    <div className={themeKey + "-" + (theme ?? "dark")}>
+      <ThemeProviderContext.Provider {...props} value={value}>
+        {children}
+      </ThemeProviderContext.Provider>
+    </div>
   )
 }
 

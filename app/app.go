@@ -112,6 +112,16 @@ func (a *App) shutdown(ctx context.Context) {
 
 }
 
+func (a *App) ApplyEllenFix(modId int) error {
+
+	mod, err := a.db.SelectModById(modId)
+	if err != nil {
+		return err
+	}
+
+	return core.ApplyEllenFix(a.appPrefs.EllenFix, mod)
+}
+
 func (a *App) DevModeEnabled() bool {
 	return a.dev
 }

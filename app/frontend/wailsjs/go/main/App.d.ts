@@ -4,6 +4,8 @@ import {main} from '../models';
 import {logger} from '../models';
 import {types} from '../models';
 
+export function ApplyEllenFix(arg1:number):Promise<void>;
+
 export function CancelZipCompression():Promise<void>;
 
 export function ChangeRootModDir(arg1:string,arg2:boolean):Promise<void>;

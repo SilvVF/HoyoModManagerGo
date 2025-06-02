@@ -528,7 +528,7 @@ func (d *Downloader) unzipAndInsertToDb(
 	switch {
 	case unarrSupported(ext):
 		log.LogDebugf("extracting %s", filepath.Ext(filePath))
-		if _, err = archiveExtract(filePath, outputDir, true, true, onProgress); err != nil {
+		if _, err = ArchiveExtract(filePath, outputDir, true, true, onProgress); err != nil {
 			return err
 		}
 	case ext == "":

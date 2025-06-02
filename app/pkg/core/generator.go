@@ -388,7 +388,7 @@ func copyModWithTextures(
 
 	ext := filepath.Ext(modArchive)
 	if ext != "" {
-		_, err = archiveExtract(
+		_, err = ArchiveExtract(
 			modArchive,
 			strings.TrimSuffix(dst, ext),
 			false,
