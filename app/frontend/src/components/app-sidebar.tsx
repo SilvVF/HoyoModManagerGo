@@ -20,7 +20,7 @@ import {
   Trash,
   WavesIcon,
 } from "lucide-react";
-import { ThemeKeys, useTheme } from "./theme-provider";
+import { Schemes, useTheme } from "./theme-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,16 +88,22 @@ const games = [
 ];
 
 function ThemeKeyToggle() {
-  const { setThemeKey, themeKey } = useTheme();
+  const { setScheme, scheme, setPreview, clearPreview } = useTheme();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="w-full h-full justify-start">
         <SidebarItem name="Change Color Scheme" icon={PaletteIcon} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {ThemeKeys.map((key) => {
+        {Schemes.map((key) => {
           return (
-            <DropdownMenuItem className={cn(key === themeKey ? "bg-primary" : "")} onClick={() => setThemeKey(key)}>
+            <DropdownMenuItem
+              onFocus={() => setPreview(key)}
+              onBlur={() => clearPreview(key)}
+              onMouseEnter={() => setPreview(key)}
+              onMouseLeave={() => clearPreview(key)}
+              key={key}
+              className={cn(key === scheme ? "bg-primary" : "")} onClick={() => setScheme(key)}>
               {key}
             </DropdownMenuItem>
           )

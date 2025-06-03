@@ -1,5 +1,5 @@
 import { darkThemePref, usePrefrenceAsState } from "@/data/prefs"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useRef, useState } from "react"
 
 type Theme = "dark" | "light" | "system"
 
@@ -12,21 +12,23 @@ type ThemeProviderProps = {
 type ThemeProviderState = {
   theme: Theme
   isDark: boolean
-  themeKey: ThemeKey
+  scheme: ColorScheme
   setTheme: (theme: Theme) => void
-  setThemeKey: (themeKey: ThemeKey) => void
+  setScheme: (themeKey: ColorScheme) => void
+  setPreview: (scheme: ColorScheme) => void
+  clearPreview: (scheme: ColorScheme) => void
 }
 
 const sKey = "THEME_KEY"
 
-type ThemeKey = "catapuccin" | "mono" | "doom" | "bubblegum" | "kodama"
+type ColorScheme = "catapuccin" | "mono" | "doom" | "bubblegum" | "kodama"
 
-export const ThemeKeys: ThemeKey[] = ["catapuccin", "mono", "doom", "bubblegum", "kodama"]
+export const Schemes: ColorScheme[] = ["catapuccin", "mono", "doom", "bubblegum", "kodama"]
 
-const initialTheme = (): ThemeKey => {
+const initialScheme = (): ColorScheme => {
   const item = localStorage.getItem(sKey)
-  if (item && ThemeKeys.map(it => String(it)).includes(item)) {
-    return item as ThemeKey
+  if (item && Schemes.map(it => String(it)).includes(item)) {
+    return item as ColorScheme
   } else {
     return "catapuccin"
   }
@@ -35,9 +37,11 @@ const initialTheme = (): ThemeKey => {
 const initialState: ThemeProviderState = {
   theme: (localStorage.getItem("last_theme") ?? "system") as Theme,
   isDark: localStorage.getItem("last_dark") === "true",
-  themeKey: initialTheme(),
+  scheme: initialScheme(),
   setTheme: () => null,
-  setThemeKey: () => null,
+  setScheme: () => null,
+  setPreview: () => null,
+  clearPreview: () => null,
 }
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
@@ -46,47 +50,62 @@ export function ThemeProvider({
   children,
   ...props
 }: ThemeProviderProps) {
+
   const [theme, setTheme] = usePrefrenceAsState(darkThemePref)
   const [isDark, setIsDark] = useState(false)
-  const [themeKey, setThemeKey] = useState<ThemeKey>(initialTheme())
+
+  const [scheme, setScheme] = useState<ColorScheme>(initialScheme())
+  const [preview, setPreview] = useState<ColorScheme | undefined>(undefined)
+
+  const initial = useRef(true)
 
   useEffect(() => {
-    if (theme === undefined) return
-    const root = window.document.documentElement
-    localStorage.setItem(sKey, themeKey)
 
-    for (const key of ThemeKeys) {
-      root.classList.remove(key + "-" + "dark", key + "-" + "light")
-    }
+    const time = 100
+    initial.current = false
 
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light"
+    const id = setTimeout(() => {
+      if (theme === undefined) return
 
-      setIsDark(systemTheme === "dark")
-      root.classList.add(themeKey + "-" + systemTheme)
-    } else {
-      setIsDark(theme === "dark")
-      root.classList.add(themeKey + "-" + theme)
-    }
-  }, [theme, themeKey])
+      const root = window.document.documentElement
+      localStorage.setItem(sKey, scheme)
+
+      for (const key of Schemes) {
+        root.classList.remove(key + "-" + "dark", key + "-" + "light")
+      }
+
+      const currentScheme = preview !== undefined ? preview : scheme
+      if (theme === "system") {
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
+          ? "dark"
+          : "light"
+
+        setIsDark(systemTheme === "dark")
+        root.classList.add(currentScheme + "-" + systemTheme)
+      } else {
+        setIsDark(theme === "dark")
+        root.classList.add(currentScheme + "-" + theme)
+      }
+    }, time)
+
+    return () => clearTimeout(id)
+  }, [theme, scheme, preview])
 
   const value = {
     theme: (theme ?? "system") as Theme,
     setTheme: (theme: Theme) => setTheme(theme),
-    themeKey: themeKey,
+    scheme: scheme,
     isDark: isDark,
-    setThemeKey: setThemeKey
+    setScheme: setScheme,
+    clearPreview: (s: ColorScheme) => setPreview(p => s === p ? undefined : p),
+    setPreview: setPreview
   }
 
   return (
-    <div className={themeKey + "-" + (theme ?? "dark")}>
-      <ThemeProviderContext.Provider {...props} value={value}>
-        {children}
-      </ThemeProviderContext.Provider>
-    </div>
+    <ThemeProviderContext.Provider {...props} value={value}>
+      {children}
+    </ThemeProviderContext.Provider>
   )
 }
 

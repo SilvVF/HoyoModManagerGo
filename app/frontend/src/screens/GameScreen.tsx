@@ -23,7 +23,7 @@ import {
   TextureActionDropDown,
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
-import { SearchIcon, XIcon } from "lucide-react";
+import { Columns3Icon, GridIcon, SearchIcon, XIcon } from "lucide-react";
 import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";
 import useCrossfadeNavigate from "@/hooks/useCrossfadeNavigate";
 import { useDialogStore } from "@/components/appdialog";
@@ -174,6 +174,24 @@ interface FilterState {
   setSearchActive: (active: boolean) => void,
 }
 
+const GRID_KEY = "GRID_KEY"
+
+const useGrid = () => {
+  const [grid, setGrid] = useState(localStorage.getItem(GRID_KEY) !== null)
+  return {
+    grid,
+    toggle: () => {
+      if (grid) {
+        localStorage.removeItem(GRID_KEY)
+        setGrid(false)
+      } else {
+        localStorage.setItem(GRID_KEY, "")
+        setGrid(true)
+      }
+    }
+  }
+}
+
 function GameScreen(props: { dataApi: DataApi; game: number }) {
 
   const navigate = useCrossfadeNavigate();
@@ -226,6 +244,8 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
     clearMultiSelected
   } = useMultiSelectState(characters)
 
+  const { grid, toggle } = useGrid()
+
   const handleUnselectAll = () => {
     DB.disableAllMods(props.game)
   }
@@ -266,6 +286,8 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
             setMultiSelectEnabled={setMultiSelectEnabled} />
         ) : (
           <GameActionsTopBar
+            grid={grid}
+            toggleGrid={toggle}
             unselectAll={handleUnselectAll}
             elements={elements}
             addCharacter={() => setDialog({ type: "add_character", game: props.game, elements: elements, refresh: () => { } })}
@@ -279,7 +301,11 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
       <FloatingActionButtons
         dataApi={props.dataApi}
       />
-      <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4 mb-16 mx-2">
+      <div className={cn(
+        grid
+          ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+          : "columns-1 sm:columns-2 lg:columns-3",
+        "gap-4 space-y-4 mb-16 mx-2")}>
         {filterState.filteredCharacters.map((c) => (
           <div
             key={c.characters.id}
@@ -507,6 +533,8 @@ interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement>, Fil
   unselectAll: () => void;
   importMod: () => void;
   addCharacter: () => void;
+  grid: boolean,
+  toggleGrid: () => void;
 }
 
 var pw = 0
@@ -526,6 +554,8 @@ function GameActionsTopBar({
   setOnlyCustom,
   importMod,
   addCharacter,
+  grid,
+  toggleGrid,
   className,
 }: CharacterFilterProps) {
 
@@ -643,6 +673,17 @@ function GameActionsTopBar({
           onPointerDown={() => setOnlyCustom(!onlyCustom)}
         >
           Custom only
+        </Button>
+        <Button
+          className={cn(
+            grid ? "bg-primary/50" : "bg-secondary/20",
+            "mx-2 rounded-full backdrop-blur-md border-0"
+          )}
+          size={'icon'}
+          variant={grid ? "secondary" : "outline"}
+          onPointerDown={toggleGrid}
+        >
+          {grid ? <GridIcon /> : <Columns3Icon />}
         </Button>
       </div>
     </div>
