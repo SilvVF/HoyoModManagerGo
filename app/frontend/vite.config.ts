@@ -9,9 +9,19 @@ import tailwindcss from "@tailwindcss/vite";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const ReactCompilerConfig = {
+  target: '19'
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react({
+    babel: {
+      plugins: [
+        ["babel-plugin-react-compiler", ReactCompilerConfig]
+      ]
+    }
+  }), tailwindcss()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
