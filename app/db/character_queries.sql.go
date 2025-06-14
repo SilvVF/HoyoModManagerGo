@@ -95,17 +95,14 @@ SELECT
     m.id, m.fname, m.game, m.char_name, m.char_id, m.selected, m.preview_images, m.gb_id, m.mod_link, m.gb_file_name, m.gb_download_link,
     t.mod_id, t.tag_name,
     tex.id, tex.mod_id, tex.fname, tex.selected, tex.preview_images, tex.gb_id, tex.mod_link, tex.gb_file_name, tex.gb_download_link
-FROM 
-    character c
-    LEFT JOIN mod m 
-        ON m.char_id = c.id
-    LEFT JOIN tag t 
-        ON t.mod_id = m.id
-    LEFT JOIN texture tex 
-        ON tex.mod_id = m.id
-WHERE 
-    c.game = ?1 
-    AND (
+FROM character c
+LEFT JOIN mod m ON (
+    m.char_id = c.id AND m.game = c.game
+) 
+LEFT JOIN tag t ON t.mod_id = m.id
+LEFT JOIN texture tex ON tex.mod_id = m.id
+WHERE c.game = ?1 
+AND (
         (
             m.fname LIKE '%' || ?2 || '%'
             OR c.name LIKE '%' || ?3 || '%'

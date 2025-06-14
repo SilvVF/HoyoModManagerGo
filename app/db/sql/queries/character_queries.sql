@@ -23,17 +23,14 @@ SELECT
     m.*,
     t.*,
     tex.*
-FROM 
-    character c
-    LEFT JOIN mod m 
-        ON m.char_id = c.id
-    LEFT JOIN tag t 
-        ON t.mod_id = m.id
-    LEFT JOIN texture tex 
-        ON tex.mod_id = m.id
-WHERE 
-    c.game = :game 
-    AND (
+FROM character c
+LEFT JOIN mod m ON (
+    m.char_id = c.id AND m.game = c.game
+) 
+LEFT JOIN tag t ON t.mod_id = m.id
+LEFT JOIN texture tex ON tex.mod_id = m.id
+WHERE c.game = :game 
+AND (
         (
             m.fname LIKE '%' || :modFileName || '%'
             OR c.name LIKE '%' || :characterName || '%'
