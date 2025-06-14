@@ -72,14 +72,17 @@ export function ModViewScreen() {
           .map(([link, download]) => [link, download.state])
       )
     ));
+
   const running = useDownloadStore(useShallow((state) => state.running));
 
   const downloaded = useStateProducer<types.Mod[]>(
     [],
     async (update) => {
-      DB.selectModsByGbId(Number(id)).then((mods) => update(mods));
+      const mods = await DB.selectModsByGbId(Number(id))
+      const filtered = mods.filter(m => m.characterId === character?.id)
+      update(filtered)
     },
-    [refreshTrigger, running, id]
+    [refreshTrigger, running, id, character]
   );
 
   const content = useStateProducer<api.ModPageResponse | undefined>(
