@@ -44,7 +44,7 @@ const DialogConfig: { [key in AppDialogType["type"]]: { title: string, descripti
     }
 }
 
-type AppDialogType =
+export type AppDialogType =
     | {
         type: "rename_mod",
         refresh: () => void,

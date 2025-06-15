@@ -94,20 +94,6 @@ export default function ModBrowseScreen() {
 
   return (
     <div className="flex flex-row justify-end items-start max-w-full h-full min-w-full">
-      <div className="absolute z-30 bottom-4 start-1/2 -translate-x-1/2 bg-primary/30 backdrop-blur-lg rounded-full">
-        <Paginator
-          page={state.page}
-          lastPage={lastPage}
-          goToPage={(page) => {
-            state.update((s) => {
-              return {
-                ...s,
-                page: Math.max(1, Math.min(lastPage, page)),
-              };
-            });
-          }}
-        />
-      </div>
       <CategoryItemsList res={value} error={error} loading={loading} />
       <div className="flex flex-col w-fit me-2 overflow-clip">
         {categories.map((c) => {
@@ -121,12 +107,26 @@ export default function ModBrowseScreen() {
                   ? "secondary"
                   : "ghost"
               }
-              className="min-w-max justify-start font-normal rounded-full"
+              className="justify-start font-normal rounded-full"
             >
               {c._sName}
             </Button>
           );
         })}
+      </div>
+      <div className="absolute z-30 bottom-4 start-1/2 -translate-x-1/2 bg-primary/30 backdrop-blur-lg rounded-full">
+        <Paginator
+          page={state.page}
+          lastPage={lastPage}
+          goToPage={(page) => {
+            state.update((s) => {
+              return {
+                ...s,
+                page: Math.max(1, Math.min(lastPage, page)),
+              };
+            });
+          }}
+        />
       </div>
     </div>
   );
@@ -153,7 +153,7 @@ function CategoryItemsList({
 
   if (loading || res === undefined) {
     return (
-      <div className="grid grid-cols-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
         {range(0, 15, 1).map(() => {
           return (
             <div className="col-span-1 aspect-video m-2 space-y-3">
@@ -170,7 +170,7 @@ function CategoryItemsList({
   }
 
   return (
-    <div className="grid grid-cols-3 mb-14">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
       {res._aRecords?.map((record) => {
         const image = record._aPreviewMedia._aImages[0];
 

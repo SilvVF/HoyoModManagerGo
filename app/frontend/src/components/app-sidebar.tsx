@@ -5,8 +5,10 @@ import { types } from "../../wailsjs/go/models";
 import {
   BananaIcon,
   CheckCheckIcon,
+  EllipsisVertical,
   GlobeIcon,
   LibraryIcon,
+  ListMusic,
   LucideIcon,
   Moon,
   PaletteIcon,
@@ -165,20 +167,7 @@ export function PlaylistOptionsDropDown(
       <DropdownMenu open={isOpen} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           <Button className="col-span-1" variant={"ghost"} size="icon">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="12" cy="5" r="1" />
-              <circle cx="12" cy="19" r="1" />
-            </svg>
+            <EllipsisVertical />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
@@ -341,22 +330,7 @@ export function AppSidebar() {
                     enablePlaylist(playlist.playlist.game, playlist.playlist.id)
                   }
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-2 h-4 w-4"
-                  >
-                    <path d="M21 15V6" />
-                    <path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                    <path d="M12 12H3" />
-                    <path d="M16 6H3" />
-                    <path d="M12 18H3" />
-                  </svg>
+                  <ListMusic />
                   {playlist.playlist.name}
                 </Button>
                 <PlaylistOptionsDropDown playlist={playlist.playlist} />

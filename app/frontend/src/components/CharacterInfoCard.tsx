@@ -2,7 +2,11 @@ import { DialogTrigger } from "@radix-ui/react-dialog";
 import {
   CheckCheckIcon,
   ChevronDown,
+  EditIcon,
+  EllipsisVertical,
   PencilIcon,
+  SplitIcon,
+  TagIcon,
   Trash,
   ViewIcon,
 } from "lucide-react";
@@ -257,20 +261,7 @@ export function TextureActionDropDown(props: {
     <DropdownMenu open={isOpen} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button className="col-span-1" variant={"ghost"} size="icon">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="12" cy="5" r="1" />
-            <circle cx="12" cy="19" r="1" />
-          </svg>
+          <EllipsisVertical />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
@@ -302,7 +293,7 @@ export function TextureActionDropDown(props: {
           <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={props.onSplit}>
-          <CheckCheckIcon className="mr-2 h-4 w-4" />
+          <SplitIcon className="mr-2 h-4 w-4" />
           <span className="w-full">Split</span>
           <DropdownMenuShortcut>⇧s</DropdownMenuShortcut>
         </DropdownMenuItem>
@@ -329,20 +320,7 @@ export function ModActionsDropDown(props: {
     <DropdownMenu open={isOpen} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button className="col-span-1" variant={"ghost"} size="icon">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="12" cy="5" r="1" />
-            <circle cx="12" cy="19" r="1" />
-          </svg>
+          <EllipsisVertical />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
@@ -357,10 +335,14 @@ export function ModActionsDropDown(props: {
             props.onRename();
           }}
         >
-          <DropdownMenuItem>
-            <PencilIcon className="mr-2 h-4 w-4" />
-            <span className="w-full">Rename</span>
-            <DropdownMenuShortcut>⇧r</DropdownMenuShortcut>
+          <DropdownMenuItem className="min-w-full">
+            <div className="flex flex-row">
+              <PencilIcon className="h-4 w-4 mr-2" />
+              <div className="w-full flex flex-row justify-end items-center">
+                <span className="w-full">Rename</span>
+                <DropdownMenuShortcut className="">⇧r</DropdownMenuShortcut>
+              </div>
+            </div>
           </DropdownMenuItem>
         </DialogTrigger>
         <DropdownMenuItem onClick={props.onView}>
@@ -374,13 +356,13 @@ export function ModActionsDropDown(props: {
           <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={props.addTag}>
-          <CheckCheckIcon className="mr-2 h-4 w-4" />
+          <TagIcon className="mr-2 h-4 w-4" />
           <span className="w-full">Add Tag</span>
           <DropdownMenuShortcut>⇧a</DropdownMenuShortcut>
         </DropdownMenuItem>
         {props.onKeymapEdit ? (
           <DropdownMenuItem onClick={props.onKeymapEdit}>
-            <CheckCheckIcon className="mr-2 h-4 w-4" />
+            <EditIcon className="mr-2 h-4 w-4" />
             <span className="w-full">Edit</span>
             <DropdownMenuShortcut>⇧e</DropdownMenuShortcut>
           </DropdownMenuItem>

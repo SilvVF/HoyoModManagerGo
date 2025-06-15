@@ -19,6 +19,7 @@ import { types } from "wailsjs/go/models";
 import * as App from "wailsjs/go/main/App";
 import { Input } from "@/components/ui/input";
 import * as Downloader from "wailsjs/go/core/Downloader";
+import { PlusIcon } from "lucide-react";
 
 export default function ImportScreen() {
 
@@ -228,19 +229,7 @@ function FileSelectItems({
           variant="ghost"
           onPointerDown={setModZipFile}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            height="24px"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mr-2 h-4 w-4 fill-foreground"
-            viewBox="0 -960 960 960"
-            width="24px"
-          >
-            <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-          </svg>
+          <PlusIcon />
           Add mod zip file
         </Button>
         <Button
@@ -248,19 +237,7 @@ function FileSelectItems({
           variant="ghost"
           onPointerDown={setModDir}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            height="24px"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mr-2 h-4 w-4 fill-foreground"
-            viewBox="0 -960 960 960"
-            width="24px"
-          >
-            <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z" />
-          </svg>
+          <PlusIcon />
           Add mod directory
         </Button>
       </div>

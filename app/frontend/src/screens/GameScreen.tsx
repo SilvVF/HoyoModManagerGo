@@ -26,7 +26,7 @@ import { usePlaylistStore } from "@/state/playlistStore";
 import { Columns3Icon, GridIcon, SearchIcon, XIcon } from "lucide-react";
 import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";
 import useCrossfadeNavigate from "@/hooks/useCrossfadeNavigate";
-import { useDialogStore } from "@/components/appdialog";
+import { AppDialogType, useDialogStore } from "@/components/appdialog";
 import DB from "@/data/database";
 import { useGenerator } from "@/data/generator";
 
@@ -45,7 +45,19 @@ const getElementPref = (game: number): GoPref<string[]> => {
   }
 };
 
-const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[]) => {
+type MultiSelectState = {
+  selectedIds: number[];
+  enabled: boolean;
+  selected: types.CharacterWithModsAndTags[];
+  events: {
+    clearMultiSelected: () => void;
+    setMultiSelectEnabled: (enabled: boolean) => void;
+    toggleMultiSelected: (id: number) => void;
+    deleteCharacters: () => void;
+  }
+}
+
+const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[]): MultiSelectState => {
 
   const [multiSelect, setMultiSelect] = useState(false)
   const [selectedCardsUnfiltered, setSelectedCards] = useState<number[] | undefined>(undefined)
@@ -54,48 +66,46 @@ const useMultiSelectState = (cwmt: types.CharacterWithModsAndTags[]) => {
     return selectedCardsUnfiltered?.filter(id => cwmt.any(c => c.characters.id === id) ?? [])
   }, [cwmt, selectedCardsUnfiltered])
 
-
-  const deleteCharacters = () => {
-    const toDelete = selectedCards?.map(id => cwmt.find(c => c.characters.id === id)!)!
-    Promise.all(
-      toDelete.map((c) => DB.deleteCharacter(
-        c.characters.name,
-        c.characters.id,
-        c.characters.game
-      )
-      )
-    )
-  }
-
   const multiSelectedCharacters = useMemo(() => {
     return selectedCards?.map(id => cwmt.find(c => c.characters.id === id)!) ?? []
   }, [cwmt, selectedCards])
 
 
   return {
-    mutliSelectedIds: selectedCards ?? [],
-    multiSelectEnabled: multiSelect,
-    multiSelectedCharacters: multiSelectedCharacters,
-    clearMultiSelected: () => setSelectedCards([]),
-    setMultiSelectEnabled: (enabled: boolean) => {
-      if (enabled) {
-        setMultiSelect(enabled)
-      } else {
-        setSelectedCards([])
-        setMultiSelect(enabled)
-      }
-    },
-    toggleMultiSelected: (id: number) => {
+    selectedIds: selectedCards ?? [],
+    enabled: multiSelect,
+    selected: multiSelectedCharacters,
+    events: {
+      clearMultiSelected: () => setSelectedCards([]),
+      setMultiSelectEnabled: (enabled: boolean) => {
+        if (enabled) {
+          setMultiSelect(enabled)
+        } else {
+          setSelectedCards([])
+          setMultiSelect(enabled)
+        }
+      },
+      toggleMultiSelected: (id: number) => {
+        if (!multiSelect) return
 
-      if (!multiSelect) return
-
-      if (selectedCardsUnfiltered?.includes(id)) {
-        setSelectedCards(p => p?.filter(cid => cid !== id))
-      } else {
-        setSelectedCards(p => [...p ?? [], id])
+        if (selectedCardsUnfiltered?.includes(id)) {
+          setSelectedCards(p => p?.filter(cid => cid !== id))
+        } else {
+          setSelectedCards(p => [...p ?? [], id])
+        }
+      },
+      deleteCharacters: () => {
+        const toDelete = selectedCards?.map(id => cwmt.find(c => c.characters.id === id)!)!
+        Promise.all(
+          toDelete.map((c) => DB.deleteCharacter(
+            c.characters.name,
+            c.characters.id,
+            c.characters.game
+          )
+          )
+        )
       }
-    },
-    deleteCharacters: deleteCharacters
+    }
   }
 }
 
@@ -156,7 +166,8 @@ const useFilterState = (characters: types.CharacterWithModsAndTags[], game: numb
     selectedElements: selectedElements ?? [],
     toggleElementFilter: onElementSelected,
     searchActive: searchActive,
-    setSearchActive: setSearchActive
+    setSearchActive: setSearchActive,
+    toggleSearchActive: () => setSearchActive(p => !p)
   }
 }
 
@@ -172,6 +183,7 @@ interface FilterState {
   toggleElementFilter: (element: string) => void,
   searchActive: boolean,
   setSearchActive: (active: boolean) => void,
+  toggleSearchActive: () => void,
 }
 
 const GRID_KEY = "GRID_KEY"
@@ -192,34 +204,28 @@ const useGrid = () => {
   }
 }
 
-function GameScreen(props: { dataApi: DataApi; game: number }) {
+const useGameScreenPresenter = (dataApi: DataApi, game: number): GameScreenState => {
 
-  const navigate = useCrossfadeNavigate();
   const updates = usePlaylistStore(useShallow((state) => state.updates));
-
-  const setDialog = useDialogStore(useShallow(s => s.setDialog))
-
   const running = useDownloadStore(useShallow((state) => state.running));
-
   const elements = useStateProducer<string[]>(
     [],
     async (update) => {
-      props.dataApi.elements().then((elements) => update(elements));
+      dataApi.elements().then((elements) => update(elements));
     },
-    [props.dataApi]
+    [dataApi]
   );
-
   const characters = useStateProducer<types.CharacterWithModsAndTags[]>(
     [],
     async (update, onDispose) => {
       const unsubscribe = DB.onValueChangedListener(['characters', 'mods', 'tags'], async () => {
-        const value = await props.dataApi.charactersWithModsAndTags()
+        const value = await dataApi.charactersWithModsAndTags()
         update(value)
       }, true)
 
-      const cancel = EventsOn("sync", ({ game }) => {
-        if (game === props.game) {
-          props.dataApi.charactersWithModsAndTags().then(update)
+      const cancel = EventsOn("sync", (data) => {
+        if (game === data.game) {
+          dataApi.charactersWithModsAndTags().then(update)
         }
       })
 
@@ -229,143 +235,195 @@ function GameScreen(props: { dataApi: DataApi; game: number }) {
         unsubscribe()
       })
     },
-    [props.dataApi, running, updates]
+    [dataApi, running, updates]
   );
 
-  const filterState = useFilterState(characters, props.game)
+  const filterState = useFilterState(characters, game)
+  const multiSelectState = useMultiSelectState(characters)
 
-  const {
-    multiSelectEnabled,
-    setMultiSelectEnabled,
-    toggleMultiSelected,
-    multiSelectedCharacters,
-    mutliSelectedIds,
-    deleteCharacters,
-    clearMultiSelected
-  } = useMultiSelectState(characters)
+  return {
+    filterState: filterState,
+    multiSelectState: multiSelectState,
+    elements: elements,
+    events: {
+      handleUnselectAll: () => {
+        DB.disableAllMods(game)
+      },
+      handleEnableMod: (id: number, enabled: boolean) => {
+        DB.enableMod(id, enabled)
+      },
+      handleDeleteMod: (id: number) => {
+        DB.deleteMod(id)
+      },
+      handleEnableTexture: (id: number, enabled: boolean) => {
+        DB.enableTexture(id, enabled)
+      },
+      handleDeleteTexture: (id: number) => {
+        DB.deleteTexture(id)
+      },
+      handleSplitTexture: (id: number) => {
+        DB.splitTexture(id)
+      }
+    }
+  }
+}
 
+type GameScreenState = {
+  filterState: FilterState;
+  multiSelectState: MultiSelectState;
+  elements: string[];
+  events: {
+    handleUnselectAll: () => void;
+    handleEnableMod: (id: number, enabled: boolean) => void;
+    handleDeleteMod: (id: number) => void;
+    handleEnableTexture: (id: number, enabled: boolean) => void;
+    handleDeleteTexture: (id: number) => void;
+    handleSplitTexture: (id: number) => void;
+  };
+}
+
+function GameScreen(props: { dataApi: DataApi; game: number }) {
+
+  const navigate = useCrossfadeNavigate();
+
+  const setDialog = useDialogStore(useShallow(s => s.setDialog))
+
+  const state = useGameScreenPresenter(props.dataApi, props.game)
   const { grid, toggle } = useGrid()
-
-  const handleUnselectAll = () => {
-    DB.disableAllMods(props.game)
-  }
-
-  const handleEnableMod = (id: number, enabled: boolean) => {
-    DB.enableMod(id, enabled)
-  }
-
-  const handleDeleteMod = (id: number) => {
-    DB.deleteMod(id)
-  }
-
-  const handleEnableTexture = (id: number, enabled: boolean) => {
-    DB.enableTexture(id, enabled)
-  }
-  const handleDeleteTexture = (id: number) => {
-    DB.deleteTexture(id)
-  }
-  const handleSplitTexture = (id: number) => {
-    DB.splitTexture(id)
-  }
 
   return (
     <div className="flex flex-col w-full" key={props.game}>
       <div className="sticky top-0 z-10 backdrop-blur-md p-2 me-2 w-full">
-        {multiSelectEnabled ? (
+        {state.multiSelectState.enabled ? (
           <MultiSelectTopBar
             addTag={() => setDialog({
               type: "add_tag_multi",
-              selectedChars: multiSelectedCharacters.map((it) => it.characters),
+              selectedChars: state.multiSelectState.selected.map((it) => it.characters),
               refresh: () => { },
               game: props.game
             })}
-            clearMultiSelected={clearMultiSelected}
-            deleteCharacters={deleteCharacters}
-            multiSelectedCharacters={multiSelectedCharacters}
-            toggleMultiSelected={toggleMultiSelected}
-            setMultiSelectEnabled={setMultiSelectEnabled} />
+            state={state.multiSelectState}
+          />
         ) : (
           <GameActionsTopBar
             grid={grid}
             toggleGrid={toggle}
-            unselectAll={handleUnselectAll}
-            elements={elements}
-            addCharacter={() => setDialog({ type: "add_character", game: props.game, elements: elements, refresh: () => { } })}
+            state={state.filterState}
             importMod={() => navigate("/import", {
               state: { game: props.game }
             })}
-            {...filterState}
+            unselectAll={state.events.handleUnselectAll}
+            elements={state.elements}
+            addCharacter={() => setDialog({
+              type: "add_character",
+              game: props.game,
+              elements: state.elements,
+              refresh: () => { }
+            })}
           />
         )}
       </div>
       <FloatingActionButtons
         dataApi={props.dataApi}
       />
-      <div className={cn(
-        grid
-          ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-          : "columns-1 sm:columns-2 lg:columns-3",
-        "gap-4 space-y-4 mb-16 mx-2")}>
-        {filterState.filteredCharacters.map((c) => (
-          <div
-            key={c.characters.id}
-            className={"break-inside-avoid mb-4"}>
-            <CharacterInfoCard
-              className={cn(mutliSelectedIds.includes(c.characters.id) ? "border-2 border-primary" : "")}
-              onLongPress={() => setMultiSelectEnabled(true)}
-              onClick={() => toggleMultiSelected(c.characters.id)}
-              enableMod={handleEnableMod}
-              cmt={c}
-              modDropdownMenu={(mwt) => (
-                <ModActionsDropDown
-                  addTag={() => setDialog({ type: "add_tag", mod: mwt.mod, refresh: () => { } })}
-                  onEnable={() => handleEnableMod(mwt.mod.id, !mwt.mod.enabled)}
-                  onDelete={() => handleDeleteMod(mwt.mod.id)}
-                  onRename={() => setDialog({ type: "rename_mod", id: mwt.mod.id, refresh: () => { } })}
-                  onView={() => {
-                    if (mwt.mod.gbId !== 0) {
-                      navigate(`/mods/${mwt.mod.gbId}`);
-                    }
-                  }}
-                  onKeymapEdit={() => navigate(`/keymap/${mwt.mod.id}`)}
-                />
-              )}
-              textureDropdownMenu={(t) => (
-                <TextureActionDropDown
-                  onEnable={() => handleEnableTexture(t.id, !t.enabled)}
-                  onDelete={() => handleDeleteTexture(t.id)}
-                  onSplit={() => handleSplitTexture(t.id)}
-                  onRename={() => setDialog({ type: "rename_texture", id: t.id, refresh: () => { } })}
-                  onView={() => {
-                    if (t.gbId !== 0) {
-                      navigate(`/mods/${t.gbId}`);
-                    }
-                  }}
-                />
-              )}
-              enableTexture={handleEnableTexture}
-            />
-          </div>
-        ))}
-      </div>
+      <CharacterGrid state={state} grid={grid} />
     </div >
   );
 }
 
+const CharacterGrid = ({ state, grid }: {
+  state: GameScreenState,
+  grid: boolean
+}) => {
+  const setDialog = useDialogStore(useShallow(state => state.setDialog))
+  const navigate = useCrossfadeNavigate()
+  const filterState = state.filterState
+
+  return (
+    <div className={cn(
+      grid
+        ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        : "columns-1 sm:columns-2 lg:columns-3",
+      "gap-4 space-y-4 mb-16 mx-2")}>
+      {filterState.filteredCharacters.map((c) => (
+        <CharacterGridItem
+          key={c.characters.id}
+          cwmt={c}
+          setDialog={setDialog}
+          state={state}
+          onView={(gbId) => navigate(`/mods/${gbId}`)}
+          onEdit={(modId) => navigate(`/keymap/${modId}`)}
+        />
+      ))}
+    </div>
+  )
+}
+
+const CharacterGridItem = (
+  { state, cwmt, onView, setDialog, onEdit }: {
+    cwmt: types.CharacterWithModsAndTags,
+    state: GameScreenState,
+    onView: (gbId: number) => void
+    onEdit: (modId: number) => void,
+    setDialog: (dialog: AppDialogType | undefined) => void
+  }
+) => {
+
+  const selected = useMemo(() => {
+    return state.multiSelectState.selectedIds.includes(cwmt.characters.id)
+  }, [state.multiSelectState.selectedIds])
+
+  const multiState = state.multiSelectState
+
+  return (
+    <div className={"break-inside-avoid mb-4"}>
+      <CharacterInfoCard
+        className={cn(selected ? "border-2 border-primary" : "")}
+        onLongPress={() => multiState.events.setMultiSelectEnabled(true)}
+        onClick={() => multiState.events.toggleMultiSelected(cwmt.characters.id)}
+        enableMod={state.events.handleEnableMod}
+        cmt={cwmt}
+        modDropdownMenu={(mwt) => (
+          <ModActionsDropDown
+            addTag={() => setDialog({ type: "add_tag", mod: mwt.mod, refresh: () => { } })}
+            onEnable={() => state.events.handleEnableMod(mwt.mod.id, !mwt.mod.enabled)}
+            onDelete={() => state.events.handleDeleteMod(mwt.mod.id)}
+            onRename={() => setDialog({ type: "rename_mod", id: mwt.mod.id, refresh: () => { } })}
+            onView={() => {
+              if (mwt.mod.gbId !== 0) {
+                onView(mwt.mod.gbId)
+              }
+            }}
+            onKeymapEdit={
+              () => onEdit(mwt.mod.id)
+            }
+          />
+        )}
+        textureDropdownMenu={(t) => (
+          <TextureActionDropDown
+            onEnable={() => state.events.handleEnableTexture(t.id, !t.enabled)}
+            onDelete={() => state.events.handleDeleteTexture(t.id)}
+            onSplit={() => state.events.handleSplitTexture(t.id)}
+            onRename={() => setDialog({ type: "rename_texture", id: t.id, refresh: () => { } })}
+            onView={() => {
+              if (t.gbId !== 0) {
+                onView(t.gbId)
+              }
+            }}
+          />
+        )}
+        enableTexture={state.events.handleEnableTexture}
+      />
+    </div>
+  )
+}
+
 function MultiSelectTopBar(
   {
-    deleteCharacters,
-    clearMultiSelected,
-    setMultiSelectEnabled,
-    multiSelectedCharacters,
-    toggleMultiSelected,
+    state,
     addTag,
   }: {
-    deleteCharacters: () => void,
-    setMultiSelectEnabled: (enabled: boolean) => void,
-    multiSelectedCharacters: types.CharacterWithModsAndTags[],
-    toggleMultiSelected: (id: number) => void
-    clearMultiSelected: () => void
+    state: MultiSelectState,
     addTag: () => void,
   }
 ) {
@@ -376,7 +434,7 @@ function MultiSelectTopBar(
         <Button
           variant={"destructive"}
           className="backdrop-blur-md"
-          onPointerDown={() => setMultiSelectEnabled(false)}
+          onPointerDown={() => state.events.setMultiSelectEnabled(false)}
         >
           Cancel
         </Button>
@@ -384,12 +442,12 @@ function MultiSelectTopBar(
           size={"icon"}
           variant={"secondary"}
           className="backdrop-blur-mde"
-          onClick={clearMultiSelected}
+          onClick={state.events.clearMultiSelected}
         >
           <XIcon />
         </Button>
         <div className="space-x-2 space-y-2  w-fit">
-          {multiSelectedCharacters.map((mwt) => {
+          {state.selected.map((mwt) => {
             return (
               <Button
                 key={mwt.characters.id}
@@ -397,7 +455,7 @@ function MultiSelectTopBar(
                 variant={"secondary"}
                 className={"break-inside-avoid bg-primary/50 rounded-full backdrop-blur-md"}
                 onPointerDown={() => {
-                  toggleMultiSelected(mwt.characters.id)
+                  state.events.toggleMultiSelected(mwt.characters.id)
                 }}
               >
                 {mwt.characters.name}
@@ -415,7 +473,7 @@ function MultiSelectTopBar(
         </Button>
         <Button
           className="mx-2 backdrop-blur-md"
-          onClick={deleteCharacters}
+          onClick={state.events.deleteCharacters}
         >
           Delete
         </Button>
@@ -452,20 +510,7 @@ function FloatingActionButtons({
         </Button>
       ) : (
         <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
-          <svg
-            className="h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
+          <LoadingIcon />
           Generating...
         </div>
       )}
@@ -489,37 +534,11 @@ function FloatingActionButtons({
       ) : (
         <>
           <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
-            <svg
-              className="h-4 w-4 animate-spin"
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
+            <LoadingIcon />
             Syncing...
           </div>
           <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
-            <svg
-              className="h-4 w-4 animate-spin"
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
+            <LoadingIcon />
             Syncing...
           </div>
         </>
@@ -528,32 +547,41 @@ function FloatingActionButtons({
   );
 }
 
-interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement>, FilterState {
+export const LoadingIcon = () => (
+  <svg
+    className="h-4 w-4 animate-spin"
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </svg>
+)
+
+interface CharacterFilterProps extends React.HTMLAttributes<HTMLDivElement> {
   elements: string[];
   unselectAll: () => void;
   importMod: () => void;
   addCharacter: () => void;
   grid: boolean,
   toggleGrid: () => void;
+  state: FilterState,
 }
 
-var pw = 0
+const GAME_SEARCH_WIDTH_KEY = "GAME_SEARCH_WIDTH_KEY "
 
 function GameActionsTopBar({
   elements,
-  unselectAll,
-  searchActive,
-  setSearchActive,
-  onlyCustom,
-  query,
-  setQuery,
-  selectedElements,
-  availableOnly,
-  setAvailableOnly,
-  toggleElementFilter,
-  setOnlyCustom,
-  importMod,
+  state,
   addCharacter,
+  importMod,
+  unselectAll,
   grid,
   toggleGrid,
   className,
@@ -565,12 +593,17 @@ function GameActionsTopBar({
   useEffect(() => {
     const inputWidth = elemRef.current?.clientWidth ?? 0
     if (inputWidth > 0) {
-      pw = inputWidth
+      localStorage.setItem(GAME_SEARCH_WIDTH_KEY, `${inputWidth}`)
     }
+
+    let pw = 0
+    try {
+      pw = Number(localStorage.getItem(GAME_SEARCH_WIDTH_KEY))
+    } catch { }
     if (inputRef.current && pw > 0) {
       inputRef.current.style.width = `${pw}px`;
     }
-  }, [inputRef.current, elemRef.current, elements, searchActive])
+  }, [inputRef.current, elemRef.current, elements, state.searchActive])
 
   return (
     <div
@@ -584,7 +617,7 @@ function GameActionsTopBar({
           ref={elemRef}
           className={cn(
             "flex flex-row space-x-2",
-            searchActive
+            state.searchActive
               ? "animate-out fade-out hidden"
               : "animate-in fade-in visible")}>
           {elements.map((element) => {
@@ -593,17 +626,17 @@ function GameActionsTopBar({
                 key={element}
                 size={"sm"}
                 variant={
-                  selectedElements.includes(element.toLowerCase())
+                  state.selectedElements.includes(element.toLowerCase())
                     ? "secondary"
                     : "outline"
                 }
                 className={cn(
-                  selectedElements.includes(element.toLowerCase())
+                  state.selectedElements.includes(element.toLowerCase())
                     ? "bg-primary/50"
                     : "bg-secondary/40",
                   "rounded-full backdrop-blur-md",
                 )}
-                onPointerDown={() => toggleElementFilter(element)}
+                onPointerDown={() => state.toggleElementFilter(element)}
               >
                 {element}
               </Button>
@@ -612,13 +645,13 @@ function GameActionsTopBar({
         </div>
         <Input
           ref={inputRef}
-          value={query}
+          value={state.query}
           onInput={(e: any) => {
-            setQuery(e.target.value as string)
+            state.setQuery(e.target.value as string)
           }}
           placeholder="Search..."
           className={cn(
-            !searchActive
+            !state.searchActive
               ? "animate-out fade-out hidden"
               : "animate-in fade-in visible",
           )}>
@@ -628,11 +661,11 @@ function GameActionsTopBar({
           variant={"outline"}
           className={"bg-secondary/40 rounded-full backdrop-blur-md p-2"}
           onPointerDown={() => {
-            setSearchActive(!searchActive)
-            setQuery("")
+            state.toggleSearchActive()
+            state.setQuery("")
           }}
         >
-          {searchActive ? <XIcon /> : <SearchIcon />}
+          {state.searchActive ? <XIcon /> : <SearchIcon />}
         </Button>
       </div>
       <div className="flex flex-row pe-2">
@@ -656,21 +689,21 @@ function GameActionsTopBar({
         </Button>
         <Button
           className={cn(
-            availableOnly ? "bg-primary/50" : "bg-secondary/20",
+            state.availableOnly ? "bg-primary/50" : "bg-secondary/20",
             "mx-2 rounded-full backdrop-blur-md border-0"
           )}
-          variant={availableOnly ? "secondary" : "outline"}
-          onPointerDown={() => setAvailableOnly(!availableOnly)}
+          variant={state.availableOnly ? "secondary" : "outline"}
+          onPointerDown={() => state.setAvailableOnly(!state.availableOnly)}
         >
           Mods available
         </Button>
         <Button
           className={cn(
-            onlyCustom ? "bg-primary/50" : "bg-secondary/20",
+            state.onlyCustom ? "bg-primary/50" : "bg-secondary/20",
             "mx-2 rounded-full backdrop-blur-md border-0"
           )}
-          variant={availableOnly ? "secondary" : "outline"}
-          onPointerDown={() => setOnlyCustom(!onlyCustom)}
+          variant={state.onlyCustom ? "secondary" : "outline"}
+          onPointerDown={() => state.setOnlyCustom(!state.onlyCustom)}
         >
           Custom only
         </Button>

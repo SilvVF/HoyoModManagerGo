@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDownIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, SearchIcon, SlashIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { useShallow } from "zustand/shallow";
@@ -120,7 +120,7 @@ export function ModIndexPage() {
   return (
     <DataApiContext.Provider value={dataApi}>
       <div className="flex flex-col">
-        <div className="flex flex-row justify-between items-center sticky top-2 end-0 m-2 z-20">
+        <div className="flex flex-col items-start xl:flex-row xl:items-center xl:justify-between sticky top-2 end-0 m-2 z-20 w-full">
           <BreadCrumbList
             className="backdrop-blur-lg backdrop-brightness-75 bg-primary/30 z-20"
             onCrumbSelected={(path) => navigate(path)}
@@ -128,7 +128,7 @@ export function ModIndexPage() {
             topLevelCrumbs={topLevelCrumbs}
           />
           {crumbs.length !== 3 ? (
-            <div className="flex flex-row items-center">
+            <div className="flex flex-row-reverse xl:flex-row items-center justify-end">
               <div
                 className={cn(
                   "flex flex-row transition-opacity justify-center items-center gap-x-2 overflow-x-clip",
@@ -195,7 +195,7 @@ export function ModIndexPage() {
                 onPointerDown={() => setCollapased((c) => !c)}
                 className={cn(
                   "backdrop-blur backdrop-brightness-50 bg-primary/30 m-2 font-semibold rounded-full",
-                  !collapsed ? "rotate-0" : "rotate-180",
+                  !collapsed ? "rotate-180 xl:rotate-0" : "rotate-0 xl:rotate-180",
                 )}
               >
                 <ChevronRightIcon />
@@ -324,20 +324,7 @@ function BreadCrumbList({
 }
 
 const Slash = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    className="stroke-primary"
-  >
-    <path d="M22 2 2 22" />
-  </svg>
+  <SlashIcon />
 );
 
 function BreadCrumbListItem({
