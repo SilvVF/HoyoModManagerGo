@@ -272,6 +272,13 @@ export const imageFileExtensions = [
   "*.svg"
 ];
 
+export function getEnumName<T>(enumType: T, value: T[keyof T]): string | undefined {
+  // @ts-ignore
+  return (Object.keys(enumType) as Array<keyof T>).find(
+    (key) => enumType[key] === value
+  );
+}
+
 export function isValidUrl(url: string): boolean {
   try {
     new URL(url);

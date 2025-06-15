@@ -28,6 +28,14 @@ export const Game = {
 //     elements: LoLApi.Elements
 // }
 
+export const NoOpApi: DataApi = {
+    game: async () => -1,
+    skinId: async () => -1,
+    characters: async () => [],
+    charactersWithModsAndTags: async () => [],
+    elements: async () => []
+}
+
 export const GenshinApi: DataApi = {
     game: GApi.GetGame,
     skinId: GApi.SkinId,

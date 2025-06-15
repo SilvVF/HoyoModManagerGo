@@ -1,10 +1,7 @@
 import { cn, useStateProducer } from "@/lib/utils";
 import { getRelativeTimeString } from "@/lib/tsutils";
-import * as GbApi from "../../../wailsjs/go/api/GbApi";
-import { api, types } from "../../../wailsjs/go/models";
+import { types } from "../../../wailsjs/go/models";
 import { useParams } from "react-router-dom";
-import { LogPrint } from "../../../wailsjs/runtime/runtime";
-import * as Downloader from "../../../wailsjs/go/core/Downloader";
 import {
   Table,
   TableBody,
@@ -15,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import {
   Carousel,
   CarouselApi,
@@ -33,8 +30,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { dlStates, State, useDownloadStore } from "@/state/downloadStore";
-import { useShallow } from "zustand/shallow";
 import {
   Dialog,
   DialogContent,
@@ -42,153 +37,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Game } from "@/data/dataapi";
 import { DownloadIcon, FileBoxIcon, TrashIcon } from "lucide-react";
 import AsyncImage from "@/components/AsyncImage";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import DB from "@/data/database";
+import { ApiFile, inDownloadState, ModViewState, useModViewPresenter } from "./ModViewPresenter";
 
-const inDownloadState = (state: State | undefined) => {
-  if (state) {
-    return dlStates.includes(state);
-  }
-  return false;
-};
 
 export function ModViewScreen() {
   const { id } = useParams();
 
   const dataApi = useContext(DataApiContext);
-  const [character, setCharacter] = useState<types.Character | undefined>(
-    undefined
-  );
-  const [api, setApi] = useState<CarouselApi>();
-
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const downloadStates = useDownloadStore(
-    useShallow((state) =>
-      Object.fromEntries(
-        Object.entries(state.downloads)
-          .map(([link, download]) => [link, download.state])
-      )
-    ));
-
-  const running = useDownloadStore(useShallow((state) => state.running));
-
-  const downloaded = useStateProducer<types.Mod[]>(
-    [],
-    async (update) => {
-      const mods = await DB.selectModsByGbId(Number(id))
-      const filtered = mods.filter(m => m.characterId === character?.id)
-      update(filtered)
-    },
-    [refreshTrigger, running, id, character]
-  );
-
-  const content = useStateProducer<api.ModPageResponse | undefined>(
-    undefined,
-    async (update) => {
-      const page = await GbApi.ModPage(Number(id));
-      update(page);
-    },
-    [id]
-  );
-
-  const images = useMemo(() => {
-    return (
-      content?._aPreviewMedia?._aImages
-        ?.map((image) => `${image._sBaseUrl}/${image._sFile}`)
-        ?.filter((url) => url !== undefined)
-      ?? []
-    );
-  }, [content]);
-
-  const deleteMod = async (id: number) => {
-    DB.deleteMod(id).then(refresh);
-  };
-
-  const refresh = async () => {
-    setRefreshTrigger((prev) => prev + 1);
-  };
-
-  const downloadTexture = async (
-    link: string,
-    filename: string,
-    modId: number
-  ) => {
-    if (character !== undefined && content?._idRow !== undefined) {
-      LogPrint(modId.toString());
-      Downloader.DownloadTexture(
-        link,
-        filename,
-        modId,
-        content?._idRow,
-        images
-      );
-    }
-  };
-
-  const download = async (link: string, filename: string) => {
-    if (character !== undefined && content?._idRow !== undefined) {
-      Downloader.Download(
-        link,
-        filename,
-        character.name,
-        character.id,
-        character.game,
-        content?._idRow,
-        images
-      );
-    }
-  };
-
-  useEffect(() => {
-    let cName = content?._aCategory?._sName;
-    if (cName !== undefined && dataApi !== undefined) {
-      dataApi.game().then((game) => {
-        if (game === Game.ZZZ) {
-          return { name: cName.split(" ")[0], game: game }
-        } else {
-          return { name: cName, game: game }
-        }
-      })
-        .then(({ name, game }) =>
-          DB.selectClosestCharacter(name, game).then(setCharacter)
-        )
-    }
-  }, [content, dataApi]);
+  const state = useModViewPresenter(id, dataApi)
 
   return (
     <div className="flex flex-col min-w-full h-full items-center">
-      <CharacterSelectDropdown onSelected={setCharacter} selected={character} />
-      <Carousel className="w-11/12" setApi={setApi}>
-        <CarouselContent>
-          {images.map((url, index) => (
-            <CarouselItem key={index} className="basis-1/3">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <img className="object-cover aspect-square" src={url} />
-                </DialogTrigger>
-                <DialogContent className="min-w-[80%] justify-center">
-                  <img className="max-h-[calc(80vh)] object-contain overflow-clip" src={url} />
-                </DialogContent>
-              </Dialog>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        <CarouselPrevious
-          onClick={() => {
-            api?.scrollTo(api.selectedScrollSnap() - 3);
-          }}
-          className="me-12"
-        />
-        <CarouselNext
-          onClick={() => {
-            api?.scrollTo(api.selectedScrollSnap() + 3);
-          }}
-          className="me-12"
-        />
-      </Carousel>
+      <CharacterSelectDropdown
+        onSelected={state.events.changeCharacter}
+        selected={state.character}
+      />
+      <CharacterImagePreview state={state} />
       <Table>
         <TableCaption>Mods available to download.</TableCaption>
         <TableHeader>
@@ -200,20 +67,16 @@ export function ModViewScreen() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {content?._aFiles?.map((f) => <FileListItem
-            f={f}
-            downloadStates={downloadStates}
-            download={download}
-            downloadTexture={downloadTexture}
-            downloaded={downloaded}
-            character={character}
-            deleteMod={deleteMod}
-          />
-          ) ?? <></>}
+          {state.filesWithDownload.map((file) =>
+            <FileListItem
+              state={state}
+              file={file}
+            />
+          )}
         </TableBody>
       </Table>
       <div
-        dangerouslySetInnerHTML={{ __html: content?._sText ?? "" }}
+        dangerouslySetInnerHTML={{ __html: state.htmlContent }}
         onClick={(e) => {
           const anchor = (e.target as HTMLElement).closest("a");
           if (anchor) {
@@ -225,96 +88,112 @@ export function ModViewScreen() {
   );
 }
 
-function FileListItem(
-  {
-    f,
-    downloadStates,
-    downloadTexture,
-    download,
-    downloaded,
-    deleteMod,
-    character
-  }: {
-    f: api.AFile,
-    downloadStates: {
-      [link: string]: State
-    },
-    downloadTexture: (url: string, file: string, id: number) => void,
-    download: (url: string, file: string) => void,
-    downloaded: types.Mod[],
-    deleteMod: (id: number) => void,
-    character: types.Character | undefined,
+const CharacterImagePreview = ({ state }: { state: ModViewState }) => {
+
+  const [api, setApi] = useState<CarouselApi>();
+
+  return (
+    <Carousel
+      className="w-11/12"
+      setApi={setApi}
+    >
+      <CarouselContent>
+        {state.images.map((url, index) => (
+          <CarouselItem key={index} className="basis-1/3">
+            <Dialog>
+              <DialogTrigger asChild>
+                <img className="object-cover aspect-square" src={url} />
+              </DialogTrigger>
+              <DialogContent className="min-w-[80%] justify-center">
+                <img className="max-h-[calc(80vh)] object-contain overflow-clip" src={url} />
+              </DialogContent>
+            </Dialog>
+          </CarouselItem>
+        ))}
+      </CarouselContent>
+      <CarouselPrevious
+        onClick={() => {
+          api?.scrollTo(api.selectedScrollSnap() - 3);
+        }}
+        className="me-12"
+      />
+      <CarouselNext
+        onClick={() => {
+          api?.scrollTo(api.selectedScrollSnap() + 3);
+        }}
+        className="me-12"
+      />
+    </Carousel>
+  )
+}
+
+function FileListItem({ file, state }: {
+  file: ApiFile,
+  state: ModViewState
+}) {
+
+  const downloading = useMemo(() => {
+    return inDownloadState(state.downloadStates[file.dlLink])
+  }, [state.downloadStates, file])
+
+  const timestamp = useMemo(() => {
+    return getRelativeTimeString(1000 * (file.dateAdded ?? 0))
+  }, [file.dateAdded])
+
+
+  const handleDownload = () => {
+    state.events.downloadMod(file.dlLink, file.fname)
   }
-) {
-  const downloading = useMemo(() => f._sDownloadUrl ? inDownloadState(downloadStates[f._sDownloadUrl]) : false, [downloadStates, f])
+
+  const handleTextureDownload = (id: number) => {
+    state.events.downloadTexture(
+      file.dlLink,
+      file.fname,
+      id
+    )
+  }
+
+  const handleDelete = () => {
+    if (file.downloadedMod) {
+      state.events.deleteMod(file.downloadedMod.id)
+    }
+  }
+
+  const isDownloaded = file.downloadedMod !== undefined
 
   return (
     <TableRow>
-      <TableCell className="font-medium">{f._sFile}</TableCell>
+      <TableCell className="font-medium">{file.fname}</TableCell>
       <TableCell>
-        {getRelativeTimeString(1000 * (f._tsDateAdded ?? 0))}
+        {timestamp}
       </TableCell>
       <TableCell>
-        {[
-          f._sClamAvResult,
-          f._sAvastAvResult,
-          f._sAnalysisResult,
-        ].map((result) => {
-          if (result) {
-            return (
-              <Badge
-                className={cn(
-                  result === "clean" ||
-                    result === "File passed analysis"
-                    ? "bg-green-800"
-                    : "bg-red-800",
-                  "mx-2 h-6"
-                )}
-                variant="secondary"
-              >
-                {result}
-              </Badge>
-            );
-          }
-        })}
+        {file.avResults.map(({ result, type, clean }) => (
+          <Badge
+            className={cn(
+              clean
+                ? "bg-green-800"
+                : "bg-red-800",
+              "mx-2 h-6"
+            )}
+            variant="secondary"
+          >
+            {type + " " + result}
+          </Badge>
+        ))}
       </TableCell>
       <TableCell className="text-right min-w-[64px] m-2 space-x-4">
         <div className="flex flex-row justify-end">
           <DownloadButton
-            onDownloadAsTextureClick={(id) =>
-              downloadTexture(
-                f._sDownloadUrl ?? "",
-                f._sFile ?? "",
-                id
-              )
-            }
-            downloaded={downloaded
-              .map((it) => it.gbFileName.toLowerCase())
-              .includes(f._sFile?.toLowerCase() ?? "")}
-            onDeleteClick={() => {
-              const mod = downloaded.find(
-                (it) =>
-                  it.gbFileName.toLowerCase() ===
-                  (f._sFile?.toLowerCase() ?? "")
-              );
-              if (mod) {
-                deleteMod(mod.id);
-              }
-            }}
+            onDownloadAsTextureClick={handleTextureDownload}
+            downloaded={isDownloaded}
+            onDeleteClick={handleDelete}
             downloading={downloading}
-            onDownloadClick={() =>
-              download(f._sDownloadUrl ?? "", f._sFile ?? "")
-            }
+            onDownloadClick={handleDownload}
           />
           <TextureDownloadButton
-            character={character}
-            onDownloadAsTextureClick={(id) =>
-              downloadTexture(
-                f._sDownloadUrl ?? "",
-                f._sFile ?? "",
-                id
-              )
-            }
+            mods={state.mods}
+            onDownloadAsTexture={handleTextureDownload}
           />
         </div>
       </TableCell>
@@ -322,23 +201,10 @@ function FileListItem(
   );
 }
 
-function TextureDownloadButton({
-  character,
-  onDownloadAsTextureClick,
-}: {
-  character: types.Character | undefined;
-  onDownloadAsTextureClick: (id: number) => void;
+function TextureDownloadButton({ mods, onDownloadAsTexture }: {
+  mods: types.Mod[],
+  onDownloadAsTexture: (id: number) => void
 }) {
-  const mods = useStateProducer<types.Mod[]>(
-    [],
-    async (update) => {
-      if (character) {
-        DB.selectModsByCharacterName(character.name, character.game).then(update);
-      }
-    },
-    [character]
-  );
-
   return (
     <Dialog>
       <DialogTrigger>
@@ -359,7 +225,7 @@ function TextureDownloadButton({
                     <HoverCardTrigger>
                       <Button
                         variant="ghost"
-                        onClick={() => onDownloadAsTextureClick(m.id)}
+                        onClick={() => onDownloadAsTexture(m.id)}
                       >
                         {m.filename}
                       </Button>

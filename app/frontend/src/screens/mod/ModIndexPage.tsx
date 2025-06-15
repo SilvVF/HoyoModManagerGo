@@ -8,12 +8,13 @@ import {
 import {
   DataApi,
   GenshinApi,
+  NoOpApi,
   StarRailApi,
   WutheringWavesApi,
   ZenlessApi,
 } from "@/data/dataapi";
 import { cn } from "@/lib/utils";
-import { getEnumValues } from "@/lib/tsutils";
+import { getEnumName, getEnumValues } from "@/lib/tsutils";
 import { Outlet } from "react-router-dom";
 import { createContext, useMemo, useState } from "react";
 
@@ -39,13 +40,6 @@ import {
 } from "@/state/modSearchStore";
 import { Crumb, useModCrumbState } from "@/state/useModCrumbState";
 import useTransitionNavigate from "@/hooks/useCrossfadeNavigate";
-
-function getEnumName<T>(enumType: T, value: T[keyof T]): string | undefined {
-  // @ts-ignore
-  return (Object.keys(enumType) as Array<keyof T>).find(
-    (key) => enumType[key] === value
-  );
-}
 
 const nameFilterName = (nf: NameFilter) => {
   switch (nf) {
@@ -90,7 +84,7 @@ const sortName = (s: Sort) => {
   }
 };
 
-export const DataApiContext = createContext<DataApi | undefined>(GenshinApi);
+export const DataApiContext = createContext<DataApi>(NoOpApi);
 
 export function ModIndexPage() {
   const navigate = useTransitionNavigate();
@@ -104,7 +98,7 @@ export function ModIndexPage() {
   const { crumbs, skinIds, topLevelCrumbs } = useModCrumbState();
 
   const dataApi = useMemo(() => {
-    if (crumbs[0] === undefined) return undefined;
+    if (crumbs[0] === undefined) return NoOpApi;
     const path = crumbs[0].path;
     const skinIdIdx = skinIds.indexOf(
       Number(path.slice(path.lastIndexOf("/") + 1, path.length))
@@ -119,7 +113,7 @@ export function ModIndexPage() {
       case 3:
         return WutheringWavesApi;
       default:
-        return undefined;
+        return NoOpApi;
     }
   }, [crumbs, skinIds]);
 
