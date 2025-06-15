@@ -65,14 +65,11 @@ function SidebarItem(props: {
       <SidebarMenuButton
         variant={props.selected ? "outline" : "default"}
         onClick={props.onClick}
-        className="w-full h-full"
+        className="h-full w-full"
       >
         <props.icon />
         <text
-          className={cn(
-            open ? "fade-in" : "fade-out",
-            "text-md line-clamp-1"
-          )}
+          className={cn(open ? "fade-in" : "fade-out", "text-md line-clamp-1")}
         >
           {props.name}
         </text>
@@ -93,7 +90,7 @@ function ThemeKeyToggle() {
   const { setScheme, scheme, setPreview, clearPreview } = useTheme();
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="w-full h-full justify-start">
+      <DropdownMenuTrigger className="h-full w-full justify-start">
         <SidebarItem name="Change Color Scheme" icon={PaletteIcon} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -105,22 +102,23 @@ function ThemeKeyToggle() {
               onMouseEnter={() => setPreview(key)}
               onMouseLeave={() => clearPreview(key)}
               key={key}
-              className={cn(key === scheme ? "bg-primary" : "")} onClick={() => setScheme(key)}>
+              className={cn(key === scheme ? "bg-primary" : "")}
+              onClick={() => setScheme(key)}
+            >
               {key}
             </DropdownMenuItem>
-          )
+          );
         })}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-
 function ModeToggle() {
   const { setTheme, isDark } = useTheme();
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="w-full h-full justify-start">
+      <DropdownMenuTrigger className="h-full w-full justify-start">
         <SidebarItem name="Toggle Theme" icon={isDark ? Moon : Sun} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -138,12 +136,11 @@ function ModeToggle() {
   );
 }
 
-export function PlaylistOptionsDropDown(
-  { playlist }: {
-    playlist: types.Playlist
-  }
-) {
-
+export function PlaylistOptionsDropDown({
+  playlist,
+}: {
+  playlist: types.Playlist;
+}) {
   const [isOpen, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -151,14 +148,16 @@ export function PlaylistOptionsDropDown(
   const deletePlaylist = usePlaylistStore((state) => state.delete);
   const renamePlaylist = usePlaylistStore((state) => state.renamePlaylist);
 
-
   return (
-    <Dialog open={dialogOpen} onOpenChange={(open) => {
-      if (open) {
-        setOpen(false)
-      }
-      setDialogOpen(open)
-    }}>
+    <Dialog
+      open={dialogOpen}
+      onOpenChange={(open) => {
+        if (open) {
+          setOpen(false);
+        }
+        setDialogOpen(open);
+      }}
+    >
       <NameDialogContent
         title="rename playlist"
         description={`renames the playlist from ${playlist.name} to provided value`}
@@ -188,7 +187,9 @@ export function PlaylistOptionsDropDown(
               <DropdownMenuShortcut>⇧r</DropdownMenuShortcut>
             </DropdownMenuItem>
           </DialogTrigger>
-          <DropdownMenuItem onClick={() => enablePlaylist(playlist.game, playlist.id)}>
+          <DropdownMenuItem
+            onClick={() => enablePlaylist(playlist.game, playlist.id)}
+          >
             <CheckCheckIcon className="mr-2 h-4 w-4" />
             <span className="w-full">Toggle</span>
             <DropdownMenuShortcut>⇧t</DropdownMenuShortcut>
@@ -200,29 +201,28 @@ export function PlaylistOptionsDropDown(
 }
 
 export function AppSidebar() {
-
   const location = useLocation();
   const navigate = useTransitionNavigate();
   const { open } = useSidebar();
 
   const playlists = usePlaylistStore(
-    useShallow((state) => Object.values(state.playlists).flatMap((it) => it))
+    useShallow((state) => Object.values(state.playlists).flatMap((it) => it)),
   );
   const refreshAllPlaylists = usePlaylistStore((state) => state.init);
-  const enablePlaylist = usePlaylistStore(state => state.enable)
+  const enablePlaylist = usePlaylistStore((state) => state.enable);
 
   const navigateToLastDiscoverCat = async () => {
     try {
       const defaultPath = await GenshinApi.skinId();
       if (await discoverGamePref.IsSet()) {
         const path = (await discoverGamePref.Get()).ifEmpty(
-          () => `cats/${defaultPath}`
+          () => `cats/${defaultPath}`,
         );
         navigate(`/mods/${path}`);
       } else {
         navigate(`/mods/cats/${defaultPath}`);
       }
-    } catch { }
+    } catch {}
   };
 
   return (
@@ -230,7 +230,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            <SidebarMenuItem className="w-full flex flex-row justify-between py-4">
+            <SidebarMenuItem className="flex w-full flex-row justify-between py-4">
               {open ? (
                 <SidebarGroupLabel className="text-md font-semibold tracking-tight text-foreground">
                   App
@@ -305,10 +305,10 @@ export function AppSidebar() {
           open ? "opacity-100" : "opacity-0",
           "transition-all duration-300 ease-in-out",
           "animate-fade-in animate-fade-out",
-          "text-md line-clamp-1 text-ellipsis"
+          "text-md line-clamp-1 text-ellipsis",
         )}
       >
-        <div className="flex flex-row justify-between items-baseline w-full">
+        <div className="flex w-full flex-row items-baseline justify-between">
           <SidebarGroupLabel>Playlists</SidebarGroupLabel>
           <Button
             onPointerDown={refreshAllPlaylists}
@@ -318,14 +318,14 @@ export function AppSidebar() {
             <RefreshCwIcon className="h-4" />
           </Button>
         </div>
-        <Card className="max-h-[calc(30vh)] py-2 overflow-y-auto overflow-x-clip">
-          <div className="space-y-1 p-2 flex flex-col">
+        <Card className="max-h-[calc(30vh)] overflow-x-clip overflow-y-auto py-2">
+          <div className="flex flex-col space-y-1 p-2">
             {playlists.map((playlist, i) => (
               <div className="flex flex-row">
                 <Button
                   key={`${playlist}-${i}`}
                   variant="ghost"
-                  className="w-full justify-start font-normal overflow-clip max-w-3/4"
+                  className="w-full max-w-3/4 justify-start overflow-clip font-normal"
                   onClick={() =>
                     enablePlaylist(playlist.playlist.game, playlist.playlist.id)
                   }
