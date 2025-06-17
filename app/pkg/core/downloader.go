@@ -203,9 +203,18 @@ func getFilenameFromDriveLink(dlLink string) (string, error) {
 	return matches[1], nil
 }
 
-func (d *Downloader) submitItem(link, filename string, meta DLMeta) {
+func (d *Downloader) submitItem(link, filename string, meta DLMeta) error {
 
 	d.mutex.Lock()
+
+	if item, ok := d.Queue[link]; ok {
+		done := item.State == STATE_FINSIHED || item.State == STATE_ERROR
+		if !done {
+			d.mutex.Unlock()
+			return errors.New("already downloading " + item.Link)
+		}
+		delete(d.Queue, link)
+	}
 
 	d.Queue[link] = &DLItem{
 		Filename: filename,
@@ -260,6 +269,7 @@ func (d *Downloader) submitItem(link, filename string, meta DLMeta) {
 			}
 		})
 	}
+	return nil
 }
 
 func (d *Downloader) DownloadTexture(
@@ -269,14 +279,6 @@ func (d *Downloader) DownloadTexture(
 	gbId int,
 	previewImages []string,
 ) error {
-	d.mutex.RLock()
-	_, ok := d.Queue[link]
-	d.mutex.RUnlock()
-
-	if ok {
-		return errors.New("already downloading")
-	}
-
 	mod, err := d.db.SelectModById(modId)
 	if err != nil {
 		return err
@@ -291,9 +293,7 @@ func (d *Downloader) DownloadTexture(
 		modId:       modId,
 	}
 
-	d.submitItem(link, filename, meta)
-
-	return nil
+	return d.submitItem(link, filename, meta)
 }
 
 func (d *Downloader) Download(
@@ -305,15 +305,6 @@ func (d *Downloader) Download(
 	gbId int,
 	previewImages []string,
 ) error {
-
-	d.mutex.RLock()
-	_, ok := d.Queue[link]
-	d.mutex.RUnlock()
-
-	if ok {
-		return errors.New("already downloading")
-	}
-
 	meta := DLMeta{
 		character:     character,
 		characterId:   characterId,
@@ -322,9 +313,7 @@ func (d *Downloader) Download(
 		previewImages: previewImages,
 	}
 
-	d.submitItem(link, filename, meta)
-
-	return nil
+	return d.submitItem(link, filename, meta)
 }
 
 func cleanup(d *Downloader, link string, err error) {
