@@ -183,7 +183,7 @@ func (g *Generator) generateWithContext(
 
 	// try to save config of current mods before the dir is cleaned
 	if _, err := g.cs.saveConfig(game); err != nil {
-		log.LogError(err.Error())
+		log.LogError("err while saving config" + err.Error())
 	}
 
 	cleanTask := g.cleanOutputDir(
@@ -270,6 +270,8 @@ func (g *Generator) copyToOutputDir(
 				return
 			}
 
+			// IMPORTANT DONT CHANGE WITHOUT ALSO CHANGING configsaver.go
+			// all entries should have the mod id as a prefix
 			outputDir := filepath.Join(outputDir, fmt.Sprintf("%d_%s", mod.Id, mod.Filename))
 
 			// error ignored and reported empty texture slice wont stop copying

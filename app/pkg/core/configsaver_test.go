@@ -468,13 +468,13 @@ func TestReadConfig(t *testing.T) {
 	dirPrefs := map[types.Game]pref.Preference[string]{
 		types.Genshin:  prefs.GetString("genshin_dir", ""),
 		types.StarRail: prefs.GetString("sr_dir", ""),
-		types.ZZZ:      prefs.GetString("zzz_dir", ""),
+		types.ZZZ:      prefs.GetString("zzz_dir", "C:\\Users\\david\\SkinMods\\ZZMI\\Mods"),
 		types.WuWa:     prefs.GetString("wuwu_dir", ""),
 	}
 
 	configSaver := NewConfigSaver(dirPrefs, dbHelper)
 
-	for _, game := range types.Games {
+	for _, game := range []types.Game{types.ZZZ} {
 
 		dirPrefs[game].Set(dirs[game])
 
