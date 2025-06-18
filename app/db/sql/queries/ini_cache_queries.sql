@@ -1,11 +1,9 @@
 
 -- CREATE TABLE IF NOT EXISTS inicache (
---     id INTEGER NOT NULL,
---     mod_id INTEGER NOT NULL,
+--     mod_id INTEGER PRIMARY KEY NOT NULL,
 --     fname TEXT NOT NULL,
---     FOREIGN KEY (mod_id) REFERENCES mod(id) ON DELETE CASCADE,
---     CREATE INDEX 
--- )
+--     FOREIGN KEY (mod_id) REFERENCES mod(id) ON DELETE CASCADE
+-- );
 
 -- name: SelectIniCacheByModId :one
 SELECT * FROM inicache WHERE mod_id = :modId;
@@ -14,5 +12,4 @@ SELECT * FROM inicache WHERE mod_id = :modId;
 INSERT INTO inicache(mod_id, fname)
 VALUES (:modId, :fName)
 ON CONFLICT(mod_id) DO UPDATE SET
-  mod_id = excluded.mod_id,
   fname = excluded.fname;

@@ -5,7 +5,6 @@ import (
 )
 
 type IniCacheEntry struct {
-	Id    int
 	ModId int
 	File  string
 }
@@ -24,7 +23,6 @@ func (h *DbHelper) SelectIniEntryByModId(id int) (IniCacheEntry, error) {
 		return IniCacheEntry{}, err
 	}
 	return IniCacheEntry{
-		Id:    int(dbEntry.ID),
 		ModId: int(dbEntry.ModID),
 		File:  dbEntry.Fname,
 	}, nil

@@ -38,6 +38,10 @@ export function DeleteUnusedTextureFromMap(arg1) {
   return window['go']['dbh']['DbHelper']['DeleteUnusedTextureFromMap'](arg1);
 }
 
+export function InsertIniEntry(arg1, arg2) {
+  return window['go']['dbh']['DbHelper']['InsertIniEntry'](arg1, arg2);
+}
+
 export function InsertMod(arg1) {
   return window['go']['dbh']['DbHelper']['InsertMod'](arg1);
 }
@@ -80,6 +84,10 @@ export function SelectEnabledModsByGame(arg1) {
 
 export function SelectEnabledTexturesByModId(arg1) {
   return window['go']['dbh']['DbHelper']['SelectEnabledTexturesByModId'](arg1);
+}
+
+export function SelectIniEntryByModId(arg1) {
+  return window['go']['dbh']['DbHelper']['SelectIniEntryByModId'](arg1);
 }
 
 export function SelectModByFileCharacterGame(arg1, arg2, arg3) {

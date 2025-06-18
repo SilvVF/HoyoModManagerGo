@@ -60,10 +60,7 @@ CREATE TABLE IF NOT EXISTS character(
 );
 
 CREATE TABLE IF NOT EXISTS inicache (
-    id INTEGER PRIMARY KEY NOT NULL,
-    mod_id INTEGER NOT NULL,
+    mod_id INTEGER PRIMARY KEY NOT NULL,
     fname TEXT NOT NULL,
     FOREIGN KEY (mod_id) REFERENCES mod(id) ON DELETE CASCADE
-)
-
-CREATE INDEX mod_id_idx ON inicache(mod_id);
+);

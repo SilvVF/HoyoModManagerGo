@@ -13,7 +13,6 @@ const insertOrUpdateEntry = `-- name: InsertOrUpdateEntry :exec
 INSERT INTO inicache(mod_id, fname)
 VALUES (?1, ?2)
 ON CONFLICT(mod_id) DO UPDATE SET
-  mod_id = excluded.mod_id,
   fname = excluded.fname
 `
 
@@ -29,21 +28,19 @@ func (q *Queries) InsertOrUpdateEntry(ctx context.Context, arg InsertOrUpdateEnt
 
 const selectIniCacheByModId = `-- name: SelectIniCacheByModId :one
 
-SELECT id, mod_id, fname FROM inicache WHERE mod_id = ?1
+SELECT mod_id, fname FROM inicache WHERE mod_id = ?1
 `
 
 // CREATE TABLE IF NOT EXISTS inicache (
 //
-//	id INTEGER NOT NULL,
-//	mod_id INTEGER NOT NULL,
+//	mod_id INTEGER PRIMARY KEY NOT NULL,
 //	fname TEXT NOT NULL,
-//	FOREIGN KEY (mod_id) REFERENCES mod(id) ON DELETE CASCADE,
-//	CREATE INDEX
+//	FOREIGN KEY (mod_id) REFERENCES mod(id) ON DELETE CASCADE
 //
-// )
+// );
 func (q *Queries) SelectIniCacheByModId(ctx context.Context, modid int64) (Inicache, error) {
 	row := q.db.QueryRowContext(ctx, selectIniCacheByModId, modid)
 	var i Inicache
-	err := row.Scan(&i.ID, &i.ModID, &i.Fname)
+	err := row.Scan(&i.ModID, &i.Fname)
 	return i, err
 }

@@ -85,6 +85,8 @@ func (cs *ConfigSaver) saveConfig(g types.Game) ([]types.Mod, error) {
 	return created, errors.Join(errs...)
 }
 
+// / gets the saved_conf.ini file and loads the full content
+// in memory
 func GetEnabledConfig(m types.Mod) (*ini.File, error) {
 
 	confCache := util.GetModConfigCache(m)

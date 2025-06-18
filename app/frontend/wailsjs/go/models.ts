@@ -530,6 +530,25 @@ export namespace core {
 
 }
 
+export namespace dbh {
+	
+	export class IniCacheEntry {
+	    ModId: number;
+	    File: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new IniCacheEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ModId = source["ModId"];
+	        this.File = source["File"];
+	    }
+	}
+
+}
+
 export namespace main {
 	
 	export class CompressProgress {

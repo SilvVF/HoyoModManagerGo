@@ -396,53 +396,72 @@ func copyModWithTextures(
 	return err
 }
 
-func overwriteMergedIniIfneeded(m types.Mod, outputDir string, cache dbh.IniCache) error {
-
+func GetRelativeIniPath(m types.Mod, modDir string, cache dbh.IniCache) (string, error) {
 	var iniPath string
 	entry, err := cache.SelectIniEntryByModId(m.Id)
 	// couldnt find entry in cache search output for the relative
-	// path and save it
+	// path from the modDir and save it
 	if err != nil || entry.File == "" {
-		err := filepath.WalkDir(outputDir, func(path string, d fs.DirEntry, err error) error {
+		log.LogDebugf("Searching for ini Entry for mod %s %d", m.Filename, m.Id)
+		err := filepath.WalkDir(modDir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
 			if d.IsDir() {
 				return nil
 			}
-			if filepath.Ext(d.Name()) == ".ini" && !strings.HasPrefix(d.Name(), "DISABLED") {
-				log.LogDebug("Found and overwriting:" + path)
-				iniPath = path
+			if filepath.Ext(d.Name()) == ".ini" && !strings.HasPrefix(d.Name(), "DISABLED") && !strings.HasPrefix(d.Name(), "help") {
+				log.LogDebugf("found ini Entry for mod %s %d %s", m.Filename, m.Id, path)
+				iniPath, err = filepath.Rel(modDir, path)
+				if err != nil {
+					return err
+				}
 				return fs.SkipAll
 			}
 			return nil
 		})
 
 		if err != nil {
-			return err
+			return "", err
 		}
 
-		cache.InsertIniEntry(m.Id, iniPath)
+		if err := cache.InsertIniEntry(m.Id, iniPath); err != nil {
+			log.LogErrorf("failed writing ini Entry to cache mod %s %d %s %e", m.Filename, m.Id, entry.File, err)
+		}
 	} else {
+		log.LogDebugf("found ini Entry from cache mod %s %d %s", m.Filename, m.Id, entry.File)
 		iniPath = entry.File
 	}
 
 	if iniPath == "" {
-		return errors.New("ini not found")
+		return "", errors.New("ini not found")
 	}
+	return iniPath, nil
+}
 
-	// get the copy from keymaps if it doesnt exist use the original
+func overwriteMergedIniIfneeded(m types.Mod, outputDir string, cache dbh.IniCache) error {
+	// get the path of the original ini in the generated mods dir
+	relPath, err := GetRelativeIniPath(m, outputDir, cache)
+	iniPath := filepath.Join(outputDir, relPath)
+	if err != nil {
+		return err
+	}
+	// the user defined keymaps ini
+	// this is saved as the full ini already merged
 	enabled, ok := GetEnabledKeymapPath(m)
 	if !ok {
 		enabled = iniPath
 	}
+
+	// load the saved_conf.ini file that contains toggle states
 	config, err := GetEnabledConfig(m)
 
-	// no keymaps or config dont need to overwrite anything
-	if err != nil && iniPath == enabled {
+	// no keymaps or saved_conf dont need to overwrite anything
+	if err != nil && !ok {
 		return nil
 	}
 
+	// create a new ini file merging keymaps and saved_conf
 	writeConfigToIni := func() ([]byte, error) {
 		f, err := os.Open(enabled)
 		if err != nil {

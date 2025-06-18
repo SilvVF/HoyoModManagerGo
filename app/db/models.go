@@ -18,7 +18,6 @@ type Character struct {
 }
 
 type Inicache struct {
-	ID    int64
 	ModID int64
 	Fname string
 }
