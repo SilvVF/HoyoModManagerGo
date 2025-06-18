@@ -36,9 +36,9 @@ func NewConfigSaver(
 	}
 }
 
-func (cs *ConfigSaver) saveConfig(g types.Game) ([]string, error) {
+func (cs *ConfigSaver) saveConfig(g types.Game) ([]types.Mod, error) {
 
-	created := []string{}
+	created := []types.Mod{}
 
 	entries, err := cs.readD3dxUserIni(g)
 	if err != nil {
@@ -57,7 +57,6 @@ func (cs *ConfigSaver) saveConfig(g types.Game) ([]string, error) {
 			grouped[entry.mod.Id] = []D3dxEntry{entry}
 		}
 	}
-	log.LogDebugf("%v", grouped)
 	// write to mods saved_conf.ini file with values to use when generating next.
 	// file is always truncated
 	for _, group := range grouped {
@@ -80,6 +79,7 @@ func (cs *ConfigSaver) saveConfig(g types.Game) ([]string, error) {
 		for _, entry := range group {
 			file.WriteString(entry.ivar + " = " + entry.ival + "\n")
 		}
+		created = append(created, group[0].mod)
 	}
 
 	return created, errors.Join(errs...)

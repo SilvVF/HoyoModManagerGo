@@ -353,7 +353,7 @@ func findUniqueDirName(basePath string) string {
 }
 
 // overwrites config to the file appendTo and returns the new content as a string
-func OverwriteIniFiles(r io.ReadCloser, cfg *ini.File) (string, error) {
+func OverwriteIniFiles(r io.Reader, cfg *ini.File) (string, error) {
 
 	scanner := bufio.NewScanner(r)
 	scanner.Split(bufio.ScanLines)
@@ -382,19 +382,25 @@ func OverwriteIniFiles(r io.ReadCloser, cfg *ini.File) (string, error) {
 
 				log.LogDebugf("split %v", split)
 
-				if len(split) <= 1 {
+				if len(split) < 2 {
 					sb.WriteString(line)
 					sb.WriteRune('\n')
 					break
 				}
+				// takes only the name after a $ if one is present
+				// global persist $swapvar -> swapvar
+				fullKey := split[0]
+				searchKey := strings.TrimSpace(fullKey)
+				takeAfter := strings.LastIndex(searchKey, "$")
+				if takeAfter != -1 {
+					searchKey = strings.TrimPrefix(searchKey[takeAfter:], "$")
+				}
 
-				subName := strings.TrimSpace(split[0])
-
-				if key, _ := sec.GetKey(subName); key != nil {
-					log.LogDebugf("Writing KEY=%s VALUE=%s", subName, key.String())
-					sb.WriteString(fmt.Sprintf("%s = %s\n", subName, key.String()))
+				if key, _ := sec.GetKey(searchKey); key != nil {
+					log.LogDebugf("Writing KEY=%s VALUE=%s", fullKey, key.String())
+					sb.WriteString(fmt.Sprintf("%s = %s\n", fullKey, key.String()))
 				} else {
-					log.LogDebugf("Skipping KEY=%s", subName)
+					log.LogDebugf("Skipping KEY=%s", fullKey)
 					sb.WriteString(line)
 					sb.WriteRune('\n')
 				}
