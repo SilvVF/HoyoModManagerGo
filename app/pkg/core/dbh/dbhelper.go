@@ -31,6 +31,7 @@ type DbHelper struct {
 	TagDao
 	TextureDao
 	CharacterDao
+	IniCacheEntry
 }
 
 func BackupDatabase() error {

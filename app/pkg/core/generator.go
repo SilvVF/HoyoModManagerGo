@@ -250,19 +250,6 @@ func (g *Generator) copyToOutputDir(
 ) pond.TaskGroup {
 
 	modPool := pond.NewGroup()
-	errCh := make(chan error)
-
-	go func() {
-		for {
-			select {
-			case err := <-errCh:
-				// TODO: send error to client
-				log.LogError(err.Error())
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
 
 	for _, mod := range selected {
 		modPool.Submit(func() {
@@ -278,7 +265,7 @@ func (g *Generator) copyToOutputDir(
 			textures, err := g.db.SelectTexturesByModId(mod.Id)
 			textures = slices.DeleteFunc(textures, func(t types.Texture) bool { return !t.Enabled })
 			if err != nil {
-				errCh <- err
+				log.LogErrorf("failed to get textures for Mod #%d :%e", mod.Id, err)
 			}
 
 			err = copyModWithTextures(
@@ -289,14 +276,14 @@ func (g *Generator) copyToOutputDir(
 			)
 			// dont ignore error here nothing to overwrite if copying failed
 			if err != nil {
-				errCh <- err
+				log.LogErrorf("failed to copy mod and textures #%d :%e", mod.Id, err)
 				return
 			}
 
 			// error ignored and reported only affects keymap and config
-			err = overwriteMergedIniIfneeded(mod, outputDir)
+			err = overwriteMergedIniIfneeded(mod, outputDir, g.db)
 			if err != nil {
-				errCh <- err
+				log.LogErrorf("failed to overwrite merged.ini #%d :%e", mod.Id, err)
 			}
 		})
 	}
@@ -409,26 +396,35 @@ func copyModWithTextures(
 	return err
 }
 
-func overwriteMergedIniIfneeded(m types.Mod, outputDir string) error {
-	var iniPath string
+func overwriteMergedIniIfneeded(m types.Mod, outputDir string, cache dbh.IniCache) error {
 
-	err := filepath.WalkDir(outputDir, func(path string, d fs.DirEntry, err error) error {
+	var iniPath string
+	entry, err := cache.SelectIniEntryByModId(m.Id)
+	// couldnt find entry in cache search output for the relative
+	// path and save it
+	if err != nil || entry.File == "" {
+		err := filepath.WalkDir(outputDir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if filepath.Ext(d.Name()) == ".ini" && !strings.HasPrefix(d.Name(), "DISABLED") {
+				log.LogDebug("Found and overwriting:" + path)
+				iniPath = path
+				return fs.SkipAll
+			}
+			return nil
+		})
+
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
-			return nil
-		}
-		if filepath.Ext(d.Name()) == ".ini" && !strings.HasPrefix(d.Name(), "DISABLED") {
-			log.LogDebug("Found and overwriting:" + path)
-			iniPath = path
-			return fs.SkipAll
-		}
-		return nil
-	})
 
-	if err != nil {
-		return err
+		cache.InsertIniEntry(m.Id, iniPath)
+	} else {
+		iniPath = entry.File
 	}
 
 	if iniPath == "" {

@@ -17,6 +17,12 @@ type Character struct {
 	Flags     int64
 }
 
+type Inicache struct {
+	ID    int64
+	ModID int64
+	Fname string
+}
+
 type Mod struct {
 	ID             int64
 	Fname          string
