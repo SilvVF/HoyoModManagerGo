@@ -31,6 +31,7 @@ type SyncHelper struct {
 	running         map[types.Game]pond.Pool
 	initialComplete map[types.Game]*sync.Once
 	emitter         EventEmmiter
+	notifier        Notifier
 }
 
 func (s *SyncHelper) RunAll(request SyncRequest) {
@@ -50,10 +51,11 @@ func (s *SyncHelper) RunAll(request SyncRequest) {
 	wg.Wait()
 }
 
-func NewSyncHelper(db *dbh.DbHelper, emitter EventEmmiter) *SyncHelper {
+func NewSyncHelper(db *dbh.DbHelper, emitter EventEmmiter, notifier Notifier) *SyncHelper {
 	return &SyncHelper{
-		db:      db,
-		emitter: emitter,
+		db:       db,
+		emitter:  emitter,
+		notifier: notifier,
 		running: map[types.Game]pond.Pool{
 			types.Genshin:  pond.NewPool(1),
 			types.StarRail: pond.NewPool(1),
@@ -84,7 +86,9 @@ func (s *SyncHelper) Sync(game types.Game, request SyncRequest) error {
 
 	pool := s.running[game]
 	if pool.RunningWorkers() > 0 {
-		return errors.New("already running a worker")
+		err := errors.New("already running a worker")
+		s.notifier.Warn(err)
+		return err
 	}
 
 	defer s.emitter.Emit(SyncEvent, game, request)

@@ -65,7 +65,9 @@ func main() {
 	// Create an instance of the app structure
 	flag.Parse()
 	ctx := context.Background()
+
 	defaultEmitter := core.DefaultEmitter()
+	toastEmitter := core.NewToastEmitter(defaultEmitter)
 
 	// DISK
 	var store pref.PrefrenceDb
@@ -113,7 +115,7 @@ func main() {
 		defaultEmitter,
 	)
 
-	sync := core.NewSyncHelper(dbHelper, defaultEmitter)
+	sync := core.NewSyncHelper(dbHelper, defaultEmitter, toastEmitter)
 	keymapper := core.NewKeymapper(dbHelper)
 
 	generator := core.NewGenerator(
@@ -124,7 +126,7 @@ func main() {
 		defaultEmitter,
 	)
 
-	serverManager := server.NewServerManager(appPrefs, dbHelper, generator)
+	serverManager := server.NewServerManager(appPrefs, dbHelper, generator, toastEmitter)
 	transfer := core.NewTransfer(sync, defaultEmitter, appPrefs.RootModDirPref.Preference)
 
 	app := NewApp(appPrefs, core.NewUpdator(gbApi, preferenceDirs), transfer, dbHelper)
@@ -203,6 +205,7 @@ func main() {
 			appPrefs.RootModDirPref,
 			appPrefs.UseViewTransitions,
 			appPrefs.Oneko,
+			appPrefs.ToastLevelPref,
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{

@@ -11,7 +11,7 @@ import (
 
 type EventEmmiter interface {
 	Bind(ctx context.Context)
-	Emit(eventName string, optionalData ...interface{})
+	Emit(eventName string, optionalData ...any)
 }
 
 type TestEvent struct {

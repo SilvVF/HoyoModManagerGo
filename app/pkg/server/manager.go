@@ -33,6 +33,7 @@ type ServerManager struct {
 	prefs     *core.AppPrefs
 	generator *core.Generator
 	db        *dbh.DbHelper
+	notifier  core.Notifier
 	err       chan error
 	events    chan ServCmd
 }
@@ -74,64 +75,61 @@ func (*ServerManager) GetLocalIp() (string, error) {
 	return "", errors.New("are you connected to the network?")
 }
 
-func NewServerManager(prefs *core.AppPrefs, db *dbh.DbHelper, g *core.Generator) *ServerManager {
+func NewServerManager(prefs *core.AppPrefs, db *dbh.DbHelper, g *core.Generator, notifier core.Notifier) *ServerManager {
 	return &ServerManager{
 		server:    nil,
 		prefs:     prefs,
 		db:        db,
 		generator: g,
+		notifier:  notifier,
 		events:    make(chan ServCmd),
 		err:       make(chan error),
 	}
 }
 
 func (sm *ServerManager) Listen(ctx context.Context) {
-	var portChan <-chan int
-	var cancelPortWatch func()
+	portChan, cancelPortWatch := sm.prefs.ServerPortPref.Watch()
 
 	portPref := sm.prefs.ServerPortPref.Preference
 
 	stopServer := func() {
-		if cancelPortWatch != nil {
-			cancelPortWatch()
-			portChan = nil
-			cancelPortWatch = nil
-		}
 		sm.cancelServer()
 		runtime.EventsEmit(ctx, EVENT_NAME, EVENT_STOPPED)
 	}
 
 	startServer := func(port int) {
 		sm.startCancellableServer(port)
-		portChan, cancelPortWatch = portPref.Watch()
 		runtime.EventsEmit(ctx, EVENT_NAME, EVENT_STARTED)
 	}
 
 	go func() {
 		for {
 			select {
-			case p, ok := <-portChan:
+			case _, ok := <-portChan:
 				if !ok {
 					return
 				}
 				if sm.Running() {
-					log.LogDebug(fmt.Sprintf("Restarting server with port: %d", p))
-					stopServer()
-					startServer(p)
+					sm.events <- CMD_RESTART
 				}
+
 			case cmd := <-sm.events:
 				switch cmd {
 				case CMD_START:
 					startServer(portPref.Get())
+					sm.notifier.Info(fmt.Sprintf("started server on port: %d", portPref.Get()))
 				case CMD_STOP:
 					stopServer()
+					sm.notifier.Info(fmt.Sprintf("stopped server on port: %d", portPref.Get()))
 				case CMD_RESTART:
 					stopServer()
 					startServer(portPref.Get())
+					sm.notifier.Info(fmt.Sprintf("restarted server on port: %d", portPref.Get()))
 				}
 			case <-ctx.Done():
 				stopServer()
 				close(sm.events)
+				cancelPortWatch()
 				return
 			}
 		}

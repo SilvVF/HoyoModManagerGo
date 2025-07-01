@@ -1,4 +1,3 @@
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import * as DarkThemePref from "../../wailsjs/go/core/DarkThemePref";
 import * as StartScreenPref from "../../wailsjs/go/core/StartScreenPref";
 import * as HonkaiDirPref from "../../wailsjs/go/core/HonkaiDirPref";
@@ -22,10 +21,12 @@ import * as ServerUsernamePref from "../../wailsjs/go/core/ServerUsernamePref";
 import * as ServerAuthTypePref from "../../wailsjs/go/core/ServerAuthTypePref";
 import * as CleanModDirPref from "../../wailsjs/go/core/CleanModExportDirPref";
 import * as EnabledPluginsPref from "../../wailsjs/go/core/EnabledPluginsPref";
-import * as RootModDirPref from "../../wailsjs/go/core/RootModDirPref"
-import * as UseViewTransitionsPref from "../../wailsjs/go/core/UseViewTransitions"
-import * as Oneko from "../../wailsjs/go/core/Oneko"
-import { LogDebug } from "wailsjs/runtime/runtime";
+import * as RootModDirPref from "../../wailsjs/go/core/RootModDirPref";
+import * as UseViewTransitionsPref from "../../wailsjs/go/core/UseViewTransitions";
+import * as Oneko from "../../wailsjs/go/core/Oneko";
+import { EventsEmit, EventsOn, LogDebug } from "wailsjs/runtime/runtime";
+import { useStateProducer } from "@/lib/utils";
+import { Dispatch, useCallback } from "react";
 
 export type GoPref<T extends any> = {
   DefaultValue(): Promise<T>;
@@ -67,8 +68,10 @@ const serverAuthTypePref = ServerAuthTypePref as GoPref<number>;
 const cleanModDirPref = CleanModDirPref as GoPref<boolean>;
 const rootModDirPref = RootModDirPref as GoPref<string>;
 
-const useViewTransitionsPref = UseViewTransitionsPref as GoPref<boolean>
-const onekoPref = Oneko as GoPref<boolean>
+const useViewTransitionsPref = UseViewTransitionsPref as GoPref<boolean>;
+const onekoPref = Oneko as GoPref<boolean>;
+
+//const toastLevelPref = ToastLevelPref as GoPref<number>;
 
 //export type GoPref<T extends any> = {
 //   DefaultValue(): Promise<T>;
@@ -79,98 +82,94 @@ const onekoPref = Oneko as GoPref<boolean>
 //   Set(arg1: T): Promise<void>;
 // };
 
-const memPref = new Map<string, any>()
+const memPref = new Map<string, any>();
 
 export function inMemroyPerf<T extends any>(value: T, key: string): GoPref<T> {
-  let isSet = false
+  let isSet = false;
   return {
     DefaultValue: async () => value,
-    Delete: async () => { memPref.delete(key) },
+    Delete: async () => {
+      memPref.delete(key);
+    },
     Get: async () => {
-      LogDebug("setting " + value)
-      if (memPref.has(key))
-        return memPref.get(key)
-      else
-        return value
+      LogDebug("setting " + value);
+      if (memPref.has(key)) return memPref.get(key);
+      else return value;
     },
     IsSet: async () => isSet,
     Key: async () => "",
     Set: async (v) => {
-      isSet = true
-      memPref.set(key, v)
+      isSet = true;
+      memPref.set(key, v);
     },
-  } as GoPref<T>
+  } as GoPref<T>;
+}
+
+const CHANGE_EVENT = "PREFERENCE_CHANGED";
+
+function usePrefrenceAsState2Base<T>(
+  defaultValue: T,
+  pref: GoPref<T>,
+  canBeUndefined: boolean,
+): [T, Dispatch<React.SetStateAction<T>>] {
+  const value = useStateProducer(defaultValue, async (update, onDispose) => {
+    const event = CHANGE_EVENT + (await pref.Key());
+
+    pref.Get().then(update);
+
+    const cancel = EventsOn(event, async (data) => {
+      try {
+        if (!canBeUndefined && data === undefined) {
+          update(defaultValue);
+        } else {
+          update(data);
+        }
+      } catch {}
+    });
+
+    onDispose(() => {
+      cancel();
+    });
+  });
+
+  const updateFn = useCallback(
+    (action: React.SetStateAction<T>) => {
+      let newVal: T | undefined;
+      if (isFunction(action)) {
+        newVal = action(value);
+      } else {
+        newVal = action;
+      }
+
+      pref.Key().then((key) => {
+        if (newVal === undefined) {
+          pref.Delete().then(() => EventsEmit(CHANGE_EVENT + key, undefined));
+        } else {
+          pref.Set(newVal).then(() => EventsEmit(CHANGE_EVENT + key, newVal));
+        }
+      });
+    },
+    [value],
+  );
+
+  return [value, updateFn] as const;
+}
+
+function isFunction<T>(
+  action: React.SetStateAction<T>,
+): action is (prevState: T) => T {
+  return typeof action === "function";
 }
 
 export function usePrefrenceAsStateDefault<T extends any>(
-  defaultValue: T,
-  pref: GoPref<T>
-): [T, Dispatch<SetStateAction<T | undefined>>] {
-  const [isSet, setIsSet] = useState(0);
-  const [state, setState] = useState<T | undefined>(defaultValue);
-
-  const refresh = () => {
-    pref.Get().then((value) => {
-      setState(value);
-      setIsSet(1);
-    });
-  };
-
-  useEffect(() => {
-    refresh();
-  }, [pref]);
-
-  useEffect(() => {
-    const s = state;
-    const set = isSet;
-
-    if (s !== undefined && set > 1) {
-      pref.Set(s);
-    } else if (s === undefined && set > 1) {
-      setIsSet(0);
-      setState(defaultValue);
-      pref.Delete().then(refresh);
-    } else if (set == 1) {
-      setIsSet(prev => prev + 1)
-    }
-  }, [state]);
-
-  return [state ?? defaultValue, setState];
+  defaultValue: Exclude<T, undefined>,
+  pref: GoPref<T>,
+) {
+  return usePrefrenceAsState2Base(defaultValue, pref, false);
 }
 
-export function usePrefrenceAsState<T extends any>(
-  pref: GoPref<T>
-): [T | undefined, Dispatch<SetStateAction<T | undefined>>] {
-  const [isSet, setIsSet] = useState(0);
-  const [state, setState] = useState<T | undefined>(undefined);
-
-  const refresh = () => {
-    pref.Get().then((value) => {
-      setState(value);
-      setIsSet(1);
-    });
-  };
-
-  useEffect(() => {
-    refresh();
-  }, [pref]);
-
-  useEffect(() => {
-    const s = state;
-    const set = isSet;
-
-    if (s !== undefined && set > 1) {
-      pref.Set(s);
-    } else if (s === undefined && set > 1) {
-      setIsSet(0);
-      setState(undefined);
-      pref.Delete().then(refresh);
-    } else if (set == 1) {
-      setIsSet(prev => prev + 1)
-    }
-  }, [state]);
-
-  return [state, setState];
+export function usePrefrenceAsState<T extends any>(pref: GoPref<T>) {
+  return usePrefrenceAsState2Base(undefined, pref, true);
 }
 
 export {
@@ -199,5 +198,5 @@ export {
   pluginsPref,
   rootModDirPref,
   useViewTransitionsPref,
-  onekoPref
+  onekoPref,
 };

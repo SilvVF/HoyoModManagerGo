@@ -37,6 +37,7 @@ type AppPrefs struct {
 	UseViewTransitions     *UseViewTransitions
 	Oneko                  *Oneko
 	EllenFix               *EllenFix
+	ToastLevelPref         *ToastLevelPref
 }
 
 func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
@@ -127,6 +128,9 @@ func NewAppPrefs(store pref.PreferenceStore) *AppPrefs {
 		&EllenFix{
 			Preference: store.GetString("ellen_fix", ""),
 		},
+		&ToastLevelPref{
+			Preference: store.GetInt("toast_level", 0),
+		},
 	}
 }
 
@@ -172,3 +176,5 @@ type LastReleaseAckedDate struct{ pref.Preference[string] }
 
 type UseViewTransitions struct{ pref.Preference[bool] }
 type Oneko struct{ pref.Preference[bool] }
+
+type ToastLevelPref struct{ pref.Preference[int] }

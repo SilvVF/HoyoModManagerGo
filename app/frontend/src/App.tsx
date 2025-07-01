@@ -9,12 +9,15 @@ import { SidebarInset, SidebarProvider } from "./components/ui/sidebar";
 import { Button } from "./components/ui/button";
 import { ClosePrefsDB, DevModeEnabled, ForcePanic } from "wailsjs/go/main/App";
 import { ExpandIcon } from "lucide-react";
-import { useDownloadStoreListener, useStoreInitializers } from "./state/useStoreInitializers";
+import {
+  useDownloadStoreListener,
+  useStoreInitializers,
+} from "./state/useStoreInitializers";
 import AppDialogHost from "./components/appdialog";
 import { useAppUpdateChecker } from "./state/useAppUpdateChecker";
+import { ToastProvider } from "./state/toastStore";
 
 function App() {
-
   useStoreInitializers();
   useAppUpdateChecker();
 
@@ -25,30 +28,32 @@ function App() {
   return (
     <ThemeProvider defaultTheme="dark">
       <DevModeOverlay>
-        <div className="bg-background max-h-screen overflow-hidden flex flex-col">
-          <SidebarProvider>
-            <AppSidebar />
-            <SidebarInset className="overflow-hidden">
-              <DownloadOverlay />
-              <AppDialogHost>
-                <ScrollProvider provideRef={scrollAreaRef}>
-                  <div
-                    id="main"
-                    ref={scrollAreaRef}
-                    className={cn(
-                      !expanded && queued > 0
-                        ? "max-h-[calc(100vh-30px)]"
-                        : "max-h-[calc(100vh)]",
-                      "overflow-y-auto overflow-x-hidden"
-                    )}
-                  >
-                    <Outlet />
-                  </div>
-                </ScrollProvider>
-              </AppDialogHost>
-            </SidebarInset>
-          </SidebarProvider>
-        </div>
+        <ToastProvider>
+          <div className="flex max-h-screen flex-col overflow-hidden bg-background">
+            <SidebarProvider>
+              <AppSidebar />
+              <SidebarInset className="overflow-hidden">
+                <DownloadOverlay />
+                <AppDialogHost>
+                  <ScrollProvider provideRef={scrollAreaRef}>
+                    <div
+                      id="main"
+                      ref={scrollAreaRef}
+                      className={cn(
+                        !expanded && queued > 0
+                          ? "max-h-[calc(100vh-30px)]"
+                          : "max-h-[calc(100vh)]",
+                        "overflow-x-hidden overflow-y-auto",
+                      )}
+                    >
+                      <Outlet />
+                    </div>
+                  </ScrollProvider>
+                </AppDialogHost>
+              </SidebarInset>
+            </SidebarProvider>
+          </div>
+        </ToastProvider>
       </DevModeOverlay>
     </ThemeProvider>
   );
@@ -70,12 +75,12 @@ function DevModeOverlay({ children }: { children: ReactNode }) {
 
   return (
     <div>
-      <div className="flex flex-row z-99 absolute top-0">
+      <div className="absolute top-0 z-99 flex flex-row">
         <Button size={"icon"} onClick={() => setCollapsed((c) => !c)}>
           <ExpandIcon />
         </Button>
         {collapsed ? undefined : (
-          <div className="space-x-2 space-y-2">
+          <div className="space-y-2 space-x-2">
             <Button onClick={() => ClosePrefsDB()}>Close DB</Button>
             <Button onClick={() => ForcePanic()}>Force Panic</Button>
           </div>
