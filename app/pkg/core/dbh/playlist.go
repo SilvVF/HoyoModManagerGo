@@ -11,6 +11,8 @@ import (
 type PlaylistDao interface {
 	SelectPlaylistWithModsAndTags(game types.Game) ([]types.PlaylistWithModsAndTags, error)
 	DeletePlaylistById(id int64) error
+	EnablePlaylist(id int64, game types.Game) error
+	SelectPlaylists() ([]types.Playlist, error)
 }
 
 var _ PlaylistDao = (*DbHelper)(nil)
@@ -24,6 +26,31 @@ func (h *DbHelper) UpdatePlaylistName(id int64, name string) error {
 		ID:   id,
 		Name: name,
 	})
+}
+
+func (h *DbHelper) EnablePlaylist(id int64, game types.Game) error {
+	return h.queries.EnableModsForPlaylist(h.ctx, db.EnableModsForPlaylistParams{
+		PlaylistId: id,
+		Game:       game.Int64(),
+	})
+}
+
+func (h *DbHelper) SelectPlaylists() ([]types.Playlist, error) {
+	dbPlaylists, err := h.queries.SelectPlaylists(h.ctx)
+	if err != nil {
+		return make([]types.Playlist, 0), err
+	}
+
+	playlists := make([]types.Playlist, len(dbPlaylists))
+
+	for i, p := range dbPlaylists {
+		playlists[i] = types.Playlist{
+			Id:   int(p.ID),
+			Name: p.PlaylistName,
+			Game: types.Game(p.Game),
+		}
+	}
+	return playlists, nil
 }
 
 func (h *DbHelper) CreatePlaylist(game types.Game, name string) error {

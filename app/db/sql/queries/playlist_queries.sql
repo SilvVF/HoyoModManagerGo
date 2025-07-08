@@ -38,6 +38,17 @@ INSERT INTO playlist(
 )
 RETURNING id;
 
+-- name: SelectPlaylists :many
+SELECT * FROM playlist;
+
+-- name: EnableModsForPlaylist :exec
+UPDATE mod SET
+    selected = TRUE
+WHERE mod.id in (
+    SELECT playlist_mod_cross_ref.mod_id FROM playlist_mod_cross_ref
+    WHERE playlist_id = :playlistId
+) AND mod.game = :game;
+
 -- name: InsertPlayListModCrossRef :exec
 INSERT INTO playlist_mod_cross_ref (
     playlist_id,

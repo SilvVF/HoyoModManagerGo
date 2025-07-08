@@ -19,6 +19,25 @@ func (q *Queries) DeletePlaylistById(ctx context.Context, id int64) error {
 	return err
 }
 
+const enableModsForPlaylist = `-- name: EnableModsForPlaylist :exec
+UPDATE mod SET
+    selected = TRUE
+WHERE mod.id in (
+    SELECT playlist_mod_cross_ref.mod_id FROM playlist_mod_cross_ref
+    WHERE playlist_id = ?1
+) AND mod.game = ?2
+`
+
+type EnableModsForPlaylistParams struct {
+	PlaylistId int64
+	Game       int64
+}
+
+func (q *Queries) EnableModsForPlaylist(ctx context.Context, arg EnableModsForPlaylistParams) error {
+	_, err := q.db.ExecContext(ctx, enableModsForPlaylist, arg.PlaylistId, arg.Game)
+	return err
+}
+
 const insertPlayListModCrossRef = `-- name: InsertPlayListModCrossRef :exec
 INSERT INTO playlist_mod_cross_ref (
     playlist_id,
@@ -143,6 +162,33 @@ func (q *Queries) SelectPlaylistWithModsAndTags(ctx context.Context, game int64)
 			&i.ModID,
 			&i.TagName,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectPlaylists = `-- name: SelectPlaylists :many
+SELECT id, playlist_name, game FROM playlist
+`
+
+func (q *Queries) SelectPlaylists(ctx context.Context) ([]Playlist, error) {
+	rows, err := q.db.QueryContext(ctx, selectPlaylists)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Playlist
+	for rows.Next() {
+		var i Playlist
+		if err := rows.Scan(&i.ID, &i.PlaylistName, &i.Game); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
