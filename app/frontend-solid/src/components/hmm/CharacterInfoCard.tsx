@@ -87,8 +87,8 @@ const ModListItem = ({ mod }: { mod: types.ModWithTags }) => {
 
 const useResizeListener = (
   text: string,
-  rowRef: HTMLDivElement,
-  actionsRef: HTMLDivElement
+  rowRef: HTMLDivElement | undefined,
+  actionsRef: HTMLDivElement | undefined
 ): Accessor<number> => {
   const [availableWidth, setAvailableWidth] = createSignal(0);
 
@@ -100,8 +100,8 @@ const useResizeListener = (
     }
 
     frameId = window.requestAnimationFrame(() => {
-      const rowWidth = rowRef.clientWidth;
-      const controlsWidth = actionsRef.clientWidth;
+      const rowWidth = rowRef?.clientWidth ?? 0;
+      const controlsWidth = actionsRef?.clientWidth ?? 0;
 
       setAvailableWidth(rowWidth - controlsWidth);
     });

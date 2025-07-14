@@ -11,6 +11,7 @@ import {
   WuWaScreen,
   ZZZScreen,
 } from "./pages/GameScreen";
+import { SettingsScreen } from "./pages/SettingsScreen";
 
 const root = document.getElementById("root");
 
@@ -28,6 +29,7 @@ render(
       <Route path={"/starrail"} component={StarRailScreen} />
       <Route path={"/zenless"} component={ZZZScreen} />
       <Route path={"/wuwa"} component={WuWaScreen} />
+      <Route path={"/settings"} component={SettingsScreen} />
     </Router>
   ),
   root!

@@ -24,8 +24,18 @@ import * as EnabledPluginsPref from "../../wailsjs/go/core/EnabledPluginsPref";
 import * as RootModDirPref from "../../wailsjs/go/core/RootModDirPref";
 import * as UseViewTransitionsPref from "../../wailsjs/go/core/UseViewTransitions";
 import * as Oneko from "../../wailsjs/go/core/Oneko";
+import {
+  Accessor,
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
+import { EventsEmit, EventsOn, LogError } from "wailsjs/runtime/runtime";
 
-export type GoPref<T extends any> = {
+export type PrefType = string | number | boolean | string[];
+
+export type GoPref<T extends PrefType> = {
   DefaultValue(): Promise<T>;
   Delete(): Promise<void>;
   Get(): Promise<T>;
@@ -68,16 +78,59 @@ const rootModDirPref = RootModDirPref as GoPref<string>;
 const useViewTransitionsPref = UseViewTransitionsPref as GoPref<boolean>;
 const onekoPref = Oneko as GoPref<boolean>;
 
-//const toastLevelPref = ToastLevelPref as GoPref<number>;
+const PREF_CHANGE_PREFIX = "on_pref_changed";
+const prefEvent = (key: string) => PREF_CHANGE_PREFIX + key;
 
-//export type GoPref<T extends any> = {
-//   DefaultValue(): Promise<T>;
-//   Delete(): Promise<void>;
-//   Get(): Promise<T>;
-//   IsSet(): Promise<boolean>;
-//   Key(): Promise<string>;
-//   Set(arg1: T): Promise<void>;
-// };
+type SetAction<T> = ((prev: T) => T) | T;
+type PrefSetter<T> = (action: SetAction<T>) => void;
+
+export function usePreferenceSignal<T extends PrefType>(
+  defaultValue: T,
+  pref: GoPref<T>
+): [Accessor<T>, PrefSetter<T>, invalidate: () => void] {
+  const [prefState, setPref] = createSignal<T>(defaultValue);
+
+  const setter = async (action: SetAction<T>) => {
+    try {
+      let value: T;
+      if (typeof action === "function") {
+        value = action(prefState());
+      } else {
+        value = action;
+      }
+
+      await pref.Set(value);
+      const key = await pref.Key();
+      EventsEmit(prefEvent(key), value);
+    } catch (e) {
+      LogError(`failed to set pref:  ${e}`);
+    }
+  };
+
+  createEffect(async () => {
+    const initial: T = await pref.Get();
+    setPref(() => initial);
+
+    const cancel = EventsOn(prefEvent(await pref.Key()), (data: T) => {
+      try {
+        setPref(() => data);
+      } catch (e) {
+        LogError(`failed to set pref:  ${e}`);
+      }
+    });
+
+    onCleanup(() => cancel());
+  });
+
+  return [
+    prefState,
+    setter,
+    async () => {
+      const value = await pref.Get();
+      setPref(() => value);
+    },
+  ] as const;
+}
 
 export {
   darkThemePref,

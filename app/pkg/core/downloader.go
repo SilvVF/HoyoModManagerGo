@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"hmm/pkg/core/dbh"
@@ -528,7 +529,7 @@ func (d *Downloader) unzipAndInsertToDb(
 		}
 
 		if i.IsDir() {
-			if err = util.CopyRecursivleyProgFn(filePath, filepath.Join(outputDir, filename), true, onProgress); err != nil {
+			if err = util.CopyRecursivleyProgFn(context.Background(), filePath, filepath.Join(outputDir, filename), true, onProgress); err != nil {
 				return err
 			}
 		} else {

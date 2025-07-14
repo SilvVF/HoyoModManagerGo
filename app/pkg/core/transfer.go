@@ -8,19 +8,20 @@ import (
 	"hmm/pkg/pref"
 	"hmm/pkg/util"
 	"os"
-	"time"
 )
 
+type ChangeDirEvent string
+
 const (
-	eventName       = "change_dir"
-	eventProgress   = "progress"
-	eventError      = "error"
-	eventFinsihshed = "finished"
-	debounce        = time.Second * 1
+	CHANGE_DIR_EVENT                = "change_dir"
+	Progress         ChangeDirEvent = "progress"
+	Error            ChangeDirEvent = "error"
+	Finished         ChangeDirEvent = "finished"
 )
 
 type Transfer struct {
 	sync      *SyncHelper
+	cancel    chan struct{}
 	emitter   EventEmmiter
 	dirPref   pref.Preference[string]
 	canRemove map[string]struct{}
@@ -31,11 +32,16 @@ func NewTransfer(sync *SyncHelper, emitter EventEmmiter, dirPref pref.Preference
 		sync:      sync,
 		emitter:   emitter,
 		dirPref:   dirPref,
+		cancel:    make(chan struct{}),
 		canRemove: map[string]struct{}{},
 	}
 }
 
-func (t *Transfer) ChangeRootModDir(dest string, copyOver bool) (err error) {
+func (t *Transfer) Cancel() {
+	t.cancel <- struct{}{}
+}
+
+func (t *Transfer) ChangeRootModDir(dest string, copyOver bool) (state ChangeDirEvent, err error) {
 
 	prevDir := t.dirPref.Get()
 
@@ -50,50 +56,36 @@ func (t *Transfer) ChangeRootModDir(dest string, copyOver bool) (err error) {
 		}
 	}()
 
-	if err = t.dirPref.Set(dest); err != nil {
-		return err
+	err = t.dirPref.Set(dest)
+	if err != nil {
+		return Error, nil
 	}
 
 	if !copyOver {
-		return nil
+		return Finished, nil
 	}
 
-	t.emitter.Emit(eventName, "start")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	sem := make(chan struct{}, 1)
-	var tot int64
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.cancel:
+			cancel()
+		}
+	}()
 
-	sendEvent := func(progress, total int64) {
-		go func() {
-			// try to aquire the sem or debounce
-			select {
-			case sem <- struct{}{}:
-			default:
-				return
-			}
-
-			tot = total
-			t.emitter.Emit(eventName, eventProgress, DataProgress{Total: total, Progress: progress})
-
-			ctx, cancel := context.WithTimeout(context.Background(), debounce)
-			defer cancel()
-
-			<-ctx.Done()
-			<-sem
-		}()
-	}
-
-	err = util.CopyRecursivleyProgFn(prevDir, dest, false, sendEvent)
-	sem <- struct{}{}
+	err = util.CopyRecursivleyProgFn(ctx, prevDir, dest, false, func(progress, total int64) {
+		t.emitter.Emit(CHANGE_DIR_EVENT, Progress, DataProgress{Total: total, Progress: progress})
+	})
 
 	if err != nil {
-		t.emitter.Emit(eventName, eventError, err.Error())
-	} else {
-		t.emitter.Emit(eventName, eventProgress, DataProgress{Total: tot, Progress: tot})
-		t.emitter.Emit(eventName, eventFinsihshed)
+		return Error, err
 	}
 
-	return err
+	return Finished, nil
 }
 
 func (t *Transfer) RemoveAll(path string) error {

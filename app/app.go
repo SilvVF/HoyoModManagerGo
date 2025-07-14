@@ -389,7 +389,11 @@ func (a *App) GetStats() (*types.DownloadStats, error) {
 	return res, nil
 }
 
-func (a *App) ChangeRootModDir(dir string, transfer bool) error {
+func (a *App) CancelDirChange() {
+	a.transer.Cancel()
+}
+
+func (a *App) ChangeRootModDir(dir string, transfer bool) (core.ChangeDirEvent, error) {
 	return a.transer.ChangeRootModDir(dir, transfer)
 }
 

@@ -62,6 +62,10 @@ export function checkDownloadError(download: Download): boolean {
   return download.state === "error";
 }
 
+export function checkDownloadOk(download: Download): boolean {
+  return download.state === "error" || download.state === "finished";
+}
+
 export function checkDownloadComplete(download: Download): boolean {
   return download.state === "error" || download.state === "finished";
 }

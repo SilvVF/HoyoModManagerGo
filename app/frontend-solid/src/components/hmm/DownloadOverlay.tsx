@@ -2,6 +2,7 @@ import { cn } from "@/libs/cn";
 import {
   checkDownloadComplete,
   checkDownloadError,
+  checkDownloadOk,
   Download,
   DownloadProgress,
   DownloadSortPriority,
@@ -32,8 +33,7 @@ export function DownloadOverlay() {
   const counts = createMemo(() => {
     return {
       errors: sortedDownloads().filter((d) => checkDownloadError(d)).length,
-      successful: sortedDownloads().filter((d) => checkDownloadComplete(d))
-        .length,
+      successful: sortedDownloads().filter((d) => checkDownloadOk(d)).length,
       running: sortedDownloads().filter((d) => !checkDownloadComplete(d))
         .length,
     };

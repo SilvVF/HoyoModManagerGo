@@ -1,6 +1,8 @@
 package util
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"hmm/pkg/log"
@@ -266,7 +268,7 @@ func DirSize(path string) (int64, error) {
 	return size, err
 }
 
-func CopyRecursivleyProgFn(src string, dst string, overwrite bool, onProgress func(progress int64, total int64)) error {
+func CopyRecursivleyProgFn(ctx context.Context, src string, dst string, overwrite bool, onProgress func(progress int64, total int64)) error {
 	srcInfo, err := os.Stat(src)
 
 	if err != nil {
@@ -290,6 +292,11 @@ func CopyRecursivleyProgFn(src string, dst string, overwrite bool, onProgress fu
 		if err != nil {
 			return err
 		}
+
+		if ctx.Err() != nil {
+			return filepath.SkipAll
+		}
+
 		relPath, err := filepath.Rel(src, path)
 		if err != nil {
 			return err
@@ -313,7 +320,7 @@ func CopyRecursivleyProgFn(src string, dst string, overwrite bool, onProgress fu
 
 	onProgress(total, total)
 
-	return err
+	return errors.Join(err, ctx.Err())
 }
 
 func CopyRecursivley(src string, dst string, overwrite bool) error {
