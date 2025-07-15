@@ -1,4 +1,3 @@
-import { darkThemePref, usePrefrenceAsState } from "@/data/prefs";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 type Theme = "dark" | "light" | "system";
@@ -53,7 +52,9 @@ const initialState: ThemeProviderState = {
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  const [theme, setTheme] = usePrefrenceAsState(darkThemePref);
+  const [theme, setTheme] = useState(
+    localStorage.getItem("theme_pref") ?? "system",
+  );
   const [isDark, setIsDark] = useState(false);
 
   const [scheme, setScheme] = useState<ColorScheme>(initialScheme());
@@ -63,32 +64,46 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
 
   useEffect(() => {
     const time = 100;
-    initial.current = false;
 
-    const id = setTimeout(() => {
-      if (theme === undefined) return;
+    const id = setTimeout(
+      () => {
+        initial.current = false;
 
-      const root = window.document.documentElement;
-      localStorage.setItem(sKey, scheme);
+        const root = window.document.documentElement;
+        localStorage.setItem(sKey, scheme);
+        localStorage.setItem("theme_pref", theme);
 
-      for (const key of Schemes) {
-        root.classList.remove(key + "-" + "dark", key + "-" + "light");
-      }
+        const currentScheme = preview !== undefined ? preview : scheme;
+        let currClassname = "";
+        if (theme === "system") {
+          const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+            .matches
+            ? "dark"
+            : "light";
 
-      const currentScheme = preview !== undefined ? preview : scheme;
-      if (theme === "system") {
-        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-          .matches
-          ? "dark"
-          : "light";
+          setIsDark(systemTheme === "dark");
+          currClassname = currentScheme + "-" + systemTheme;
+          root.classList.add(currClassname);
+        } else {
+          setIsDark(theme === "dark");
+          currClassname = currentScheme + "-" + theme;
+          root.classList.add(currClassname);
+        }
 
-        setIsDark(systemTheme === "dark");
-        root.classList.add(currentScheme + "-" + systemTheme);
-      } else {
-        setIsDark(theme === "dark");
-        root.classList.add(currentScheme + "-" + theme);
-      }
-    }, time);
+        for (const key of Schemes) {
+          const classNameDark = key + "-" + "dark";
+          const classNameLight = key + "-" + "light";
+
+          if (classNameDark !== currClassname) {
+            root.classList.remove(classNameDark);
+          }
+          if (classNameLight !== currClassname) {
+            root.classList.remove(classNameLight);
+          }
+        }
+      },
+      initial.current ? 0 : time,
+    );
 
     return () => clearTimeout(id);
   }, [theme, scheme, preview]);

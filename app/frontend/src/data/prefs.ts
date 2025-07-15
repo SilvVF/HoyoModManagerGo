@@ -24,9 +24,9 @@ import * as EnabledPluginsPref from "../../wailsjs/go/core/EnabledPluginsPref";
 import * as RootModDirPref from "../../wailsjs/go/core/RootModDirPref";
 import * as UseViewTransitionsPref from "../../wailsjs/go/core/UseViewTransitions";
 import * as Oneko from "../../wailsjs/go/core/Oneko";
-import { EventsEmit, EventsOn, LogDebug } from "wailsjs/runtime/runtime";
+import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import { queryClient } from "./queryClient";
 import { useStateProducer } from "@/lib/utils";
-import { Dispatch, useCallback } from "react";
 
 export type GoPref<T extends any> = {
   DefaultValue(): Promise<T>;
@@ -71,105 +71,44 @@ const rootModDirPref = RootModDirPref as GoPref<string>;
 const useViewTransitionsPref = UseViewTransitionsPref as GoPref<boolean>;
 const onekoPref = Oneko as GoPref<boolean>;
 
-//const toastLevelPref = ToastLevelPref as GoPref<number>;
-
-//export type GoPref<T extends any> = {
-//   DefaultValue(): Promise<T>;
-//   Delete(): Promise<void>;
-//   Get(): Promise<T>;
-//   IsSet(): Promise<boolean>;
-//   Key(): Promise<string>;
-//   Set(arg1: T): Promise<void>;
-// };
-
-const memPref = new Map<string, any>();
-
-export function inMemroyPerf<T extends any>(value: T, key: string): GoPref<T> {
-  let isSet = false;
-  return {
-    DefaultValue: async () => value,
-    Delete: async () => {
-      memPref.delete(key);
-    },
-    Get: async () => {
-      LogDebug("setting " + value);
-      if (memPref.has(key)) return memPref.get(key);
-      else return value;
-    },
-    IsSet: async () => isSet,
-    Key: async () => "",
-    Set: async (v) => {
-      isSet = true;
-      memPref.set(key, v);
-    },
-  } as GoPref<T>;
-}
-
-const CHANGE_EVENT = "PREFERENCE_CHANGED";
-
-function usePrefrenceAsState2Base<T>(
-  defaultValue: T,
+export function usePrefQuery<T>(
   pref: GoPref<T>,
-  canBeUndefined: boolean,
-): [T, Dispatch<React.SetStateAction<T>>] {
-  const value = useStateProducer(defaultValue, async (update, onDispose) => {
-    const event = CHANGE_EVENT + (await pref.Key());
-
-    pref.Get().then(update);
-
-    const cancel = EventsOn(event, async (data) => {
-      try {
-        if (!canBeUndefined && data === undefined) {
-          update(defaultValue);
-        } else {
-          update(data);
-        }
-      } catch {}
-    });
-
-    onDispose(() => {
-      cancel();
-    });
-  });
-
-  const updateFn = useCallback(
-    (action: React.SetStateAction<T>) => {
-      let newVal: T | undefined;
-      if (isFunction(action)) {
-        newVal = action(value);
-      } else {
-        newVal = action;
-      }
-
-      pref.Key().then((key) => {
-        if (newVal === undefined) {
-          pref.Delete().then(() => EventsEmit(CHANGE_EVENT + key, undefined));
-        } else {
-          pref.Set(newVal).then(() => EventsEmit(CHANGE_EVENT + key, newVal));
-        }
-      });
+): [
+  UseQueryResult<NoInfer<T>, Error>,
+  (update: (prev: T) => T | undefined) => void,
+] {
+  const prefKey = useStateProducer<undefined | string>(
+    undefined,
+    async (update) => {
+      update(await pref.Key());
     },
-    [value],
   );
 
-  return [value, updateFn] as const;
-}
+  const query = useQuery({
+    queryKey: ["pref", prefKey],
+    queryFn: async () => await pref.Get(),
+    enabled: prefKey !== undefined,
+  });
 
-function isFunction<T>(
-  action: React.SetStateAction<T>,
-): action is (prevState: T) => T {
-  return typeof action === "function";
-}
+  if (!query.isSuccess || prefKey === undefined) {
+    return [query, () => {}];
+  }
 
-export function usePrefrenceAsStateDefault<T extends any>(
-  defaultValue: Exclude<T, undefined>,
-  pref: GoPref<T>,
-) {
-  return usePrefrenceAsState2Base(defaultValue, pref, false);
-}
+  const setValue = async (update: (prev: T) => T | undefined) => {
+    const newValue = update(query.data);
+    if (newValue === undefined) {
+      await pref.Delete();
+    } else {
+      await pref.Set(newValue);
+    }
 
-export function usePrefrenceAsState<T extends any>(pref: GoPref<T>) {
-  return usePrefrenceAsState2Base(undefined, pref, true);
+    queryClient.invalidateQueries({
+      queryKey: ["pref", prefKey],
+      exact: true,
+    });
+  };
+
+  return [query, setValue] as const;
 }
 
 export {

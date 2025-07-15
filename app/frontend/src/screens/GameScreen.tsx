@@ -9,9 +9,8 @@ import {
   genshinElementPref,
   GoPref,
   honkaiElementPref,
-  inMemroyPerf,
   modsAvailablePref,
-  usePrefrenceAsState,
+  usePrefQuery,
   wuwaElementPref,
   zzzElementPref,
 } from "@/data/prefs";
@@ -24,11 +23,12 @@ import {
 } from "@/components/CharacterInfoCard";
 import { usePlaylistStore } from "@/state/playlistStore";
 import { Columns3Icon, GridIcon, SearchIcon, XIcon } from "lucide-react";
-import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";
+import { EventsOn } from "wailsjs/runtime/runtime";
 import useCrossfadeNavigate from "@/hooks/useCrossfadeNavigate";
 import { AppDialogType, useDialogStore } from "@/components/appdialog";
 import DB from "@/data/database";
 import { useGenerator } from "@/data/generator";
+import { useQuery } from "@tanstack/react-query";
 
 const getElementPref = (game: number): GoPref<string[]> => {
   switch (game) {
@@ -41,7 +41,7 @@ const getElementPref = (game: number): GoPref<string[]> => {
     case Game.WuWa:
       return wuwaElementPref;
     default:
-      return inMemroyPerf<string[]>([], "game" + game + "_element_pref");
+      throw Error("invalid game");
   }
 };
 
@@ -123,18 +123,17 @@ const useFilterState = (
   characters: types.CharacterWithModsAndTags[],
   game: number,
 ): FilterState => {
-  const [selectedElements, setSelectedElements] = usePrefrenceAsState(
+  const [{ data: selectedElements }, setSelectedElements] = usePrefQuery(
     useMemo(() => getElementPref(game), [game]),
   );
 
   const [searchActive, setSearchActive] = useState(false);
   const [query, setQuery] = useState("");
 
-  const [available, setAvailableOnly] = usePrefrenceAsState(modsAvailablePref);
+  const [{ data: available }, setAvailableOnly] =
+    usePrefQuery(modsAvailablePref);
 
-  const [onlyCustom, setOnlyCustom] = usePrefrenceAsState(
-    useMemo(() => inMemroyPerf<boolean>(false, "only_custom"), []),
-  );
+  const [onlyCustom, setOnlyCustom] = useState(false);
 
   const filteredCharacters = useMemo(() => {
     if (selectedElements !== undefined && available !== undefined) {
@@ -178,7 +177,7 @@ const useFilterState = (
     setQuery: setQuery,
     query: query,
     availableOnly: available ?? false,
-    setAvailableOnly: setAvailableOnly,
+    setAvailableOnly: () => setAvailableOnly((prev) => !prev),
     filteredCharacters: filteredCharacters,
     selectedElements: selectedElements ?? [],
     toggleElementFilter: onElementSelected,
@@ -227,6 +226,7 @@ const useGameScreenPresenter = (
 ): GameScreenState => {
   const updates = usePlaylistStore(useShallow((state) => state.updates));
   const running = useDownloadStore(useShallow((state) => state.running));
+  const [syncId, setSyncId] = useState(0);
   const elements = useStateProducer<string[]>(
     [],
     async (update) => {
@@ -234,35 +234,30 @@ const useGameScreenPresenter = (
     },
     [dataApi],
   );
-  const characters = useStateProducer<types.CharacterWithModsAndTags[]>(
-    [],
-    async (update, onDispose) => {
-      const unsubscribe = DB.onValueChangedListener(
-        ["characters", "mods", "tags"],
-        async () => {
-          const value = await dataApi.charactersWithModsAndTags();
-          update(value);
-        },
-        true,
-      );
 
-      const cancel = EventsOn("sync", (data) => {
-        if (game === data.game) {
-          dataApi.charactersWithModsAndTags().then(update);
-        }
-      });
+  useEffect(() => {
+    const cancel = EventsOn("sync", (data) => {
+      if (game === data.game) {
+        setSyncId((id) => id + 1);
+      }
+    });
 
-      onDispose(() => {
-        LogDebug("disposing character state producer");
-        cancel();
-        unsubscribe();
-      });
-    },
-    [dataApi, running, updates],
-  );
+    return () => cancel();
+  });
 
-  const filterState = useFilterState(characters, game);
-  const multiSelectState = useMultiSelectState(characters);
+  const { data: characters } = useQuery({
+    queryKey: [
+      ...DB.characterModsTagsTexturesKey(),
+      running,
+      updates,
+      syncId,
+      dataApi,
+    ],
+    queryFn: () => dataApi.charactersWithModsAndTags(),
+  });
+
+  const filterState = useFilterState(characters ?? [], game);
+  const multiSelectState = useMultiSelectState(characters ?? []);
 
   return {
     filterState: filterState,
@@ -651,8 +646,8 @@ function GameActionsTopBar({
           className={cn(
             "flex flex-row space-x-2",
             state.searchActive
-              ? "hidden animate-out fade-out"
-              : "visible animate-in fade-in",
+              ? "animate-out fade-out hidden"
+              : "animate-in fade-in visible",
           )}
         >
           {elements.map((element) => {
@@ -687,8 +682,8 @@ function GameActionsTopBar({
           placeholder="Search..."
           className={cn(
             !state.searchActive
-              ? "hidden animate-out fade-out"
-              : "visible animate-in fade-in",
+              ? "animate-out fade-out hidden"
+              : "animate-in fade-in visible",
           )}
         ></Input>
         <Button

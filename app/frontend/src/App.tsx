@@ -16,6 +16,8 @@ import {
 import AppDialogHost from "./components/appdialog";
 import { useAppUpdateChecker } from "./state/useAppUpdateChecker";
 import { ToastProvider } from "./state/toastStore";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./data/queryClient";
 
 function App() {
   useStoreInitializers();
@@ -26,36 +28,38 @@ function App() {
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <ThemeProvider defaultTheme="dark">
-      <DevModeOverlay>
-        <ToastProvider>
-          <div className="flex max-h-screen flex-col overflow-hidden bg-background">
-            <SidebarProvider>
-              <AppSidebar />
-              <SidebarInset className="overflow-hidden">
-                <DownloadOverlay />
-                <AppDialogHost>
-                  <ScrollProvider provideRef={scrollAreaRef}>
-                    <div
-                      id="main"
-                      ref={scrollAreaRef}
-                      className={cn(
-                        !expanded && queued > 0
-                          ? "max-h-[calc(100vh-30px)]"
-                          : "max-h-[calc(100vh)]",
-                        "overflow-x-hidden overflow-y-auto",
-                      )}
-                    >
-                      <Outlet />
-                    </div>
-                  </ScrollProvider>
-                </AppDialogHost>
-              </SidebarInset>
-            </SidebarProvider>
-          </div>
-        </ToastProvider>
-      </DevModeOverlay>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="dark">
+        <DevModeOverlay>
+          <ToastProvider>
+            <div className="flex max-h-screen flex-col overflow-hidden bg-background">
+              <SidebarProvider>
+                <AppSidebar />
+                <SidebarInset className="overflow-hidden">
+                  <DownloadOverlay />
+                  <AppDialogHost>
+                    <ScrollProvider provideRef={scrollAreaRef}>
+                      <div
+                        id="main"
+                        ref={scrollAreaRef}
+                        className={cn(
+                          !expanded && queued > 0
+                            ? "max-h-[calc(100vh-30px)]"
+                            : "max-h-[calc(100vh)]",
+                          "overflow-x-hidden overflow-y-auto",
+                        )}
+                      >
+                        <Outlet />
+                      </div>
+                    </ScrollProvider>
+                  </AppDialogHost>
+                </SidebarInset>
+              </SidebarProvider>
+            </div>
+          </ToastProvider>
+        </DevModeOverlay>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

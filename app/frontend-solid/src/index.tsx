@@ -12,6 +12,9 @@ import {
   ZZZScreen,
 } from "./pages/GameScreen";
 import { SettingsScreen } from "./pages/SettingsScreen";
+import { ModIndexPage } from "./pages/Mod/ModIndexScreen";
+import { ModViewScreen } from "./pages/Mod/ModViewScreen";
+import { ModBrowseScreen } from "./pages/Mod/ModBrowseScreen";
 
 const root = document.getElementById("root");
 
@@ -30,6 +33,10 @@ render(
       <Route path={"/zenless"} component={ZZZScreen} />
       <Route path={"/wuwa"} component={WuWaScreen} />
       <Route path={"/settings"} component={SettingsScreen} />
+      <Route path="mods" component={ModIndexPage}>
+        <Route path=":id" component={ModViewScreen} />
+        <Route path="cats/:id" component={ModBrowseScreen} />
+      </Route>
     </Router>
   ),
   root!

@@ -1,12 +1,12 @@
-import { DataApi, Game } from "@/data/dataapi";
+import { DataApi } from "@/data/dataapi";
 import DB from "@/data/database";
-import { useStateProducer } from "@/lib/utils";
 import { dlStates, State, useDownloadStore } from "@/state/downloadStore";
 import { useEffect, useMemo, useState } from "react";
 import { api, types } from "wailsjs/go/models";
 import { useShallow } from "zustand/shallow";
 import * as Downloader from "../../../wailsjs/go/core/Downloader";
 import * as GbApi from "../../../wailsjs/go/api/GbApi";
+import { useQuery } from "@tanstack/react-query";
 
 export const inDownloadState = (state: State | undefined) => {
   if (state) {
@@ -95,74 +95,63 @@ export const useModViewPresenter = (
   const [character, setCharacter] = useState<types.Character | undefined>(
     undefined,
   );
-  const game = useStateProducer<number | undefined>(undefined, (update) => {
-    dataApi.game().then(update);
+  const { data: game } = useQuery({
+    queryKey: [`game_id_${id}`],
+    queryFn: async () => await dataApi.game(),
   });
-  const content = useStateProducer<api.ModPageResponse | undefined>(
-    undefined,
-    async (update) => {
-      const page = await GbApi.ModPage(Number(id));
-      update(page);
+
+  const { data: content } = useQuery({
+    queryKey: [`gb_page_${id}`],
+    queryFn: async () => await GbApi.ModPage(Number(id)),
+  });
+
+  const { data: mods } = useQuery({
+    queryKey: [...DB.modsKey(), character],
+    queryFn: async () =>
+      DB.selectModsByCharacterName(character!.name, character!.game),
+    enabled: character !== undefined,
+  });
+
+  const { data: downloaded } = useQuery({
+    queryKey: [...DB.modsKey(), running, id, character],
+    queryFn: async () => {
+      const mods = await DB.selectModsByGbId(Number(id));
+      const filtered = mods.filter((m) => m.characterId === character?.id);
+      return filtered;
     },
-    [id],
-  );
+  });
 
-  const mods = useStateProducer<types.Mod[]>(
-    [],
-    async (update, onDispose) => {
-      if (character) {
-        const cancel = DB.onValueChangedListener(
-          ["mods", "characters"],
-          () => {
-            DB.selectModsByCharacterName(character.name, character.game).then(
-              update,
-            );
-          },
-          true,
-        );
-
-        onDispose(cancel);
+  const loadCharacter = async (
+    cname: string,
+    game: number,
+    isCanceled: () => boolean,
+  ) => {
+    const tryLoad = async (name: string): Promise<boolean> => {
+      try {
+        const result = await DB.selectClosestCharacter(name, game);
+        if (!isCanceled()) setCharacter(result);
+        return true;
+      } catch {
+        return false;
       }
-    },
-    [character],
-  );
+    };
 
-  const downloaded = useStateProducer<types.Mod[]>(
-    [],
-    async (update, onDispose) => {
-      const cancel = DB.onValueChangedListener(
-        ["mods", "characters"],
-        async () => {
-          const mods = await DB.selectModsByGbId(Number(id));
-          const filtered = mods.filter((m) => m.characterId === character?.id);
-          update(filtered);
-        },
-        true,
-      );
+    if (await tryLoad(cname)) return;
 
-      onDispose(cancel);
-    },
-    [running, id, character],
-  );
+    for (const name of cname.split(" ")) {
+      if (isCanceled()) return;
+      if (await tryLoad(name)) return;
+    }
+  };
 
   useEffect(() => {
     let cname = content?._aCategory?._sName;
-    let done = false;
-    if (cname === undefined || dataApi === undefined || game === undefined)
+    if (cname === undefined || game === undefined) {
       return;
-
-    let names = [cname];
-    if (game === Game.ZZZ) {
-      names = cname.split(" ");
     }
 
-    for (const name of names) {
-      DB.selectClosestCharacter(name, game).then((result) => {
-        if (!done && character === undefined) {
-          setCharacter(result);
-        }
-      });
-    }
+    let done = false;
+    loadCharacter(cname, game, () => done);
 
     return () => {
       done = true;
@@ -191,15 +180,15 @@ export const useModViewPresenter = (
   const filesWithDownload = useMemo(() => {
     return (
       content?._aFiles
-        ?.map((file) => toApiFile(file, downloaded))
+        ?.map((file) => toApiFile(file, downloaded ?? []))
         .filter((file) => file !== undefined) ?? []
     );
   }, [content, downloaded]);
 
   return {
     filesWithDownload: filesWithDownload,
-    downloaded: downloaded,
-    mods: mods,
+    downloaded: downloaded ?? [],
+    mods: mods ?? [],
     images: images,
     downloadStates: downloadStates,
     character: character,

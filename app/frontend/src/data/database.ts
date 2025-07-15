@@ -1,5 +1,3 @@
-import { CancelFn } from "@/lib/tsutils";
-import { useEffect } from "react";
 import {
   CreateCustomCharacter,
   CreatePlaylist,
@@ -29,74 +27,64 @@ import {
   UpdateTextureEnabledById,
 } from "wailsjs/go/dbh/DbHelper";
 import { SplitTexture } from "wailsjs/go/main/App";
-import {
-  EventsEmit,
-  EventsOn,
-  LogDebug,
-  LogError,
-} from "wailsjs/runtime/runtime";
+import { queryClient } from "./queryClient";
 
-type DBKey = "characters" | "mods" | "tags" | "playlist" | "all";
-
-const DBEvent = "DB_EVENT";
-type DBEventData = DBKey[];
-
-const subscribeToDbUpdates = (
-  key: DBKey[] | DBKey,
-  callback: () => void,
-  runOnStart: boolean = false,
-): CancelFn => {
-  const runCallbackCatching = () => {
-    try {
-      callback();
-    } catch (e: any) {
-      if (e instanceof Error) {
-        LogError(
-          "subscribe listener failed with unhandled Error: " + e.message,
-        );
-      } else {
-        LogError("subscribe listener failed with unknown error" + e);
-      }
-    }
-  };
-
-  if (runOnStart) {
-    runCallbackCatching();
-  }
-
-  return EventsOn(DBEvent, (keys: DBEventData) => {
-    LogDebug("received DBEVENT event keys=" + keys);
-    if (typeof key === "string") {
-      if (key === "all" || keys.includes(key)) {
-        runCallbackCatching();
-      }
-    } else {
-      if (key.any((k) => k === "all" || keys.includes(k))) {
-        runCallbackCatching();
-      }
-    }
+const broadcastModsUpdate = () => {
+  queryClient.invalidateQueries({ queryKey: ["mods"] });
+  queryClient.invalidateQueries({
+    queryKey: ["characterWithModsTagsTextures"],
   });
 };
 
-export const useDbUpdateListener = (
-  key: DBKey[] | DBKey,
-  callback: () => void,
-) => {
-  useEffect(() => {
-    const cancel = subscribeToDbUpdates(key, callback);
-
-    return () => cancel();
-  }, [key]);
+const broadcastTagsUpdate = () => {
+  queryClient.invalidateQueries({ queryKey: ["tags"] });
+  queryClient.invalidateQueries({ queryKey: ["mods"] });
+  queryClient.invalidateQueries({
+    queryKey: ["characterWithModsTagsTextures"],
+  });
 };
 
-const broadcastCharacterUpdate = () => EventsEmit(DBEvent, ["characters"]);
-const broadcastModsUpdate = () => EventsEmit(DBEvent, ["mods"]);
-const broadcastTagsUpdate = () => EventsEmit(DBEvent, ["tags"]);
-const broadcastPlaylistUpdate = () => EventsEmit(DBEvent, ["playlist"]);
+const broadcastCharacterUpdate = () => {
+  queryClient.invalidateQueries({ queryKey: ["characters"] });
+  queryClient.invalidateQueries({
+    queryKey: ["characterWithModsTagsTextures"],
+  });
+};
+
+const broadcastPlaylistUpdate = () => {
+  queryClient.invalidateQueries({ queryKey: ["playlist"] });
+};
 
 //const broadcastMultiUpdate = (keys: DBKey[]) => EventsEmit(DBEvent, keys)
 const DB = {
-  onValueChangedListener: subscribeToDbUpdates,
+  characterKey: (id: number) => ["character", id],
+  charactersGameKey: (game: number) => ["characters", { game }],
+  charactersKey: () => ["characters"],
+
+  modKey: (id: number) => ["mod", id],
+  modsGameKey: (game: number) => ["mods", { game }],
+  modsKey: () => ["mods"],
+  modsByCharacterKey: (characterName: string, game: number) => [
+    "mods",
+    { characterName, game },
+  ],
+  modsByGbIdKey: (gbId: number) => ["mods", { gbId }],
+  characterWithModsTagsTexturesKey: (
+    game: number,
+    modFilter: string,
+    characterFilter: string,
+    tagFilter: string,
+  ) => [
+    "characterWithModsTagsTextures",
+    { game, modFilter, characterFilter, tagFilter },
+  ],
+  characterModsTagsTexturesKey: () => ["characterWithModsTagsTextures"],
+
+  tagsKey: () => ["tags"],
+  tagsByModKey: (modId: number) => ["tags", { modId }],
+
+  playlistKey: (game: number) => ["playlist", { game }],
+
   deleteMod: async (id: number) => {
     return DeleteModById(id).then(broadcastModsUpdate);
   },

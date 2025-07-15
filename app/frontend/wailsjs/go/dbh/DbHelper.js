@@ -38,6 +38,10 @@ export function DeleteUnusedTextureFromMap(arg1) {
   return window['go']['dbh']['DbHelper']['DeleteUnusedTextureFromMap'](arg1);
 }
 
+export function EnablePlaylist(arg1, arg2) {
+  return window['go']['dbh']['DbHelper']['EnablePlaylist'](arg1, arg2);
+}
+
 export function InsertIniEntry(arg1, arg2) {
   return window['go']['dbh']['DbHelper']['InsertIniEntry'](arg1, arg2);
 }
@@ -108,6 +112,10 @@ export function SelectModsByGbId(arg1) {
 
 export function SelectPlaylistWithModsAndTags(arg1) {
   return window['go']['dbh']['DbHelper']['SelectPlaylistWithModsAndTags'](arg1);
+}
+
+export function SelectPlaylists() {
+  return window['go']['dbh']['DbHelper']['SelectPlaylists']();
 }
 
 export function SelectTagsByModId(arg1) {

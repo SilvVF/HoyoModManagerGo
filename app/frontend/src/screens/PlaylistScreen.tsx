@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cn, useStateProducer } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { types } from "wailsjs/go/models";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { usePlaylistStore } from "@/state/playlistStore";
 import { useShallow } from "zustand/shallow";
-import { playlistGamePref, usePrefrenceAsState } from "@/data/prefs";
+import { playlistGamePref, usePrefQuery } from "@/data/prefs";
 import { Game } from "@/data/dataapi";
 import DB from "@/data/database";
+import { useQuery } from "@tanstack/react-query";
 
 const gameNameFromId = (n: number) => {
   switch (n) {
@@ -38,74 +39,68 @@ const gameNameFromId = (n: number) => {
 const ids = Object.values(Game);
 
 export function PlaylistScreen() {
-  const [game, setGame] = usePrefrenceAsState(playlistGamePref);
+  const [{ data: game }, setGame] = usePrefQuery(playlistGamePref);
 
   if (game === undefined) {
-    return (
-      <></>
-    )
+    return <></>;
   }
 
   return (
     <PlaylistScreenContent
       game={game}
-      setGame={setGame}
+      setGame={(game) => setGame(() => game)}
     />
-  )
+  );
 }
 
-function PlaylistScreenContent({ game, setGame }: {
-  game: number,
-  setGame: (game: number) => void
+function PlaylistScreenContent({
+  game,
+  setGame,
+}: {
+  game: number;
+  setGame: (game: number) => void;
 }) {
-
-  const playlists = usePlaylistStore(useShallow((state) => state.playlists[game]))
-  const createPlaylist = usePlaylistStore((state) => state.create)
-  const enablePlaylist = usePlaylistStore((state) => state.enable)
-  const updates = usePlaylistStore(useShallow(state => state.updates))
-
-  const mods = useStateProducer<types.CharacterWithModsAndTags[]>(
-    [],
-    async (update) => {
-      DB.onValueChangedListener('all', async () => {
-        const value = await DB.selectCharacterWithModsTagsAndTextures(game, "", "", "")
-        update(value)
-      }, true)
-    },
-    [game, updates]
+  const playlists = usePlaylistStore(
+    useShallow((state) => state.playlists[game]),
   );
+  const createPlaylist = usePlaylistStore((state) => state.create);
+  const enablePlaylist = usePlaylistStore((state) => state.enable);
+  const updates = usePlaylistStore(useShallow((state) => state.updates));
+
+  const { data: modsResult } = useQuery({
+    queryKey: [...DB.characterModsTagsTexturesKey(), game, updates],
+    queryFn: () => DB.selectCharacterWithModsTagsAndTextures(game, "", "", ""),
+  });
+
+  const mods = modsResult ?? [];
 
   const toggleModEnabled = (enabled: boolean, id: number) => {
-    DB.enableMod(id, enabled)
+    DB.enableMod(id, enabled);
   };
 
   const unselectAllMods = () => {
-    DB.disableAllMods(game)
+    DB.disableAllMods(game);
   };
 
   const togglePlaylistEnabled = (pwmt: types.PlaylistWithModsAndTags) => {
-    enablePlaylist(pwmt.playlist.game, pwmt.playlist.id)
+    enablePlaylist(pwmt.playlist.game, pwmt.playlist.id);
   };
 
   return (
     <div className="flex flex-col">
-      <div className={`flex flex-row justify-between sticky top-0 z-10 backdrop-blur-md w-full`}>
-        <div className="flex flex-row p-2 me-2">
+      <div
+        className={`sticky top-0 z-10 flex w-full flex-row justify-between backdrop-blur-md`}
+      >
+        <div className="me-2 flex flex-row p-2">
           {ids.map((id) => {
             return (
               <Button
                 key={id}
                 size={"sm"}
-                variant={
-                  id === game
-                    ? "secondary"
-                    : "outline"
-                }
+                variant={id === game ? "secondary" : "outline"}
                 className={cn(
-                  id === game
-                    ? "bg-primary/50"
-                    : "bg-secondary/40",
-                  "rounded-full backdrop-blur-md border-0"
+                  id === game ? "bg-primary/50" : "bg-secondary/40",
+                  "rounded-full border-0 backdrop-blur-md",
                 )}
                 onPointerDown={() => setGame(id)}
               >
@@ -116,7 +111,7 @@ function PlaylistScreenContent({ game, setGame }: {
         </div>
         <div className="flex flex-row pe-2">
           <Button
-            className="m-2 backdrop-blur-xs text-sm p-2"
+            className="m-2 p-2 text-sm backdrop-blur-xs"
             onClick={unselectAllMods}
           >
             Unselect All
@@ -124,20 +119,20 @@ function PlaylistScreenContent({ game, setGame }: {
         </div>
       </div>
       <div className="static w-full">
-        <div className="grid grid-cols-2 divide-y min-w-full">
+        <div className="grid min-w-full grid-cols-2 divide-y">
           {mods.map((cwmt) => {
             return cwmt.modWithTags.map(({ mod }) => {
               return (
                 <div
-                  className="col-span-1 flex flex-row justify-between items-center mx-2"
+                  className="col-span-1 mx-2 flex flex-row items-center justify-between"
                   key={mod.id}
                 >
-                  <div className="flex flex-row items-center m-2">
+                  <div className="m-2 flex flex-row items-center">
                     <img
-                      className="object-contain aspect-square rounded-full max-h-16 bg-secondary"
+                      className="aspect-square max-h-16 rounded-full bg-secondary object-contain"
                       src={cwmt.characters.avatarUrl}
                     />
-                    <div className="text-lg m-2 text-ellipsis">
+                    <div className="m-2 text-lg text-ellipsis">
                       {mod.filename}
                     </div>
                   </div>
@@ -153,7 +148,7 @@ function PlaylistScreenContent({ game, setGame }: {
           })}
           <div className="col-span-2 h-12" />
         </div>
-        <div className="flex flex-row fixed bottom-4 -translate-y-1 end-6 z-10">
+        <div className="fixed end-6 bottom-4 z-10 flex -translate-y-1 flex-row">
           <SelectPlayListDialog
             playlists={playlists}
             onSelected={(it) => togglePlaylistEnabled(it)}
@@ -177,7 +172,10 @@ function SelectPlayListDialog(props: {
       <DialogTrigger asChild>
         <Button
           variant="ghost"
-          className="mx-2 rounded-full backdrop-blur-md bg-primary/30">Load</Button>
+          className="mx-2 rounded-full bg-primary/30 backdrop-blur-md"
+        >
+          Load
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -189,7 +187,11 @@ function SelectPlayListDialog(props: {
         <div className="flex flex-col items-center space-x-2">
           {props.playlists.map((pwmt) => {
             return (
-              <Button className="w-full" variant={"ghost"} onPointerDown={() => props.onSelected(pwmt)}>
+              <Button
+                className="w-full"
+                variant={"ghost"}
+                onPointerDown={() => props.onSelected(pwmt)}
+              >
                 {pwmt.playlist.name}
               </Button>
             );
@@ -209,8 +211,12 @@ function CreatePlaylistDialog(props: { onCreate: (name: string) => void }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost"
-          className="mx-2 rounded-full backdrop-blur-md bg-primary/30">Save</Button>
+        <Button
+          variant="ghost"
+          className="mx-2 rounded-full bg-primary/30 backdrop-blur-md"
+        >
+          Save
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

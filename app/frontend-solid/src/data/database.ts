@@ -32,12 +32,7 @@ import {
   UpdateTextureEnabledById,
 } from "wailsjs/go/dbh/DbHelper";
 import { SplitTexture } from "wailsjs/go/main/App";
-import {
-  EventsEmit,
-  EventsOn,
-  LogDebug,
-  LogError,
-} from "wailsjs/runtime/runtime";
+import { EventsEmit, EventsOn, LogError } from "wailsjs/runtime/runtime";
 
 type DBKey = "characters" | "mods" | "tags" | "playlist" | "all";
 

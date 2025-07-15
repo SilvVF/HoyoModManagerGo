@@ -1,24 +1,19 @@
 import { Button } from "@/components/ui/button";
 import {
   discoverGamePref,
-  genshinDirPref,
-  honkaiDirPref,
   ignorePref,
   maxDownloadWorkersPref,
-  usePrefrenceAsState,
-  wuwaDirPref,
-  zzzDirPref,
   serverPortPref,
   spaceSaverPref,
   serverUsernamePref,
   serverPasswordPref,
   serverAuthTypePref,
   cleanModDirPref,
+  usePrefQuery,
 } from "@/data/prefs";
 import {
   GetExportDirectory,
   GetExclusionPaths,
-  OpenDirectoryDialog,
   FixZipCompression,
   CompressionRunning,
   CancelZipCompression,
@@ -26,7 +21,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { range } from "@/lib/tsutils";
 import { Slider } from "@/components/ui/slider";
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import {
   DownloadIcon,
   Edit,
@@ -57,104 +52,76 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChartItem, useStatsState } from "@/state/useStatsState";
 import { LPlugin, usePluginStore } from "@/state/pluginStore";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { types } from "wailsjs/go/models";
 import { useUpdatesStore } from "@/state/updateStore";
-import { useModTransferStore } from "@/state/modTransferStore";
 import { SectionList } from "@/components/SectionList";
-import { MigrateModsDirDialog } from "@/components/ModTransferFlow";
-import { SettingsDirItem } from "@/components/SettingsDirItem";
 import { useStateProducer } from "@/lib/utils";
 import { useViewTransitionsStore } from "@/hooks/useCrossfadeNavigate";
 import { useOnekoStore } from "@/components/oneko";
+import { DirectorySettings } from "@/components/hmm/settings/DirectorySettings";
 
-type SettingsDialog = "edit_port" | "edit_password" | "edit_username" | "check_updates" | "migrate_mods_dir";
+type SettingsDialog =
+  | "edit_port"
+  | "edit_password"
+  | "edit_username"
+  | "check_updates"
+  | "migrate_mods_dir";
+
 const AuthType: { [keyof: number]: string } = {
   0: "None",
   1: "Basic",
 } as const;
 
 export default function SettingsScreen() {
-  const [honkaiDir, setHonkaiDir] = usePrefrenceAsState(honkaiDirPref);
-  const [genshinDir, setGenshinDir] = usePrefrenceAsState(genshinDirPref);
-  const [discover, setDiscover] = usePrefrenceAsState(discoverGamePref);
-  const [wuwaDir, setWuwaDir] = usePrefrenceAsState(wuwaDirPref);
-  const [zzzDir, setZZZdir] = usePrefrenceAsState(zzzDirPref);
-  const [ignore, setIgnore] = usePrefrenceAsState(ignorePref);
-  const [serverPort, setServerPort] = usePrefrenceAsState(serverPortPref);
-  const [spaceSaver, setSpaceSaver] = usePrefrenceAsState(spaceSaverPref);
-  const [username, setUsername] = usePrefrenceAsState(serverUsernamePref);
-  const [password, setPassword] = usePrefrenceAsState(serverPasswordPref);
-  const [authType, setAuthType] = usePrefrenceAsState(serverAuthTypePref);
+  const [{ data: discover }, setDiscover] = usePrefQuery(discoverGamePref);
+  const [{ data: ignore }, setIgnore] = usePrefQuery(ignorePref);
+  const [{ data: serverPort }, setServerPort] = usePrefQuery(serverPortPref);
+  const [{ data: spaceSaver }, setSpaceSaver] = usePrefQuery(spaceSaverPref);
+  const [{ data: username }, setUsername] = usePrefQuery(serverUsernamePref);
+  const [{ data: password }, setPassword] = usePrefQuery(serverPasswordPref);
+  const [{ data: authType }, setAuthType] = usePrefQuery(serverAuthTypePref);
+
   const { viewTransitions, setViewTransitions } = useViewTransitionsStore(
-    useShallow(state => {
+    useShallow((state) => {
       return {
         viewTransitions: state.useTransitions,
-        setViewTransitions: state.setTransition
-      }
-    })
-  )
+        setViewTransitions: state.setTransition,
+      };
+    }),
+  );
   const { oneko, setOneko } = useOnekoStore(
     useShallow((state) => {
       return {
         oneko: state.alive,
-        setOneko: state.setOneko
-      }
-    })
-  )
-  const [maxDownloadWorkers, setMaxDownloadWorkers] = usePrefrenceAsState(
-    maxDownloadWorkersPref
+        setOneko: state.setOneko,
+      };
+    }),
   );
-  const [cleanModDir, setCleanModDir] = usePrefrenceAsState(cleanModDirPref);
+  const [{ data: maxDownloadWorkers }, setMaxDownloadWorkers] = usePrefQuery(
+    maxDownloadWorkersPref,
+  );
+  const [{ data: cleanModDir }, setCleanModDir] = usePrefQuery(cleanModDirPref);
 
   const [dialog, setDialog] = useState<SettingsDialog | undefined>(undefined);
   const [sliderValue, setSliderValue] = useState(maxDownloadWorkers ?? 1);
   const ipAddr = useServerStore(useShallow((state) => state.addr));
   const enabledPlugins = usePluginStore(
-    useShallow((state) => state.enabledFiles)
+    useShallow((state) => state.enabledFiles),
   );
   const plugins = usePluginStore(useShallow((state) => state.plugins));
   const enablePlugin = usePluginStore((state) => state.enablePlugin);
   const disablePlugin = usePluginStore((state) => state.disablePlugin);
 
-  const startTransfer = useModTransferStore((state) => state.start)
-  const rootModDir = useModTransferStore(useShallow((state) => state.prevDir))
-
-  const stats = useStatsState(undefined, [rootModDir]);
-
-  const items = useMemo(
-    () => [
-      {
-        name: "Honkai Star Rail",
-        value: honkaiDir,
-        setValue: setHonkaiDir,
-      },
-      {
-        name: "Genshin Impact",
-        value: genshinDir,
-        setValue: setGenshinDir,
-      },
-      {
-        name: "Wuthering Waves",
-        value: wuwaDir,
-        setValue: setWuwaDir,
-      },
-      {
-        name: "Zenless Zone Zero",
-        value: zzzDir,
-        setValue: setZZZdir,
-      },
-    ],
-    [honkaiDir, zzzDir, genshinDir, wuwaDir, setHonkaiDir, setZZZdir, setGenshinDir, setWuwaDir]
-  );
-
-  const openDialogAndSet = async (setDir: (s: string) => void) => {
-    GetExportDirectory().then((dir) => {
-      if (dir) {
-        setDir(dir);
-      }
-    });
-  };
+  const stats = useStatsState();
 
   const setExclusionPaths = async () => {
     GetExclusionPaths().then((paths) => {
@@ -176,21 +143,10 @@ export default function SettingsScreen() {
     setIgnore((prev) => prev?.filter((it) => it !== path));
   };
 
-  const getNewRootModDir = () => {
-    OpenDirectoryDialog("select a dir to store mods", []).then((dir) => {
-      if (!dir || dir.length <= 0) {
-        return
-      }
-      startTransfer(dir);
-      setDialog("migrate_mods_dir");
-    })
-  }
-
   useEffect(
     () => setSliderValue(maxDownloadWorkers ?? 1),
-    [maxDownloadWorkers]
+    [maxDownloadWorkers],
   );
-
 
   const dialogSettings: {
     [key: string]: {
@@ -207,8 +163,8 @@ export default function SettingsScreen() {
         try {
           const pNum = Math.min(Math.max(1024, Number(port.trim())), 49151);
           LogDebug(`setting port to ${pNum}`);
-          setServerPort(pNum);
-        } catch { }
+          setServerPort(() => pNum);
+        } catch {}
       },
     },
     edit_username: {
@@ -217,8 +173,8 @@ export default function SettingsScreen() {
         "change the username that will be expected when calling any Http endpoints",
       onSuccess: (username: string) => {
         try {
-          setUsername(username);
-        } catch { }
+          setUsername(() => username);
+        } catch {}
       },
     },
     edit_password: {
@@ -227,19 +183,20 @@ export default function SettingsScreen() {
         "change the password that will be expected when calling any Http endpoints",
       onSuccess: (password: string) => {
         try {
-          setPassword(password);
-        } catch { }
+          setPassword(() => password);
+        } catch {}
       },
     },
   };
 
   const dialogSetting =
-    (dialog !== undefined && Object.keys(dialogSettings).find((k) => k === dialog))
+    dialog !== undefined &&
+    Object.keys(dialogSettings).find((k) => k === dialog)
       ? dialogSettings[dialog]
       : undefined;
 
   return (
-    <div className="flex flex-col w-full h-full px-4">
+    <div className="flex h-full w-full flex-col px-4">
       <NameDialog
         title={dialogSetting?.title ?? ""}
         description={dialogSetting?.description ?? ""}
@@ -249,50 +206,31 @@ export default function SettingsScreen() {
       />
       <UpdatesDialog
         open={dialog === "check_updates"}
-        onOpenChange={(open) => open ? setDialog("check_updates") : setDialog(undefined)}
+        onOpenChange={(open) =>
+          open ? setDialog("check_updates") : setDialog(undefined)
+        }
       />
-      <MigrateModsDirDialog
-        stats={stats ? stats[0] : undefined}
-        open={dialog === "migrate_mods_dir"}
-        onOpenChange={(open) => open ? setDialog("migrate_mods_dir") : setDialog(undefined)}
-      />
-      <h1 className="text-2xl font-bold my-4 ">Settings</h1>
+      <h1 className="my-4 text-2xl font-bold">Settings</h1>
       <ScrollArea className="max-w-600">
-        <div className="flex flex-row overflow-x-scroll space-x-2">
-          {stats?.map((data) => {
+        <div className="flex flex-row space-x-2 overflow-x-scroll">
+          {stats.data?.map((data) => {
             return <SizeChart key={data.game} item={data} />;
           }) ??
             range(1, 4).map(() => {
-              return <Skeleton className="min-w-[400px] aspect-square" />;
+              return <Skeleton className="aspect-square min-w-[400px]" />;
             })}
         </div>
       </ScrollArea>
-      <h2 className="text-lg font-semibold tracking-tight mt-8">Export Locations</h2>
-      {items.map((item) => {
-        return (
-          <SettingsDirItem
-            key={item.name}
-            name={item.name}
-            setDir={() => openDialogAndSet(item.setValue)}
-            dir={item.value}
-          />
-        );
-      })}
-      <div>
-        <SettingsDirItem
-          name={"Mod Manager folder"}
-          setDir={getNewRootModDir}
-          dir={rootModDir}
-        />
-      </div>
-      <h2 className="text-lg font-semibold tracking-tight">
-        Mod Fix Updates
+      <h2 className="mt-8 text-lg font-semibold tracking-tight">
+        Export Locations
       </h2>
-      <div className="flex items-center m-2 p-2 justify-between rounded-lg hover:bg-primary-foreground">
-        <text className="text-zinc-500">check game bannana for mod fix executables</text>
-        <Button
-          onPointerDown={() => setDialog("check_updates")}
-        >
+      <DirectorySettings />
+      <h2 className="text-lg font-semibold tracking-tight">Mod Fix Updates</h2>
+      <div className="m-2 flex items-center justify-between rounded-lg p-2 hover:bg-primary-foreground">
+        <text className="text-zinc-500">
+          check game bannana for mod fix executables
+        </text>
+        <Button onPointerDown={() => setDialog("check_updates")}>
           check for updates
         </Button>
       </div>
@@ -309,10 +247,10 @@ export default function SettingsScreen() {
         available={plugins}
         enabled={enabledPlugins}
       />
-      <h2 className="text-lg font-semibold tracking-tight mt-4">
+      <h2 className="mt-4 text-lg font-semibold tracking-tight">
         Max download workers
       </h2>
-      <div className="px-4 flex flex-row justify-between rounded-lg p-4 hover:bg-primary-foreground">
+      <div className="flex flex-row justify-between rounded-lg p-4 px-4 hover:bg-primary-foreground">
         {maxDownloadWorkers ? (
           <Slider
             className="w-3/4"
@@ -321,31 +259,30 @@ export default function SettingsScreen() {
             min={1}
             step={1}
             onValueChange={(value) => setSliderValue(value[0])}
-            onValueCommit={(value) => setMaxDownloadWorkers(value[0])}
+            onValueCommit={(value) => setMaxDownloadWorkers(() => value[0])}
           />
         ) : undefined}
-        <div className="text-lg font-semibold tracking-tight mx-4">{`Max workers: ${sliderValue} `}</div>
+        <div className="mx-4 text-lg font-semibold tracking-tight">{`Max workers: ${sliderValue} `}</div>
       </div>
       <div className="space-y-4">
         <SettingsCheckBoxItem
           title="Enable space saver"
           description="when enabled stores all mods in .zip files (defeault enabled)"
           checked={spaceSaver ?? false}
-          onCheckedChange={(v) => setSpaceSaver(v)}
+          onCheckedChange={() => setSpaceSaver((prev) => !prev)}
         />
         <SettingsCheckBoxItem
           title="Clean mod export directory when generating"
           description="when enabled this will delete files not generated by this program located in selected mod dir"
           checked={cleanModDir ?? false}
-          onCheckedChange={(v) => setCleanModDir(v as boolean)}
+          onCheckedChange={() => setCleanModDir((prev) => !prev)}
         />
-
       </div>
-      <h2 className="text-lg font-semibold tracking-tight mt-4">Http server</h2>
-      <div className="px-4 flex flex-row justify-between">
+      <h2 className="mt-4 text-lg font-semibold tracking-tight">Http server</h2>
+      <div className="flex flex-row justify-between px-4">
         <div className="flex flex-col">
-          <div className="text-zinc-500  m-1">{`to connect go to http://${ipAddr}:${serverPort}`}</div>
-          <div className="text-zinc-500  m-1">{`Port: ${serverPort}`}</div>
+          <div className="m-1 text-zinc-500">{`to connect go to http://${ipAddr}:${serverPort}`}</div>
+          <div className="m-1 text-zinc-500">{`Port: ${serverPort}`}</div>
         </div>
         <div className="flex flex-row space-x-6">
           <Button size={"icon"} onPointerDown={() => setDialog("edit_port")}>
@@ -356,23 +293,22 @@ export default function SettingsScreen() {
       </div>
       <SettingsDropDownItem
         items={Object.keys(AuthType)}
-        selectedLabel={(
-          <text>
-            {authType !== undefined ? AuthType[authType] : undefined}
-          </text>
-        )}
+        selectedLabel={
+          <text>{authType !== undefined ? AuthType[authType] : undefined}</text>
+        }
         title="Server Auth Type"
         description="change the auth middleware used when running the server for android app"
-        onChange={(item) => setAuthType(Number(item))}
-        itemContent={(item) => (
-          <text>{AuthType[Number(item)]}</text>
-        )}
+        onChange={(item) => setAuthType(() => Number(item))}
+        itemContent={(item) => <text>{AuthType[Number(item)]}</text>}
       />
       <SettingsEditItem
         title="Server Username"
         description={`Username: ${username}`}
         content={
-          <Button size={"icon"} onPointerDown={() => setDialog("edit_username")}>
+          <Button
+            size={"icon"}
+            onPointerDown={() => setDialog("edit_username")}
+          >
             <Edit />
           </Button>
         }
@@ -381,7 +317,10 @@ export default function SettingsScreen() {
         title=" Server Password"
         description={`Password: ${password}`}
         content={
-          <Button size={"icon"} onPointerDown={() => setDialog("edit_password")}>
+          <Button
+            size={"icon"}
+            onPointerDown={() => setDialog("edit_password")}
+          >
             <Edit />
           </Button>
         }
@@ -390,7 +329,10 @@ export default function SettingsScreen() {
         title="Saved discover path"
         description={`Path: ${discover}`}
         content={
-          <Button size={"icon"} onPointerDown={() => setDiscover(undefined)}>
+          <Button
+            size={"icon"}
+            onPointerDown={() => setDiscover(() => undefined)}
+          >
             <UndoIcon />
           </Button>
         }
@@ -413,85 +355,84 @@ export default function SettingsScreen() {
 }
 
 function FixCompressionButton() {
-
-  const [cancelling, setCancelling] = useState(false)
+  const [cancelling, setCancelling] = useState(false);
   const { running, progress } = useStateProducer<{
-    running: boolean,
-    progress: { total: number, progress: number }
-  }>({ running: false, progress: { total: 0, progress: 0 } }, async (update, onDispose) => {
+    running: boolean;
+    progress: { total: number; progress: number };
+  }>(
+    { running: false, progress: { total: 0, progress: 0 } },
+    async (update, onDispose) => {
+      const updateState = async () => {
+        const { running, prog } = await CompressionRunning();
+        const v = {
+          running: running,
+          progress: {
+            total: prog.total,
+            progress: prog.progress,
+          },
+        };
+        LogDebug(`update compress state ${v}`);
+        update(v);
+      };
 
-    const updateState = async () => {
-      const { running, prog } = await CompressionRunning()
-      const v = {
-        running: running,
-        progress: {
-          total: prog.total,
-          progress: prog.progress,
-        }
-      }
-      LogDebug(`update compress state ${v}`)
-      update(v)
-    }
+      const cancel = EventsOn("compresssion_event", (e) => {
+        LogDebug(`received compression event ${e}`);
+        updateState();
+      });
 
-    const cancel = EventsOn("compresssion_event", (e) => {
-      LogDebug(`received compression event ${e}`)
-      updateState()
-    })
-
-    onDispose(() => {
-      LogDebug("disposing listener")
-      cancel()
-    })
-  })
-
+      onDispose(() => {
+        LogDebug("disposing listener");
+        cancel();
+      });
+    },
+  );
 
   const cancelJob = () => {
-    if (cancelling) return
-    setCancelling(true)
-    CancelZipCompression().finally(() => setCancelling(false))
-  }
+    if (cancelling) return;
+    setCancelling(true);
+    CancelZipCompression().finally(() => setCancelling(false));
+  };
 
   return (
     <SettingsEditItem
       title="Fix zip compression"
-      description={running
-        ? `fixing zip compression Progress: ${progress.progress} / ${progress.total}${cancelling ? " cancelling..." : ""}`
-        : `compresses zips further using better compression method`
+      description={
+        running
+          ? `fixing zip compression Progress: ${progress.progress} / ${progress.total}${cancelling ? " cancelling..." : ""}`
+          : `compresses zips further using better compression method`
       }
       content={
         <>
           {running ? (
-            <Button
-              size={"icon"}
-              onPointerDown={() => cancelJob()}>
+            <Button size={"icon"} onPointerDown={() => cancelJob()}>
               <StopCircleIcon />
             </Button>
           ) : (
-            <Button
-              size={"icon"}
-              onPointerDown={() => FixZipCompression()}>
+            <Button size={"icon"} onPointerDown={() => FixZipCompression()}>
               <HammerIcon />
             </Button>
           )}
         </>
       }
     />
-  )
+  );
 }
 
-
-function SettingsDropDownItem<T>(
-  {
-    title, description, selectedLabel, items, itemContent, onChange
-  }: {
-    title: string,
-    description?: string,
-    selectedLabel?: ReactNode,
-    items: T[] | undefined,
-    itemContent: (v: T) => ReactNode
-    onChange: (v: T) => void
-  }
-) {
+function SettingsDropDownItem<T>({
+  title,
+  description,
+  selectedLabel,
+  items,
+  itemContent,
+  onChange,
+}: {
+  title: string;
+  description?: string;
+  selectedLabel?: ReactNode;
+  items: T[] | undefined;
+  itemContent: (v: T) => ReactNode;
+  onChange: (v: T) => void;
+}) {
   return (
     <SettingsEditItem
       title={title}
@@ -518,41 +459,42 @@ function SettingsDropDownItem<T>(
         </div>
       }
     ></SettingsEditItem>
-  )
+  );
 }
 
-function SettingsEditItem(
-  { title, description, content }: {
-    title: string,
-    description?: string,
-    content: ReactNode
-  }
-) {
+function SettingsEditItem({
+  title,
+  description,
+  content,
+}: {
+  title: string;
+  description?: string;
+  content: ReactNode;
+}) {
   return (
-    <div className="flex flex-row items-center justify-between m-2 p-2 rounded-lg hover:bg-primary-foreground">
+    <div className="m-2 flex flex-row items-center justify-between rounded-lg p-2 hover:bg-primary-foreground">
       <div className="flex flex-col space-y-2">
-        <text className="text-xl font-medium leading-none">
-          {title}
-        </text>
-        <text className="text-md font-medium leading-none text-gray-500" >
+        <text className="text-xl leading-none font-medium">{title}</text>
+        <text className="text-md leading-none font-medium text-gray-500">
           {description}
         </text>
       </div>
       {content}
     </div>
-  )
+  );
 }
 
-function SettingsCheckBoxItem(
-  {
-    title, description, checked, onCheckedChange
-  }: {
-    title: string,
-    description?: string,
-    checked: boolean,
-    onCheckedChange: (v: boolean) => void
-  }
-) {
+function SettingsCheckBoxItem({
+  title,
+  description,
+  checked,
+  onCheckedChange,
+}: {
+  title: string;
+  description?: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+}) {
   return (
     <SettingsEditItem
       title={title}
@@ -565,7 +507,7 @@ function SettingsCheckBoxItem(
         />
       }
     ></SettingsEditItem>
-  )
+  );
 }
 
 function ServerActions() {
@@ -599,7 +541,7 @@ function ServerActions() {
 
 export function SizeChart({ item }: { item: ChartItem }) {
   return (
-    <div className="flex flex-col min-w-[400px] aspect-square bg-card justify-center rounded-md border-card">
+    <div className="flex aspect-square min-w-[400px] flex-col justify-center rounded-md border-card bg-card">
       <ModSizeChart
         config={item.config}
         title={item.game}
@@ -630,16 +572,16 @@ function ExclusionDirSettingsItem({
       title="Generation Exclusions"
       actions={[
         { title: "Add Exclusion Files", onClick: setExclusionPaths },
-        { title: "Add Exclusion Directory", onClick: setExclusionDir }
+        { title: "Add Exclusion Directory", onClick: setExclusionDir },
       ]}
       createKey={(item) => item}
-      items={ignore}
+      items={ignore ?? []}
       itemContent={(path) => (
         <div
           key={path}
-          className="flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground w-full"
+          className="flex w-full flex-row items-center justify-between rounded-lg p-2 hover:bg-primary-foreground"
         >
-          <div className="text-zinc-500  m-2">{path}</div>
+          <div className="m-2 text-zinc-500">{path}</div>
           <Button
             size="icon"
             className="mx-2"
@@ -683,12 +625,16 @@ function PluginSettingsItem({
       itemContent={(plugin) => (
         <div
           key={plugin.path}
-          className="flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground w-full"
+          className="flex w-full flex-row items-center justify-between rounded-lg p-2 hover:bg-primary-foreground"
         >
           <div className="flex flex-col">
-            <text className="text-zinc-500  m-2">{plugin.path}</text>
-            <text className="text-zinc-500  m-2">{"LastEvent: " + plugin.lastEvent}</text>
-            <text className="text-zinc-500  m-2">{"Flags: " + plugin.flags}</text>
+            <text className="m-2 text-zinc-500">{plugin.path}</text>
+            <text className="m-2 text-zinc-500">
+              {"LastEvent: " + plugin.lastEvent}
+            </text>
+            <text className="m-2 text-zinc-500">
+              {"Flags: " + plugin.flags}
+            </text>
           </div>
           <Checkbox
             checked={enabled.includes(plugin.path)}
@@ -708,9 +654,9 @@ function PluginSettingsItem({
 
 const games: {
   [key: number]: {
-    game: string,
-    icon: LucideIcon
-  }
+    game: string;
+    icon: LucideIcon;
+  };
 } = {
   1: { game: "Genshin Impact", icon: SparkleIcon },
   2: { game: "Honkai Star Rail", icon: TrainIcon },
@@ -718,93 +664,100 @@ const games: {
   4: { game: "Wuthering Waves", icon: WavesIcon },
 };
 
-function UpdatesDialog(
-  { open, onOpenChange }: {
-    open: boolean,
-    onOpenChange: (open: boolean) => void,
-  }
-) {
+function UpdatesDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { loading, value, error } = useUpdatesStore(
+    useShallow((state) => {
+      return {
+        loading: state.loading,
+        value: state.value,
+        error: state.error,
+      };
+    }),
+  );
+  const start = useUpdatesStore((state) => state.start);
+  useEffect(() => {
+    start();
+  }, []);
 
-  const { loading, value, error } = useUpdatesStore(useShallow((state) => {
-    return {
-      loading: state.loading,
-      value: state.value,
-      error: state.error
-    }
-  }))
-  const start = useUpdatesStore(state => state.start)
-  useEffect(() => { start() }, [])
-
-  const downloadItem = useUpdatesStore((state) => state.downloadItem)
-  const inProgress = useUpdatesStore(useShallow((state) => state.inProgress))
-  const refresh = useUpdatesStore(useShallow((state) => state.refresh))
+  const downloadItem = useUpdatesStore((state) => state.downloadItem);
+  const inProgress = useUpdatesStore(useShallow((state) => state.inProgress));
+  const refresh = useUpdatesStore(useShallow((state) => state.refresh));
 
   const updateAll = (updates: types.Update[]) => {
     for (const update of updates) {
-      downloadItem(update)
+      downloadItem(update);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[60%] min-h-[80%]">
+      <DialogContent className="min-h-[80%] max-w-[60%]">
         <div className="flex flex-row justify-between">
           <DialogHeader>
             <DialogTitle>
               <text>Mod fix updates</text>
             </DialogTitle>
-            <DialogDescription>Select updates for mod fix executables</DialogDescription>
+            <DialogDescription>
+              Select updates for mod fix executables
+            </DialogDescription>
           </DialogHeader>
-          {loading ? <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground rounded-full mx-2">
-            <svg
-              className="h-4 w-4 animate-spin"
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-            Refreshing...
-          </div> : undefined}
+          {loading ? (
+            <div className="mx-2 flex flex-row items-center justify-end gap-2 rounded-full text-sm text-muted-foreground">
+              <svg
+                className="h-4 w-4 animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Refreshing...
+            </div>
+          ) : undefined}
         </div>
 
-        {(error && value.isEmpty()) ? (
-          <div className="flex flex-row relative t-0 items-center justify-end gap-2 text-4xl text-muted-foreground p-2 mx-2">
+        {error && value.isEmpty() ? (
+          <div className="t-0 relative mx-2 flex flex-row items-center justify-end gap-2 p-2 text-4xl text-muted-foreground">
             <text>Failed to load updates</text>
           </div>
         ) : undefined}
 
-
-        {(loading && value.isEmpty()) ? (
-          <div className="flex flex-row relative t-0 items-center justify-end gap-2 text-4xl text-muted-foreground p-2 mx-2">
+        {loading && value.isEmpty() ? (
+          <div className="t-0 relative mx-2 flex flex-row items-center justify-end gap-2 p-2 text-4xl text-muted-foreground">
             <Skeleton className="h-96 w-[100%]" />
           </div>
         ) : undefined}
 
         <div className="flex flex-col items-center justify-center">
           {value.isEmpty() ? undefined : (
-            <Card className="min-w-[100%] min-h-[60vh]">
-              <div className="space-y-1 p-2 overflow-y-auto">
+            <Card className="min-h-[60vh] min-w-[100%]">
+              <div className="space-y-1 overflow-y-auto p-2">
                 <ScrollArea>
                   {value.map((v) => {
                     return (
                       <div
                         key={v.game}
-                        className="flex flex-row justify-between items-center p-2 rounded-lg hover:bg-primary-foreground"
+                        className="flex flex-row items-center justify-between rounded-lg p-2 hover:bg-primary-foreground"
                       >
                         <div className="flex flex-col">
                           <text className="m-2">{games[v.game]["game"]}</text>
-                          <text className="text-zinc-500  m-2">{`Current: ${v.current}`}</text>
-                          <text className="text-zinc-500  m-2">{`Newest: ${v.newest.name}`}</text>
+                          <text className="m-2 text-zinc-500">{`Current: ${v.current}`}</text>
+                          <text className="m-2 text-zinc-500">{`Newest: ${v.newest.name}`}</text>
                         </div>
                         {inProgress.includes(v.newest.dl) ? (
-                          <div className="flex flex-row items-center justify-end gap-2 text-sm text-muted-foreground p-2 rounded-full backdrop-blur-md bg-primary/30 mx-2">
+                          <div className="mx-2 flex flex-row items-center justify-end gap-2 rounded-full bg-primary/30 p-2 text-sm text-muted-foreground backdrop-blur-md">
                             <svg
                               className="h-4 w-4 animate-spin"
                               xmlns="http://www.w3.org/2000/svg"
@@ -822,19 +775,17 @@ function UpdatesDialog(
                             Downloading...
                           </div>
                         ) : (
-                          <Button
-                            onClick={() => downloadItem(v)}
-                          >
+                          <Button onClick={() => downloadItem(v)}>
                             <DownloadIcon />
                           </Button>
-                        )
-                        }
+                        )}
                       </div>
-                    )
+                    );
                   })}
                 </ScrollArea>
               </div>
-            </Card>)}
+            </Card>
+          )}
         </div>
         <DialogFooter className="sm:justify-start">
           <DialogClose asChild>
@@ -849,16 +800,11 @@ function UpdatesDialog(
           >
             Update All
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={refresh}
-          >
+          <Button type="button" variant="secondary" onClick={refresh}>
             Refresh
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-

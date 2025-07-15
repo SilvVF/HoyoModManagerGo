@@ -6,6 +6,10 @@ export function ApplyEllenFix(arg1) {
   return window['go']['main']['App']['ApplyEllenFix'](arg1);
 }
 
+export function CancelDirChange() {
+  return window['go']['main']['App']['CancelDirChange']();
+}
+
 export function CancelZipCompression() {
   return window['go']['main']['App']['CancelZipCompression']();
 }

@@ -27,6 +27,7 @@ import * as Oneko from "../../wailsjs/go/core/Oneko";
 import {
   Accessor,
   createEffect,
+  createResource,
   createSignal,
   onCleanup,
   onMount,
@@ -89,6 +90,10 @@ export function usePreferenceSignal<T extends PrefType>(
   pref: GoPref<T>
 ): [Accessor<T>, PrefSetter<T>, invalidate: () => void] {
   const [prefState, setPref] = createSignal<T>(defaultValue);
+  const [initialPref] = createResource(pref, async () => ({
+    pref: await pref.Get(),
+    key: await pref.Key(),
+  }));
 
   const setter = async (action: SetAction<T>) => {
     try {
@@ -107,11 +112,13 @@ export function usePreferenceSignal<T extends PrefType>(
     }
   };
 
-  createEffect(async () => {
-    const initial: T = await pref.Get();
-    setPref(() => initial);
+  createEffect(() => {
+    const initial = initialPref();
+    if (!initial) return;
+    const { pref, key } = initial;
+    setPref(() => pref);
 
-    const cancel = EventsOn(prefEvent(await pref.Key()), (data: T) => {
+    const cancel = EventsOn(prefEvent(key), (data: T) => {
       try {
         setPref(() => data);
       } catch (e) {

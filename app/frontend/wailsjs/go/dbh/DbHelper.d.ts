@@ -21,6 +21,8 @@ export function DeleteUnusedMods(arg1:Array<string>,arg2:types.Game):Promise<voi
 
 export function DeleteUnusedTextureFromMap(arg1:Record<number, Array<string>>):Promise<void>;
 
+export function EnablePlaylist(arg1:number,arg2:types.Game):Promise<void>;
+
 export function InsertIniEntry(arg1:number,arg2:string):Promise<void>;
 
 export function InsertMod(arg1:types.Mod):Promise<number>;
@@ -56,6 +58,8 @@ export function SelectModsByCharacterName(arg1:string,arg2:types.Game):Promise<A
 export function SelectModsByGbId(arg1:number):Promise<Array<types.Mod>>;
 
 export function SelectPlaylistWithModsAndTags(arg1:types.Game):Promise<Array<types.PlaylistWithModsAndTags>>;
+
+export function SelectPlaylists():Promise<Array<types.Playlist>>;
 
 export function SelectTagsByModId(arg1:number):Promise<Array<types.Tag>>;
 

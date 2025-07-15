@@ -1,8 +1,8 @@
-import { useStateProducer } from "@/lib/utils";
 import { types } from "wailsjs/go/models";
-import { LogDebug } from "wailsjs/runtime/runtime";
 import { ChartConfig } from "@/components/ui/chart";
 import { GetStats } from "wailsjs/go/main/App";
+import { useQuery } from "@tanstack/react-query";
+import { rootModDirPref, usePrefQuery } from "@/data/prefs";
 
 export type ChartItem = {
   game: string;
@@ -49,44 +49,50 @@ function transformDownloadStatsToChartData(data: types.FileInfo[]) {
 
   const chartConfig = {
     visitors: { label: "Visitors" },
-    ...chartData.reduce((acc, { file, fill }) => {
-      acc[file] = {
-        label: capitalizeFirstLetter(file), // Use file name for label
-        color: fill, // Assign the generated random color
-      };
-      return acc;
-    }, {} as Record<string, { label: string; color: string }>),
+    ...chartData.reduce(
+      (acc, { file, fill }) => {
+        acc[file] = {
+          label: capitalizeFirstLetter(file), // Use file name for label
+          color: fill, // Assign the generated random color
+        };
+        return acc;
+      },
+      {} as Record<string, { label: string; color: string }>,
+    ),
   };
 
   return { chartData, chartConfig };
 }
 
-export const useStatsState = (defaultValue: ChartItem[] | undefined, keys?: ReadonlyArray<unknown>) => useStateProducer<ChartItem[] | undefined>(
-  defaultValue,
-  async (update) => {
-    const stats = await GetStats();
+export const useStatsState = () => {
+  const [{ data }] = usePrefQuery(rootModDirPref);
 
-    if (stats.data.isEmpty()) {
-      return
-    }
+  const query = useQuery({
+    queryKey: [data],
+    queryFn: async () => {
+      const stats = await GetStats();
 
-    const charts = stats.data.map((data) => {
-      const split = data[0].file.split("\\");
-      let game = split[split.length - 1];
+      if (stats.data.isEmpty()) {
+        return;
+      }
 
-      LogDebug(game);
+      return stats.data.map((data) => {
+        const split = data[0].file.split("\\");
+        let game = split[split.length - 1];
 
-      const { chartData, chartConfig } = transformDownloadStatsToChartData(
-        data.slice(1, data.length)
-      );
+        const { chartData, chartConfig } = transformDownloadStatsToChartData(
+          data.slice(1, data.length),
+        );
 
-      return {
-        game: game,
-        config: chartConfig,
-        data: chartData,
-        total: data.reduce((acc, curr) => acc + curr.bytes, 0),
-      } as ChartItem;
-    });
+        return {
+          game: game,
+          config: chartConfig,
+          data: chartData,
+          total: data.reduce((acc, curr) => acc + curr.bytes, 0),
+        } as ChartItem;
+      });
+    },
+  });
 
-    update(charts);
-  }, keys);
+  return query;
+};
