@@ -101,13 +101,6 @@ sync gradle and hit run button or
 
 ### Desktop
 <img src="https://github.com/user-attachments/assets/7a45dbac-7fa9-41ca-9fd0-c740582de09d" width="500">
-<img src="https://github.com/user-attachments/assets/47a606a8-9cb6-4ad0-9e94-fce8f501fc40" width="500">
-<img src="https://github.com/user-attachments/assets/c0a9629f-4a89-4c22-8956-1c7f62aad726" width="500">
-<img src="https://github.com/user-attachments/assets/ca3013d5-176c-4827-b8fa-5a885ae46264" width="500">
-<img src="https://github.com/user-attachments/assets/b2b9f9df-805f-481c-8f96-90b98f7a170d" width="500">
-<img src="https://github.com/user-attachments/assets/6bd7c07d-df9f-4c52-be1e-2657ab235f41" width="500">
-<img src="https://github.com/user-attachments/assets/dd2396ce-b5de-4d0c-806b-2f85c48b20e3" width="500">
-<img src="https://github.com/user-attachments/assets/61cb2762-6aa4-4b17-928a-48a8ee0822db" width="500">
 
 ### Android
 <img src="https://github.com/user-attachments/assets/2e18e498-6216-468f-a0a8-4540623bfd8f"  width="200">
