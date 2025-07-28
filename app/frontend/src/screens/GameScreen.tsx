@@ -26,7 +26,7 @@ import { Columns3Icon, GridIcon, SearchIcon, XIcon } from "lucide-react";
 import { EventsOn } from "wailsjs/runtime/runtime";
 import useCrossfadeNavigate from "@/hooks/useCrossfadeNavigate";
 import { AppDialogType, useDialogStore } from "@/components/appdialog";
-import DB from "@/data/database";
+import DB, { useCharactersWithModsTagsAndTextures } from "@/data/database";
 import { useGenerator } from "@/data/generator";
 import { useQuery } from "@tanstack/react-query";
 
@@ -245,16 +245,12 @@ const useGameScreenPresenter = (
     return () => cancel();
   });
 
-  const { data: characters } = useQuery({
-    queryKey: [
-      ...DB.characterModsTagsTexturesKey(),
-      running,
-      updates,
-      syncId,
-      dataApi,
-    ],
-    queryFn: () => dataApi.charactersWithModsAndTags(),
-  });
+  const { data: characters } = useCharactersWithModsTagsAndTextures(dataApi, [
+    running,
+    updates,
+    syncId,
+    dataApi,
+  ]);
 
   const filterState = useFilterState(characters ?? [], game);
   const multiSelectState = useMultiSelectState(characters ?? []);

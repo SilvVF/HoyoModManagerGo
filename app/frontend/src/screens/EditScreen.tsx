@@ -39,7 +39,7 @@ import useTransitionNavigate, {
   useTransitionNavigateDelta,
 } from "@/hooks/useCrossfadeNavigate";
 import { useDialogStore } from "@/components/appdialog";
-import DB from "@/data/database";
+import DB, { useMod } from "@/data/database";
 import { useQuery } from "@tanstack/react-query";
 
 export function KeymappingScreen() {
@@ -48,10 +48,7 @@ export function KeymappingScreen() {
   const navigateDelta = useTransitionNavigateDelta();
   const setDialog = useDialogStore(useShallow((s) => s.setDialog));
 
-  const { data: mod, isSuccess: modSuccess } = useQuery({
-    queryKey: DB.modsKey(),
-    queryFn: async () => await DB.selectModById(Number(modId)),
-  });
+  const { data: mod, isSuccess: modSuccess } = useMod(Number(modId), [modId]);
 
   const { data: tagsResult } = useQuery({
     queryKey: DB.tagsKey(),

@@ -61,6 +61,10 @@ func (cs *ConfigSaver) saveConfig(g types.Game) ([]types.Mod, error) {
 	// file is always truncated
 	for _, group := range grouped {
 
+		if len(group) == 0 {
+			continue
+		}
+
 		configDir := util.GetModConfigCache(group[0].mod)
 		err := os.MkdirAll(configDir, os.ModePerm)
 		if err != nil {
