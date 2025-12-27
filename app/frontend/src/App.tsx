@@ -16,12 +16,14 @@ import {
 import AppDialogHost from "./components/appdialog";
 import { useAppUpdateChecker } from "./state/useAppUpdateChecker";
 import { ToastProvider } from "./state/toastStore";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./data/queryClient";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useDbEventListener } from "./data/database";
+const queryClient = new QueryClient();
 
 function App() {
   useStoreInitializers();
   useAppUpdateChecker();
+  useDbEventListener();
 
   const { expanded, queued } = useDownloadStoreListener();
 

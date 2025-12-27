@@ -10,7 +10,13 @@ import {
   Trash,
   ViewIcon,
 } from "lucide-react";
-import React, { HTMLAttributes, ReactElement, useEffect, useRef, useState } from "react";
+import React, {
+  HTMLAttributes,
+  ReactElement,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { types } from "wailsjs/go/models";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -34,10 +40,16 @@ export interface CharacterInfoCardProps extends HTMLAttributes<HTMLDivElement> {
   enableTexture: (id: number, enabled: boolean) => void;
   modDropdownMenu: (mwt: types.ModWithTags) => ReactElement | undefined;
   textureDropdownMenu: (texture: types.Texture) => ReactElement | undefined;
-  onLongPress?: (event: LongPressEvent) => void
+  onLongPress?: (event: LongPressEvent) => void;
 }
 
-const TextDisplay = ({ text, availableSpace }: { text: string, availableSpace: number }) => {
+const TextDisplay = ({
+  text,
+  availableSpace,
+}: {
+  text: string;
+  availableSpace: number;
+}) => {
   const [isOverflowing, setIsOverflowing] = useState(false);
   const textRef = useRef<HTMLSpanElement>(null);
 
@@ -48,10 +60,20 @@ const TextDisplay = ({ text, availableSpace }: { text: string, availableSpace: n
   }, [text, availableSpace]);
 
   return (
-    <div className="overflow-hidden whitespace-nowrap" style={{ maxWidth: availableSpace }}>
-      <div className={cn("inline-block", isOverflowing ? "animate-marquee" : "")}>
-        <span ref={textRef} className="inline-block text-sm">  {text}</span>
-        {isOverflowing ? <span className="inline-block text-sm px-4">  {text}</span> : undefined}
+    <div
+      className="overflow-hidden whitespace-nowrap"
+      style={{ maxWidth: availableSpace }}
+    >
+      <div
+        className={cn("inline-block", isOverflowing ? "animate-marquee" : "")}
+      >
+        <span ref={textRef} className="inline-block text-sm">
+          {" "}
+          {text}
+        </span>
+        {isOverflowing ? (
+          <span className="inline-block px-4 text-sm"> {text}</span>
+        ) : undefined}
       </div>
       <style>{`
       @keyframes marquee {
@@ -68,7 +90,6 @@ const TextDisplay = ({ text, availableSpace }: { text: string, availableSpace: n
   );
 };
 
-
 const ModRow = ({
   id,
   filename,
@@ -80,19 +101,19 @@ const ModRow = ({
   tags,
   hasTextures = false,
   isTexture = false,
-  images = undefined
+  images = undefined,
 }: {
-  id: number,
-  filename: string,
-  tags: string[],
-  showT: boolean,
-  setShowT: React.Dispatch<React.SetStateAction<boolean>>
-  enableFn: (id: number, enabled: boolean) => void,
-  enabled: boolean,
-  dropdownMenu: React.ReactNode,
-  hasTextures?: boolean,
-  isTexture?: boolean,
-  images?: string[]
+  id: number;
+  filename: string;
+  tags: string[];
+  showT: boolean;
+  setShowT: React.Dispatch<React.SetStateAction<boolean>>;
+  enableFn: (id: number, enabled: boolean) => void;
+  enabled: boolean;
+  dropdownMenu: React.ReactNode;
+  hasTextures?: boolean;
+  isTexture?: boolean;
+  images?: string[];
 }) => {
   const rowRef = useRef<HTMLDivElement>(null);
   const controlRef = useRef<HTMLDivElement>(null);
@@ -122,31 +143,36 @@ const ModRow = ({
   }, []);
 
   return (
-    <div ref={rowRef} className="flex flex-row items-center w-full">
-      <div className="flex-grow overflow-hidden mr-2">
+    <div ref={rowRef} className="flex w-full flex-row items-center">
+      <div className="mr-2 flex-grow overflow-hidden">
         <HoverCard>
           <HoverCardTrigger>
-            <TextDisplay
-              text={filename}
-              availableSpace={availableWidth}
-            />
+            <TextDisplay text={filename} availableSpace={availableWidth} />
           </HoverCardTrigger>
-          {(images?.filter(it => !it.isBlank())?.length ?? 0) > 0 ? (
-            <HoverCardContent className="flex flex-col w-96 overflow-clip backdrop-blur-md bg-primary/20">
-              <text>{filename}</text>
-              <text>Tags: {tags.join(", ")}</text>
+          {(images?.filter((it) => !it.isBlank())?.length ?? 0) > 0 ? (
+            <HoverCardContent className="flex w-96 flex-col overflow-clip bg-primary/20 backdrop-blur-md">
+              <div>{filename}</div>
+              <div>Tags: {tags.join(", ")}</div>
               <div className="flex flex-row space-x-2 overflow-x-auto">
                 {images?.map((uri) => (
-                  <AsyncImage key={uri} className="object-cover aspect-square w-70 h-70 m-2" src={uri} />
+                  <AsyncImage
+                    key={uri}
+                    className="m-2 aspect-square h-70 w-70 object-cover"
+                    src={uri}
+                  />
                 ))}
               </div>
             </HoverCardContent>
-          ) : <HoverCardContent>No Images for {filename}</HoverCardContent>}
-
+          ) : (
+            <HoverCardContent>No Images for {filename}</HoverCardContent>
+          )}
         </HoverCard>
       </div>
 
-      <div ref={controlRef} className="flex flex-row items-center space-x-1 flex-shrink-0">
+      <div
+        ref={controlRef}
+        className="flex flex-shrink-0 flex-row items-center space-x-1"
+      >
         <Switch
           className="my-1"
           checked={enabled}
@@ -157,14 +183,14 @@ const ModRow = ({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setShowT(prev => !prev)}
+            onClick={() => setShowT((prev) => !prev)}
             className={`transition-transform ${showT ? "rotate-180" : "rotate-0"}`}
           >
             <ChevronDown />
           </Button>
         )}
       </div>
-    </div >
+    </div>
   );
 };
 
@@ -181,31 +207,29 @@ export function CharacterInfoCard({
   const [showT, setShowT] = useState(true);
 
   const characterCardLongPressProps = useLongPress((e) => {
-    LogDebug("Long pressed" + cmt.characters.id)
+    LogDebug("Long pressed" + cmt.characters.id);
     if (onLongPress) {
-      onLongPress(e)
+      onLongPress(e);
     }
-  })
+  });
 
   return (
-    <Card
-      className="w-full"
-      {...characterCardLongPressProps}
-      {...props}
-    >
-      <div className="flex flex-row m-2 w-full">
-        <div className="w-1/3 pr-2 flex flex-col items-center">
+    <Card className="w-full" {...characterCardLongPressProps} {...props}>
+      <div className="m-2 flex w-full flex-row">
+        <div className="flex w-1/3 flex-col items-center pr-2">
           <AsyncImage
             src={character.avatarUrl}
             alt={`${character.name} Avatar`}
-            className="w-full aspect-square object-cover rounded-md"
+            className="aspect-square w-full rounded-md object-cover"
           />
-          <b className="text-lg p-2 text-center truncate w-full">{character.name}</b>
+          <b className="w-full truncate p-2 text-center text-lg">
+            {character.name}
+          </b>
         </div>
-        <div className="w-2/3 overflow-hidden  overflow-y-auto me-2">
+        <div className="me-2 w-2/3 overflow-hidden overflow-y-auto">
           <div className="max-h-[300px] w-full">
             {cmt.modWithTags.map((mwt) => (
-              <div key={mwt.mod.id} className="flex flex-col mb-2">
+              <div key={mwt.mod.id} className="mb-2 flex flex-col">
                 <ModRow
                   id={mwt.mod.id}
                   showT={showT}
@@ -220,7 +244,7 @@ export function CharacterInfoCard({
                 />
                 {showT && mwt.textures.length > 0 && (
                   <div className="slide-in-from-top flex flex-col">
-                    <div className="text-sm font-semibold my-1">{`Textures for ${mwt.mod.filename}`}</div>
+                    <div className="my-1 text-sm font-semibold">{`Textures for ${mwt.mod.filename}`}</div>
                     {mwt.textures.map((t) => (
                       <ModRow
                         key={t.id}
@@ -337,8 +361,8 @@ export function ModActionsDropDown(props: {
         >
           <DropdownMenuItem className="min-w-full">
             <div className="flex flex-row">
-              <PencilIcon className="h-4 w-4 mr-2" />
-              <div className="w-full flex flex-row justify-end items-center">
+              <PencilIcon className="mr-2 h-4 w-4" />
+              <div className="flex w-full flex-row items-center justify-end">
                 <span className="w-full">Rename</span>
                 <DropdownMenuShortcut className="">⇧r</DropdownMenuShortcut>
               </div>

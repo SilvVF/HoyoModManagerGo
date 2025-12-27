@@ -68,7 +68,7 @@ export const useStatsState = () => {
   const [{ data }] = usePrefQuery(rootModDirPref);
 
   const query = useQuery({
-    queryKey: [data],
+    queryKey: ["stats", data],
     queryFn: async () => {
       const stats = await GetStats();
 

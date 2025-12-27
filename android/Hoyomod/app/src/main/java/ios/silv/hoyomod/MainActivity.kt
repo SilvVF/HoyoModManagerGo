@@ -184,20 +184,18 @@ class MainActivity : ComponentActivity() {
                         jobs = jobs,
                         snackbarHostState = snackbarHostState,
                         hazeState = hazeState,
-                        actions = remember {
-                            Actions(
-                                startGenerateJob = viewmodel::startGenerateJob,
-                                restartJob = startGenerateStable,
-                                confirmJob = confirmJobStable,
-                                refresh = viewmodel::refresh,
-                                onSearchChange = viewmodel::search,
-                                onSettingsVisibilityChanged = { visible ->
-                                    settingsVisible = visible
-                                },
-                                toggleHasModsFilter = viewmodel::toggleHasModsFilter,
-                                toggleMod = viewmodel::toggleMod
-                            )
-                        }
+                        actions = Actions(
+                            startGenerateJob = viewmodel::startGenerateJob,
+                            restartJob = startGenerateStable,
+                            confirmJob = confirmJobStable,
+                            refresh = viewmodel::refresh,
+                            onSearchChange = viewmodel::search,
+                            onSettingsVisibilityChanged = { visible ->
+                                settingsVisible = visible
+                            },
+                            toggleHasModsFilter = viewmodel::toggleHasModsFilter,
+                            toggleMod = viewmodel::toggleMod
+                        )
                     )
                 }
             }

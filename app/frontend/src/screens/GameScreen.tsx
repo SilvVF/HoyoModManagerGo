@@ -26,9 +26,8 @@ import { Columns3Icon, GridIcon, SearchIcon, XIcon } from "lucide-react";
 import { EventsOn } from "wailsjs/runtime/runtime";
 import useCrossfadeNavigate from "@/hooks/useCrossfadeNavigate";
 import { AppDialogType, useDialogStore } from "@/components/appdialog";
-import DB, { useCharactersWithModsTagsAndTextures } from "@/data/database";
 import { useGenerator } from "@/data/generator";
-import { useQuery } from "@tanstack/react-query";
+import DB, { useDbQuery } from "@/data/database";
 
 const getElementPref = (game: number): GoPref<string[]> => {
   switch (game) {
@@ -107,7 +106,7 @@ const useMultiSelectState = (
         )!;
         Promise.all(
           toDelete.map((c) =>
-            DB.deleteCharacter(
+            DB.mutations.deleteCharacter(
               c.characters.name,
               c.characters.id,
               c.characters.game,
@@ -242,15 +241,14 @@ const useGameScreenPresenter = (
       }
     });
 
-    return () => cancel();
+    return cancel;
   });
 
-  const { data: characters } = useCharactersWithModsTagsAndTextures(dataApi, [
-    running,
-    updates,
-    syncId,
-    dataApi,
-  ]);
+  const { data: characters } = useDbQuery(
+    dataApi.charactersWithModsAndTags,
+    ["mods", "characters", "tags"],
+    [dataApi, syncId, running, updates],
+  );
 
   const filterState = useFilterState(characters ?? [], game);
   const multiSelectState = useMultiSelectState(characters ?? []);
@@ -261,22 +259,22 @@ const useGameScreenPresenter = (
     elements: elements,
     events: {
       handleUnselectAll: () => {
-        DB.disableAllMods(game);
+        DB.mutations.disableAllMods(game);
       },
       handleEnableMod: (id: number, enabled: boolean) => {
-        DB.enableMod(id, enabled);
+        DB.mutations.enableMod(id, enabled);
       },
       handleDeleteMod: (id: number) => {
-        DB.deleteMod(id);
+        DB.mutations.deleteMod(id);
       },
       handleEnableTexture: (id: number, enabled: boolean) => {
-        DB.enableTexture(id, enabled);
+        DB.mutations.enableTexture(id, enabled);
       },
       handleDeleteTexture: (id: number) => {
-        DB.deleteTexture(id);
+        DB.mutations.deleteTexture(id);
       },
       handleSplitTexture: (id: number) => {
-        DB.splitTexture(id);
+        DB.mutations.splitTexture(id);
       },
     },
   };

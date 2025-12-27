@@ -1,12 +1,12 @@
 import { DataApi } from "@/data/dataapi";
-import DB from "@/data/database";
+import DB, { useDbQuery } from "@/data/database";
 import { dlStates, State, useDownloadStore } from "@/state/downloadStore";
 import { useEffect, useMemo, useState } from "react";
 import { api, types } from "wailsjs/go/models";
 import { useShallow } from "zustand/shallow";
 import * as Downloader from "../../../wailsjs/go/core/Downloader";
 import * as GbApi from "../../../wailsjs/go/api/GbApi";
-import { useQuery } from "@tanstack/react-query";
+import { useResource } from "@/lib/utils";
 
 export const inDownloadState = (state: State | undefined) => {
   if (state) {
@@ -95,31 +95,29 @@ export const useModViewPresenter = (
   const [character, setCharacter] = useState<types.Character | undefined>(
     undefined,
   );
-  const { data: game } = useQuery({
-    queryKey: [`game_id_${id}`],
-    queryFn: async () => await dataApi.game(),
-  });
+  const game = useResource(dataApi.game, [dataApi]);
+  const content = useResource(() => GbApi.ModPage(Number(id)), [id]);
 
-  const { data: content } = useQuery({
-    queryKey: [`gb_page_${id}`],
-    queryFn: async () => await GbApi.ModPage(Number(id)),
-  });
+  const { data: mods } = useDbQuery(
+    () =>
+      DB.queries.selectModsByCharacterName(
+        character?.name ?? "",
+        character?.game ?? -1,
+      ),
+    ["mods"],
+    [character],
+    character !== undefined,
+  );
 
-  const { data: mods } = useQuery({
-    queryKey: [...DB.modsKey(), character],
-    queryFn: async () =>
-      DB.selectModsByCharacterName(character!.name, character!.game),
-    enabled: character !== undefined,
-  });
-
-  const { data: downloaded } = useQuery({
-    queryKey: [...DB.modsKey(), running, id, character],
-    queryFn: async () => {
-      const mods = await DB.selectModsByGbId(Number(id));
+  const { data: downloaded } = useDbQuery(
+    async () => {
+      const mods = await DB.queries.selectModsByGbId(Number(id));
       const filtered = mods.filter((m) => m.characterId === character?.id);
       return filtered;
     },
-  });
+    ["mods"],
+    [running, id, character],
+  );
 
   const loadCharacter = async (
     cname: string,
@@ -128,7 +126,7 @@ export const useModViewPresenter = (
   ) => {
     const tryLoad = async (name: string): Promise<boolean> => {
       try {
-        const result = await DB.selectClosestCharacter(name, game);
+        const result = await DB.queries.selectClosestCharacter(name, game);
         if (!isCanceled()) setCharacter(result);
         return true;
       } catch {
@@ -220,7 +218,7 @@ export const useModViewPresenter = (
         }
       },
       deleteMod: (id: number) => {
-        DB.deleteMod(id);
+        DB.mutations.deleteMod(id);
       },
     },
   };

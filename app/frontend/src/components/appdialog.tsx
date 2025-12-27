@@ -142,7 +142,7 @@ function AppDialogContent({ dialog }: { dialog: AppDialogType | undefined }) {
       return (
         <RenameDialog
           onSuccess={(name) =>
-            DB.renameMod(dialog.id, name).then(dialog.refresh)
+            DB.mutations.renameMod(dialog.id, name).then(dialog.refresh)
           }
         />
       );
@@ -150,7 +150,7 @@ function AppDialogContent({ dialog }: { dialog: AppDialogType | undefined }) {
       return (
         <RenameDialog
           onSuccess={(name) =>
-            DB.renameTexture(dialog.id, name).then(dialog.refresh)
+            DB.mutations.renameTexture(dialog.id, name).then(dialog.refresh)
           }
         />
       );
@@ -159,12 +159,14 @@ function AppDialogContent({ dialog }: { dialog: AppDialogType | undefined }) {
         <AddCharacterDialog
           elements={dialog.elements}
           createCharacter={(name, image, selectedElement) => {
-            DB.createCustomCharacter(
-              name,
-              image,
-              selectedElement ?? "",
-              dialog.game,
-            ).then(dialog.refresh);
+            DB.mutations
+              .createCustomCharacter(
+                name,
+                image,
+                selectedElement ?? "",
+                dialog.game,
+              )
+              .then(dialog.refresh);
           }}
         />
       );
@@ -180,7 +182,7 @@ function AppDialogContent({ dialog }: { dialog: AppDialogType | undefined }) {
       return (
         <RenameDialog
           onSuccess={(name) => {
-            DB.insertTag(dialog.mod.id, name);
+            DB.mutations.insertTag(dialog.mod.id, name);
           }}
         />
       );
@@ -191,9 +193,9 @@ function AppDialogContent({ dialog }: { dialog: AppDialogType | undefined }) {
             if (isValidUrl(url)) {
               const set = new Set(dialog.mod.previewImages);
               set.add(url);
-              DB.updateModImages(dialog.mod.id, Array.from(set)).then(
-                dialog.refresh,
-              );
+              DB.mutations
+                .updateModImages(dialog.mod.id, Array.from(set))
+                .then(dialog.refresh);
             }
           }}
         />
@@ -263,16 +265,18 @@ function AddTagMultiDialog({
       return;
     }
 
-    DB.insertTagForAllModsByCharacterIds(
-      selectedChars.map((c) => c.id),
-      inputValue,
-      game,
-    ).then(refreshCharacters);
+    DB.mutations
+      .insertTagForAllModsByCharacterIds(
+        selectedChars.map((c) => c.id),
+        inputValue,
+        game,
+      )
+      .then(refreshCharacters);
   };
 
   return (
     <>
-      <text>{selectedChars.map((c) => c.name).join(", ")}</text>
+      <div>{selectedChars.map((c) => c.name).join(", ")}</div>
       <div className="grid flex-1 gap-2">
         <Input value={inputValue} onChange={handleChange} />
       </div>
@@ -330,9 +334,9 @@ function AddCharacterDialog({
 
   return (
     <div className="flex w-full flex-col space-y-1 overflow-clip">
-      <text>Name</text>
+      <div>Name</div>
       <Input ref={nameInput} type="text" className="w-full" />
-      <text>Image</text>
+      <div>Image</div>
       <div className="flex flex-row space-x-2">
         <Input ref={imageInput} type="text" className="w-full" />
         <Button onPointerDown={openImageFilePicker} size={"icon"}>

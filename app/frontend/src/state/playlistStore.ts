@@ -31,26 +31,28 @@ const games = [Game.Genshin, Game.StarRail, Game.ZZZ, Game.WuWa];
 export const usePlaylistStore = create<PlaylistState>((set, get) => ({
   playlists: initailPlaylists(),
   create: async (game, name) => {
-    DB.createPlaylist(game, name).then(() => get().refresh(game));
+    DB.mutations.createPlaylist(game, name).then(() => get().refresh(game));
   },
   updates: 0,
   enable: async (game, id) => {
     const playlist = get().playlists[game].find((p) => p.playlist.id === id);
     if (playlist === undefined) return;
-    DB.enableMods(
-      playlist.modsWithTags.map(({ mod }) => mod.id),
-      game
-    ).then(() => {
-      set((state) => ({ updates: state.updates + 1 }));
-    });
+    DB.mutations
+      .enableMods(
+        playlist.modsWithTags.map(({ mod }) => mod.id),
+        game,
+      )
+      .then(() => {
+        set((state) => ({ updates: state.updates + 1 }));
+      });
   },
   init: async () => {
     const lists = await Promise.all(
       games.flatMap((i) =>
-        DB.selectPlaylistWithModsAndTags(i).then((v) => {
+        DB.queries.selectPlaylistWithModsAndTags(i).then((v) => {
           return { k: i, v: v };
-        })
-      )
+        }),
+      ),
     );
     const data: PlaylistMap = {};
     for (let { k, v } of lists) {
@@ -61,10 +63,10 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     });
   },
   refresh: async (game: number) => {
-    DB.selectPlaylistWithModsAndTags(game).then((value) => {
+    DB.queries.selectPlaylistWithModsAndTags(game).then((value) => {
       set((prev) => {
-        const copy = prev.playlists
-        copy[game] = value
+        const copy = prev.playlists;
+        copy[game] = value;
         return {
           playlists: copy,
         };
@@ -72,17 +74,16 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
     });
   },
   delete: async (id: number) => {
-    DB.deletePlaylistById(id).then(() => get().init());
+    DB.mutations.deletePlaylistById(id).then(() => get().init());
   },
   renamePlaylist: async (playlist: types.Playlist, name: string) => {
-    get().rename(playlist.id, playlist.game, name)
+    get().rename(playlist.id, playlist.game, name);
   },
   rename: async (id: number, game: number, name: string) => {
-
     if (name.isBlank()) {
-      return
+      return;
     }
 
-    DB.updatePlaylistName(id, name).then(() => get().refresh(game))
-  }
+    DB.mutations.updatePlaylistName(id, name).then(() => get().refresh(game));
+  },
 }));

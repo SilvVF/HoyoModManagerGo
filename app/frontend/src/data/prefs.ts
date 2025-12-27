@@ -24,9 +24,12 @@ import * as EnabledPluginsPref from "../../wailsjs/go/core/EnabledPluginsPref";
 import * as RootModDirPref from "../../wailsjs/go/core/RootModDirPref";
 import * as UseViewTransitionsPref from "../../wailsjs/go/core/UseViewTransitions";
 import * as Oneko from "../../wailsjs/go/core/Oneko";
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
-import { queryClient } from "./queryClient";
-import { useStateProducer } from "@/lib/utils";
+import {
+  useQuery,
+  useQueryClient,
+  UseQueryResult,
+} from "@tanstack/react-query";
+import { useResource } from "@/lib/utils";
 
 export type GoPref<T extends any> = {
   DefaultValue(): Promise<T>;
@@ -77,12 +80,8 @@ export function usePrefQuery<T>(
   UseQueryResult<NoInfer<T>, Error>,
   (update: (prev: T) => T | undefined) => void,
 ] {
-  const prefKey = useStateProducer<undefined | string>(
-    undefined,
-    async (update) => {
-      update(await pref.Key());
-    },
-  );
+  const prefKey = useResource(pref.Key);
+  const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ["pref", prefKey],

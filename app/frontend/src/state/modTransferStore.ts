@@ -2,8 +2,8 @@
 // see if this is even need to be shown over app or can be done in the background
 
 import { rootModDirPref } from "@/data/prefs";
-import { queryClient } from "@/data/queryClient";
 import { CancelFn } from "@/lib/tsutils";
+import { QueryClient } from "@tanstack/react-query";
 import { ChangeRootModDir, RemoveOldModDir } from "wailsjs/go/main/App";
 import { EventsOn, LogDebug } from "wailsjs/runtime/runtime";
 import { create } from "zustand";
@@ -35,7 +35,7 @@ export interface ModTransferStore {
   start: (dest: string) => void;
   listen: () => CancelFn;
   clearOldDir: () => void;
-  confirm: (shouldTransfer: boolean) => void;
+  confirm: (shouldTransfer: boolean, queryClient: QueryClient) => void;
   resetStore: () => void;
 }
 
@@ -81,7 +81,7 @@ export const useModTransferStore = create<ModTransferStore>((set, get) => ({
       progress: { progress: 0, total: 0 },
     });
   },
-  confirm: (shouldTransfer: boolean) => {
+  confirm: (shouldTransfer: boolean, queryClient: QueryClient) => {
     const newDir = get().newDir;
     const prevDir = get().prevDir;
 

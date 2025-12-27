@@ -164,7 +164,7 @@ export function PlaylistOptionsDropDown({
         onSuccess={(name) => renamePlaylist(playlist, name)}
       />
       <DropdownMenu open={isOpen} onOpenChange={setOpen}>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger>
           <Button className="col-span-1" variant={"ghost"} size="icon">
             <EllipsisVertical />
           </Button>

@@ -1,7 +1,6 @@
 import { formatBytes } from "@/lib/tsutils";
 import { TransferState, useModTransferStore } from "@/state/modTransferStore";
 import { ChartItem } from "@/state/useStatsState";
-import { useCallback } from "react";
 import { useShallow } from "zustand/shallow";
 import { SettingsDirItem } from "./SettingsDirItem";
 import { Button } from "./ui/button";
@@ -17,6 +16,7 @@ import {
 import { Skeleton } from "./ui/skeleton";
 import { SizeChart } from "@/screens/SettingsScreen";
 import { Progress } from "./ui/progress";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const transferText: {
   [key in TransferState]: {
@@ -53,7 +53,7 @@ export const transferText: {
 export type TransferAction = {
   pos: boolean;
   text: string;
-  inProgres?: boolean;
+  inProgress?: boolean;
   action: () => void;
 };
 
@@ -62,6 +62,8 @@ export function useModTransferActions(): TransferAction[] {
   const start = useModTransferStore((state) => state.start);
   const confirm = useModTransferStore((state) => state.confirm);
   const deleting = useModTransferStore(useShallow((state) => state.deleting));
+  const queryClient = useQueryClient();
+
   const pendingDelete = useModTransferStore(
     useShallow((state) => state.pendingDelete),
   );
@@ -76,8 +78,13 @@ export function useModTransferActions(): TransferAction[] {
   } else if (state === "confirm") {
     return [
       { pos: false, text: "Cancel", action: closeDialog },
-      { pos: true, text: "Set without Transfer", action: () => confirm(false) },
-      { pos: true, text: "Transfer", action: () => confirm(true) },
+      {
+        pos: true,
+        text: "Set without Transfer",
+        action: () => confirm(false, queryClient),
+      },
+      { pos: true, text: "Transfer", action: () => confirm(true, queryClient) },
+      { pos: true, text: "Transfer", action: () => confirm(true, queryClient) },
     ];
   } else if (state === "success") {
     return [
@@ -85,7 +92,7 @@ export function useModTransferActions(): TransferAction[] {
         pos: false,
         text: "Delete old directory",
         action: clearOldDir,
-        inProgres: deleting,
+        inProgress: deleting,
       },
       { pos: true, text: "Continue without deleting", action: closeDialog },
     ];
@@ -101,7 +108,7 @@ export function useModTransferActions(): TransferAction[] {
         pos: true,
         text: "Retry Deleting old directory",
         action: clearOldDir,
-        inProgres: deleting,
+        inProgress: deleting,
       },
     ];
   } else if (state === "delete" && pendingDelete === undefined) {
@@ -118,19 +125,10 @@ export function MigrateModsDirDialog({
   stats: ChartItem | undefined;
 }) {
   const state = useModTransferStore((state) => state.state);
-  const actions = useModTransferActions(() => onOpenChange(false));
-
-  const handleOpenChange = useCallback(
-    (open: boolean) => {
-      if (state === "success" || state === "error" || state === "idle") {
-        onOpenChange(open);
-      }
-    },
-    [state],
-  );
+  const actions = useModTransferActions();
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open}>
       <DialogContent className="min-h-[80%] max-w-[60%]">
         <DialogHeader>
           <DialogTitle>{transferText[state]["title"]}</DialogTitle>

@@ -39,8 +39,7 @@ import useTransitionNavigate, {
   useTransitionNavigateDelta,
 } from "@/hooks/useCrossfadeNavigate";
 import { useDialogStore } from "@/components/appdialog";
-import DB, { useMod } from "@/data/database";
-import { useQuery } from "@tanstack/react-query";
+import DB, { useDbQuery } from "@/data/database";
 
 export function KeymappingScreen() {
   const { modId } = useParams();
@@ -48,41 +47,48 @@ export function KeymappingScreen() {
   const navigateDelta = useTransitionNavigateDelta();
   const setDialog = useDialogStore(useShallow((s) => s.setDialog));
 
-  const { data: mod, isSuccess: modSuccess } = useMod(Number(modId), [modId]);
+  const { data: mod, hasLoaded: modSuccess } = useDbQuery(
+    () => DB.queries.selectModById(Number(modId)),
+    ["mods"],
+    [modId],
+  );
 
-  const { data: tagsResult } = useQuery({
-    queryKey: DB.tagsKey(),
-    queryFn: async () => await DB.selectTagsByModId(mod!!.id),
-    enabled: modSuccess,
-  });
+  const { data: tagsResult } = useDbQuery(
+    () => DB.queries.selectTagsByModId(mod?.id ?? -1),
+    ["tags"],
+    [mod],
+    modSuccess,
+  );
 
   const tags = tagsResult ?? [];
 
-  const { data: character } = useQuery({
-    queryKey: DB.charactersKey(),
-    queryFn: async () => DB.selectClosestCharacter(mod!!.character, mod!!.game),
-    enabled: modSuccess,
-  });
+  const { data: character } = useDbQuery(
+    () =>
+      DB.queries.selectClosestCharacter(mod?.character ?? "", mod?.game ?? -1),
+    ["characters"],
+    [mod],
+    modSuccess,
+  );
 
   const [expandImgs, setExpandImgs] = useState(false);
   const [hoveredImg, setHoveredImg] = useState("");
 
   const deleteMod = async (id: number) => {
-    DB.deleteMod(id).then(() => navigateDelta(-1));
+    DB.mutations.deleteMod(id).then(() => navigateDelta(-1));
   };
 
   const enableMod = async (id: number, enabled: boolean) => {
-    DB.enableMod(id, enabled);
+    DB.mutations.enableMod(id, enabled);
   };
 
   const removeImageFile = (uri: string, mod: types.Mod) => {
     const set = new Set(mod.previewImages);
     set.delete(uri);
-    DB.updateModImages(mod.id, Array.from(set));
+    DB.mutations.updateModImages(mod.id, Array.from(set));
   };
 
   const handleDeleteTag = (name: string, modId: number) => {
-    DB.deleteTag(modId, name);
+    DB.mutations.deleteTag(modId, name);
   };
 
   const addImageFile = () => {
@@ -95,7 +101,7 @@ export function KeymappingScreen() {
         for (const file of files) {
           set.add("file://" + file);
         }
-        DB.updateModImages(mod?.id ?? -1, Array.from(set));
+        DB.mutations.updateModImages(mod?.id ?? -1, Array.from(set));
       },
     );
   };
@@ -137,7 +143,7 @@ export function KeymappingScreen() {
                     return Math.max(0, Math.floor(Number(value)));
                   }}
                   changeValue={(v) => {
-                    DB.updateModGbId(mod.id, v);
+                    DB.mutations.updateModGbId(mod.id, v);
                   }}
                   type="number"
                 />

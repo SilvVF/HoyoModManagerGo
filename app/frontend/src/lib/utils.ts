@@ -12,7 +12,7 @@ const MOBILE_BREAKPOINT = 768;
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(
-    undefined
+    undefined,
   );
 
   React.useEffect(() => {
@@ -38,7 +38,7 @@ export function useStateProducerT<T extends any, E = Error>(
   defaultValue: T,
   producer: (update: (value: T) => void) => Promise<void>,
   keys: ReadonlyArray<unknown> = [],
-  debounce: number = 0
+  debounce: number = 0,
 ): ProducedState<T, E> {
   const [value, setValue] = useState(defaultValue);
   const [loading, setLoading] = useState(false);
@@ -72,50 +72,73 @@ export function useStateProducerT<T extends any, E = Error>(
   };
 }
 
+export function useResource<T>(
+  resourceFn: () => Promise<T>,
+  deps: ReadonlyArray<unknown> = [],
+) {
+  const [value, setValue] = useState<T | undefined>(undefined);
+
+  useEffect(() => {
+    let aborted = false;
+
+    resourceFn().then((resource) => {
+      if (!aborted) setValue(resource);
+    });
+
+    return () => {
+      aborted = true;
+    };
+  }, deps);
+
+  return value;
+}
+
 export function useStateProducer<T extends any>(
   defaultValue: T,
   producer: (
-    update: (value: T) => void,
+    update: (value: T | ((prev: T) => T)) => void,
     onDispose: (dipose: () => void) => void,
+    value: () => T,
   ) => void,
-  keys: ReadonlyArray<unknown> = []
+  keys: ReadonlyArray<unknown> = [],
 ): T {
   const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
-    let aborted = false
-    let disposed = false
-    let disposeFn: ((() => void) | null) = null
+    let aborted = false;
+    let disposed = false;
+    let disposeFn: (() => void) | null = null;
 
     const disposeIfAborted = () => {
       if (aborted && !disposed && disposeFn) {
-        disposeFn()
-        disposed = true
+        disposeFn();
+        disposed = true;
       }
-    }
+    };
 
     try {
       producer(
         (v) => {
           if (!aborted) {
-            setValue(v)
+            setValue(v);
           } else {
-            disposeIfAborted()
+            disposeIfAborted();
           }
         },
         (dispose) => {
-          disposeFn = dispose
-          disposeIfAborted()
-        }
+          disposeFn = dispose;
+          disposeIfAborted();
+        },
+        () => value,
       );
     } catch (e: any) {
       LogError(e);
     }
 
     return () => {
-      aborted = true
-      disposeIfAborted()
-    }
+      aborted = true;
+      disposeIfAborted();
+    };
   }, keys);
 
   return value;

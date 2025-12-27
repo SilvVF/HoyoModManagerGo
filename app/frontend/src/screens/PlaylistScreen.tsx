@@ -18,8 +18,7 @@ import { usePlaylistStore } from "@/state/playlistStore";
 import { useShallow } from "zustand/shallow";
 import { playlistGamePref, usePrefQuery } from "@/data/prefs";
 import { Game } from "@/data/dataapi";
-import DB from "@/data/database";
-import { useQuery } from "@tanstack/react-query";
+import DB, { useDbQuery } from "@/data/database";
 
 const gameNameFromId = (n: number) => {
   switch (n) {
@@ -67,19 +66,20 @@ function PlaylistScreenContent({
   const enablePlaylist = usePlaylistStore((state) => state.enable);
   const updates = usePlaylistStore(useShallow((state) => state.updates));
 
-  const { data: modsResult } = useQuery({
-    queryKey: [...DB.characterModsTagsTexturesKey(), game, updates],
-    queryFn: () => DB.selectCharacterWithModsTagsAndTextures(game, "", "", ""),
-  });
+  const { data: modsResult } = useDbQuery(
+    () => DB.queries.selectCharacterWithModsTagsAndTextures(game, "", "", ""),
+    ["characters", "mods", "tags"],
+    [game, updates],
+  );
 
   const mods = modsResult ?? [];
 
   const toggleModEnabled = (enabled: boolean, id: number) => {
-    DB.enableMod(id, enabled);
+    DB.mutations.enableMod(id, enabled);
   };
 
   const unselectAllMods = () => {
-    DB.disableAllMods(game);
+    DB.mutations.disableAllMods(game);
   };
 
   const togglePlaylistEnabled = (pwmt: types.PlaylistWithModsAndTags) => {

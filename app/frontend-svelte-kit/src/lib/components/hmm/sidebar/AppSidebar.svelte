@@ -87,7 +87,7 @@
 						<Sidebar.SidebarMenuButton
 							variant={page.url.pathname === item.path ? 'outline' : 'default'}
 							class="w-full"
-							onclick={() => goto(item.path)}
+							onclick={() => goto(item.path, { replaceState: true })}
 						>
 							<item.icon />
 							<a href={item.path}>
